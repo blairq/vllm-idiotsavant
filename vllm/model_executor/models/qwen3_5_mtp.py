@@ -387,7 +387,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
         _genesis_p112_remapped = remap_weight_names(weights)
         if _genesis_p112_cache_enabled:
             try:
-                from vllm._genesis.mtp_cache import MTPQuantDiskCacheManager
+                from vllm.idiotsavant.mtp_cache import MTPQuantDiskCacheManager
                 _genesis_p112_model_name = "qwen3_mtp"
                 if hasattr(self, "vllm_config") and hasattr(self.vllm_config, "model_config"):
                     _genesis_p112_model_name = getattr(self.vllm_config.model_config, "model", "qwen3_mtp")
@@ -406,7 +406,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                 )
             except Exception as _p112_exc:
                 import logging as _genesis_logging
-                _genesis_logging.getLogger("genesis.p112").warning("[Genesis P112] MTP cache hook fallback: %s", _p112_exc)
+                _genesis_logging.getLogger("idiotsavant.p112").warning("[Genesis P112] MTP cache hook fallback: %s", _p112_exc)
                 _genesis_p112_remapped = remap_weight_names(weights)
 
         loader = AutoWeightsLoader(self)

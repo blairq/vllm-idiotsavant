@@ -132,7 +132,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
         bloque residente puede ser desalojado, y sin ese filtro el set de
         tags crece con cada clave de cada request.
         """
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         if _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         ):
@@ -154,7 +154,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
           slot (el slot se reutiliza en esta misma llamada);
         - marca las claves nuevas como persistibles si el agente lo permite.
         """
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         should_persist = _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         )
@@ -191,8 +191,8 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
             # SSD, asi que es el contador que cierra la cadena.
             if to_evict:
                 try:
-                    from vllm._genesis import kv_sparse_gdn as _g95_gdn
-                    from vllm._genesis import kv_tier_metrics as _g95_m
+                    from vllm.idiotsavant import kv_sparse_gdn as _g95_gdn
+                    from vllm.idiotsavant import kv_tier_metrics as _g95_m
 
                     _g95_bb = _g95_gdn.block_write_bytes()
                     _g95_m.note_eviction(
@@ -419,7 +419,7 @@ class TieringOffloadingManager(OffloadingManager):
             # Los jobs de democion usan ids NEGATIVOS y no tienen JobMetadata
             # (no tomaron ref_cnt: el bloque ya no esta en primary). Se filtran
             # por signo para no perder el assert de los jobs reales.
-            from vllm._genesis import kv_disk_gate as _g90
+            from vllm.idiotsavant import kv_disk_gate as _g90
             for completed_job in tier.get_finished_jobs():
                 job_id = completed_job.job_id
                 if _g90.is_demote_job_id(job_id):
@@ -698,7 +698,7 @@ class TieringOffloadingManager(OffloadingManager):
         # [Genesis PN90 kv disk write gating & tiered demotion]
         # Se drena SIEMPRE, incluso si primary_result es None: los snapshots
         # ya fueron tomados y el slot de L2 ya se reutilizo.
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         _g90.submit_pending_demotions(self.secondary_tiers, req_context)
 
         if primary_result is None:
@@ -746,7 +746,7 @@ class TieringOffloadingManager(OffloadingManager):
         # Este camino tambien escribe a un tier secundario, asi que pasa por
         # el mismo gate. Esta dormido para el tier fs (politica BLOCK_LEVEL),
         # pero dejarlo sin gatear era una via de escritura sin control.
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         if not _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         ):
@@ -953,7 +953,7 @@ class TieringOffloadingManager(OffloadingManager):
         # primary_tier.prepare_write() directamente, sin pasar por
         # TieringOffloadingManager.prepare_store. Las evicciones de ese camino
         # dejan snapshots que nadie drenaria.
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         _g90.submit_pending_demotions(self.secondary_tiers, None)
         self._processed_jobs_this_step = False
 

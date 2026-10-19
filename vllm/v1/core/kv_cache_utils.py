@@ -2065,7 +2065,7 @@ def update_kv_cache_capacity(
     # worker y se escribe el informe para humanos. El loop es por-rank: el guard emite
     # UNA vez.
     try:
-        from vllm._genesis import analisis_arranque as _g83
+        from vllm.idiotsavant import analisis_arranque as _g83
 
         if not getattr(_g83, "_informe_emitido", False):
             _g83._informe_emitido = True

@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from vllm._genesis import grafo_borrador as _g150  # [Genesis PN150: borrador en grafo]
+from vllm.idiotsavant import grafo_borrador as _g150  # [Genesis PN150: borrador en grafo]
 import torch.nn as nn
 
 from vllm.config import VllmConfig, replace

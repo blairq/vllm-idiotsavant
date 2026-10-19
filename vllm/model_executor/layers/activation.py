@@ -25,7 +25,7 @@ logger = init_logger(__name__)
 # cached global — never registers from inside a Dynamo trace, which
 # was the v7.66 failure mode on TP=1 spawn workers.
 try:
-    from vllm._genesis.kernels.silu_and_mul_customop import (
+    from vllm.idiotsavant.kernels.silu_and_mul_customop import (
         get_op_callable as _genesis_pn25_get_op_callable,
     )
     _GENESIS_PN25_SILU_AND_MUL_OP = _genesis_pn25_get_op_callable()
@@ -169,7 +169,7 @@ class SiluAndMul(CustomOp):
         d = x.shape[-1] // 2
         output_shape = x.shape[:-1] + (d,)
         try:
-            from vllm._genesis.kernels.ffn_intermediate_cache import (
+            from vllm.idiotsavant.kernels.ffn_intermediate_cache import (
                 FFNIntermediateCache as _GENESIS_PN12_Cache,
             )
             if _GENESIS_PN12_Cache.is_production_eligible() and x.dim() == 2:

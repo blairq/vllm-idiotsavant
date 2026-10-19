@@ -5,7 +5,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import torch
-from vllm._genesis import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
+from vllm.idiotsavant import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
 import torch.nn.functional as F
 from torch import nn
 
@@ -22,8 +22,8 @@ from .qwen3_dflash import (
     DFlashQwen3Model,
 )
 from .utils import maybe_prefix
-from vllm._genesis import vocab_borrador as _g159  # [Genesis PN159: vocabulario recortado del borrador]
-from vllm._genesis import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
+from vllm.idiotsavant import vocab_borrador as _g159  # [Genesis PN159: vocabulario recortado del borrador]
+from vllm.idiotsavant import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
 
 
 def _grouped_conv(

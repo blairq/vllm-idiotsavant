@@ -22,7 +22,7 @@ from vllm.distributed import (
 )
 from vllm.logger import init_logger
 # [Genesis PN120: all-reduce INT8] import a nivel de modulo a proposito
-from vllm._genesis import ar_int8 as _g120
+from vllm.idiotsavant import ar_int8 as _g120
 from vllm.model_executor.custom_op import PluggableLayer
 from vllm.model_executor.determinism.batch_invariant import (
     linear_batch_invariant,

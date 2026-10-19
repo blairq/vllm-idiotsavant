@@ -27,7 +27,7 @@ from vllm.v1.worker.gpu.mm.encoder_cache import EncoderCache
 from vllm.v1.worker.gpu.model_states.default import DefaultModelState
 from vllm.v1.worker.gpu.model_states.interface import ModelSpecificAttnMetadata
 from vllm.v1.worker.gpu.model_states.recoverssm import RecoverSSMState
-from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 from vllm.v1.worker.mamba_utils import (
     MambaSpecDecodeGPUContext,
     get_mamba_group_ids,

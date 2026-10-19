@@ -203,7 +203,7 @@ class CPUOffloadingManager(OffloadingManager):
         # evaluado aca: cpu/manager.prepare_store no tiene ese nombre en
         # scope, y la decision depende de kv_transfer_params de la request.
         try:
-            from vllm._genesis import kv_disk_gate as _g100_gate
+            from vllm.idiotsavant import kv_disk_gate as _g100_gate
 
             _g100_persist = _g100_gate.should_persist_to_secondary_tiers(
                 getattr(req_context, 'kv_transfer_params', None)
@@ -211,12 +211,12 @@ class CPUOffloadingManager(OffloadingManager):
         except Exception:
             _g100_persist = True
         if not _g100_persist:
-            from vllm._genesis import kv_staging_ring as _g100
+            from vllm.idiotsavant import kv_staging_ring as _g100
 
             _g100_lib = _g100.hacer_lugar(self, keys_to_store)
             if _g100_lib:
                 try:
-                    from vllm._genesis import kv_tier_metrics as _g100_m
+                    from vllm.idiotsavant import kv_tier_metrics as _g100_m
 
                     _g100_m.note_eviction(
                         'ram', 'anillo', count=_g100_lib, freed_bytes=0
@@ -253,8 +253,8 @@ class CPUOffloadingManager(OffloadingManager):
             # contador no se puede distinguir 'no hubo presion' de
             # 'la carga fue chica'.
             try:
-                from vllm._genesis import kv_sparse_gdn as _g95_gdn
-                from vllm._genesis import kv_tier_metrics as _g95_m
+                from vllm.idiotsavant import kv_sparse_gdn as _g95_gdn
+                from vllm.idiotsavant import kv_tier_metrics as _g95_m
 
                 if to_evict:
                     _g95_bb = _g95_gdn.block_write_bytes()
@@ -325,8 +325,8 @@ class CPUOffloadingManager(OffloadingManager):
         # Va ANTES del bloque de eventos a proposito: los eventos pueden
         # estar apagados y la ocupacion cambia igual.
         try:
-            from vllm._genesis import kv_sparse_gdn as _g95_gdn
-            from vllm._genesis import kv_tier_metrics as _g95_m
+            from vllm.idiotsavant import kv_sparse_gdn as _g95_gdn
+            from vllm.idiotsavant import kv_tier_metrics as _g95_m
 
             _g95_bb = _g95_gdn.block_write_bytes()
             if _g95_bb:

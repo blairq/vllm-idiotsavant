@@ -7,7 +7,7 @@
 
 import io
 from collections.abc import Iterable
-from vllm._genesis import rot_qk as _g126  # [Genesis PN126: rotacion qk]
+from vllm.idiotsavant import rot_qk as _g126  # [Genesis PN126: rotacion qk]
 
 import torch
 import torch.nn.functional as F
@@ -22,7 +22,7 @@ from vllm.distributed import (
     get_tensor_model_parallel_world_size,
 )
 from vllm.logger import init_logger
-from vllm._genesis import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
+from vllm.idiotsavant import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
 from vllm.model_executor.layers.attention import Attention
 from vllm.model_executor.layers.layernorm import RMSNorm
 from vllm.model_executor.layers.linear import (
@@ -32,7 +32,7 @@ from vllm.model_executor.layers.linear import (
 )
 from vllm.model_executor.layers.logits_processor import LogitsProcessor
 from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
-from vllm._genesis import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
+from vllm.idiotsavant import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
 from vllm.model_executor.layers.rotary_embedding import get_rope
 from vllm.model_executor.layers.vocab_parallel_embedding import (
     ParallelLMHead,

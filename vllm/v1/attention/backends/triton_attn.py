@@ -41,7 +41,7 @@ from vllm.v1.attention.ops.triton_reshape_and_cache_flash import (
     triton_reshape_and_cache_flash_per_token_head_quant,
 )
 from vllm.v1.attention.ops.triton_unified_attention import unified_attention
-from vllm._genesis import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
+from vllm.idiotsavant import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
 from vllm.v1.kv_cache_interface import (
     AttentionSpec,
     KVQuantMode,

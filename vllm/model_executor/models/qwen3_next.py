@@ -10,7 +10,7 @@ from itertools import islice
 
 import torch
 from torch import nn
-from vllm._genesis import rot_qk as _g126  # [Genesis PN126: rotacion qk]
+from vllm.idiotsavant import rot_qk as _g126  # [Genesis PN126: rotacion qk]
 
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import CacheConfig, ModelConfig, VllmConfig
@@ -28,8 +28,8 @@ from vllm.model_executor.layers.fused_moe.utils import (
     resolve_layer_fused_shared_expert,
 )
 from vllm.model_executor.layers.fused_qk_norm_rope import fused_qk_rmsnorm_rope_gate
-from vllm._genesis import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
-from vllm._genesis import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
+from vllm.idiotsavant import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
+from vllm.idiotsavant import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
 from vllm.model_executor.layers.layernorm import (
     GemmaRMSNorm as Qwen3NextRMSNorm,
 )

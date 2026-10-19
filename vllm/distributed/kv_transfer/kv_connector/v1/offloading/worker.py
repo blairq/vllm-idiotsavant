@@ -63,7 +63,7 @@ class OffloadingConnectorWorker:
 
     def _init_worker(self, kv_caches: CanonicalKVCaches) -> None:
         self.worker = self.spec.get_worker(kv_caches)
-        from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+        from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
         _g170.registrar_kv(kv_caches)
 
     def register_kv_caches(self, kv_caches: dict[str, torch.Tensor]):
@@ -228,7 +228,7 @@ class OffloadingConnectorWorker:
         # Submit deferred stores from previous step (and jobs_to_flush above).
         for job_id, src_spec, dst_spec in self._unsubmitted_store_jobs:
             assert isinstance(src_spec, GPULoadStoreSpec)
-            from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+            from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
             _g170.al_guardar(job_id, src_spec)
             success = self.worker.submit_store(job_id, src_spec, dst_spec)
             assert success
@@ -239,7 +239,7 @@ class OffloadingConnectorWorker:
 
     def start_kv_transfers(self, metadata: OffloadingConnectorMetadata):
         assert self.worker is not None
-        from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+        from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
         for job_id, src_spec, dst_spec in self._unsubmitted_store_jobs:
             _g170.al_guardar(job_id, src_spec)
             success = self.worker.submit_store(job_id, src_spec, dst_spec)
@@ -298,7 +298,7 @@ class OffloadingConnectorWorker:
                 )
 
             self._connector_worker_meta.mark_completed(job_id)
-            from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+            from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
             _g170.carga_lista(job_id)
             req_id = self._load_jobs.pop(job_id, None)
             if req_id is not None:

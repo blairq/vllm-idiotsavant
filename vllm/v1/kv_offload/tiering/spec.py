@@ -393,7 +393,7 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
             try:
                 import os as _g98_os
 
-                from vllm._genesis import l2_sizing as _g98
+                from vllm.idiotsavant import l2_sizing as _g98
 
                 _g98_grupos = len(self.kv_cache_config.kv_cache_groups)
                 _g98_rec = 0

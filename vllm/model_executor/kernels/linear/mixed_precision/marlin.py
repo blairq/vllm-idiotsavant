@@ -216,7 +216,7 @@ class MarlinLinearKernel(MPLinearKernel):
         else:
             setattr(layer, self.w_zp_name, marlin_make_empty_g_idx(device))
         # [Genesis PN125: escalas positivas para Marlin W4A8]
-        from vllm._genesis.marlin_w4a8_escalas import positivizar as _g125
+        from vllm.idiotsavant.marlin_w4a8_escalas import positivizar as _g125
         _g125(layer, self.w_q_name, self.w_s_name, c)
         self._transform_param(layer, self.w_q_name, transform_w_q)
         self._transform_param(layer, self.w_s_name, transform_w_s)

@@ -25,7 +25,7 @@ Lo que el orquestador registra en memoria se pierde al salir de ese proceso.
 |---|---|
 | Parches reportados como aplicados en el último arranque | 83 (`parches_aplicados.txt`) |
 | Archivos de vLLM modificados | 52 |
-| Módulos de soporte (`vllm/_genesis`) | 81 `.py`, ~21k líneas |
+| Módulos de soporte (`vllm/_genesis`, hoy `vllm/idiotsavant`) | 81 `.py`, ~21k líneas |
 | Kernels `.cu` usados | 28 de 63 (+ `sk18h_comun.cuh`) |
 | Extensión C++/CUDA | Marlin S16 (PN130), hoy compilada en runtime |
 | Kernels Triton en el camino activo | `gdn_cinta`, `arbol_conv`, `arbol_borrador`, `gdn_meta`, `logits_rango`, `silu_had`, `kernels/pn50_gdn_fused_proj` |

@@ -198,7 +198,7 @@ class OffloadingConnector(KVConnectorBase_V1, SupportsHMA):
     # PN88 y se manda por el mismo canal de stats que ya viaja a /metrics,
     # dentro del formato tipado que 0.27 espera (TYPES/DATA).
     def get_kv_connector_stats(self) -> KVConnectorStats | None:
-        from vllm._genesis import kv_tier_metrics as _g88
+        from vllm.idiotsavant import kv_tier_metrics as _g88
         _g88_stats = (
             self.connector_scheduler.get_stats()
             if self.connector_scheduler is not None

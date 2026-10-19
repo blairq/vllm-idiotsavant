@@ -31,7 +31,7 @@ from vllm.distributed.kv_transfer.kv_connector.v1 import (
 from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorMetadata
 from vllm.distributed.kv_transfer.kv_connector.v1.metrics import KVConnectorStats
 from vllm.logger import init_logger
-from vllm._genesis import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
+from vllm.idiotsavant import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
 from vllm.model_executor.layers.fused_moe.routed_experts_capturer import (
     RoutedExpertsManager,
 )
@@ -518,7 +518,7 @@ class Scheduler(SchedulerInterface):
 
     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
         self.current_step += 1
-        __import__('vllm._genesis.chunk_dinamico', fromlist=['x']).ajustar(self)  # [Genesis PN173: chunk de prefill dinamico]
+        __import__('vllm.idiotsavant.chunk_dinamico', fromlist=['x']).ajustar(self)  # [Genesis PN173: chunk de prefill dinamico]
         # NOTE(woosuk) on the scheduling algorithm:
         # There's no "decoding phase" nor "prefill phase" in the scheduler.
         # Each request just has the num_computed_tokens and
@@ -558,7 +558,7 @@ class Scheduler(SchedulerInterface):
         # For logging.
         scheduled_timestamp = time.monotonic()
         # [Genesis PN115: KV headroom gating & priority bypass v2]
-        from vllm._genesis import dynamic_pid_gating as _g115
+        from vllm.idiotsavant import dynamic_pid_gating as _g115
         _g115.update_step_with_scheduler(
             scheduler=self,
             step_duration_ms=(scheduled_timestamp - getattr(self, '_g115_last_step_start', scheduled_timestamp)) * 1000.0,
@@ -810,7 +810,7 @@ class Scheduler(SchedulerInterface):
             step_skipped_waiting = create_request_queue(self.policy)
             # [Genesis PN115: KV headroom gating & priority bypass v2] — import izado: una vez por
             # schedule(), no una vez por request en el bucle caliente.
-            from vllm._genesis import dynamic_pid_gating as _g115
+            from vllm.idiotsavant import dynamic_pid_gating as _g115
 
             while (self.waiting or self.skipped_waiting) and token_budget > 0:
                 if input_budget <= draft_slots:

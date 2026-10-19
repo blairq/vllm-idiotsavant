@@ -282,7 +282,7 @@ class FileSystemTierManager(SecondaryTierManager):
         A diferencia de submit_store, el dato NO vive mas en el primary tier:
         el slot ya fue reutilizado. Por eso se escribe desde `snapshot`.
         """
-        from vllm._genesis import kv_disk_gate as _g90
+        from vllm.idiotsavant import kv_disk_gate as _g90
         dest_path = self.file_mapper.get_file_name(key)
         # El bloque ya esta en el SSD: reescribirlo es amplificacion de
         # escritura pura. GDN es ~75% del trafico de este tier.
@@ -292,7 +292,7 @@ class FileSystemTierManager(SecondaryTierManager):
         from vllm.v1.kv_offload.tiering.fs.io import _store_block as store_block
         task = functools.partial(store_block, dest_path, buf, 0, len(buf))
         _job_id = _g90.next_demote_job_id()
-        from vllm._genesis import kv_tier_metrics as _g88
+        from vllm.idiotsavant import kv_tier_metrics as _g88
         if _g88.enabled():
             try:
                 _params = getattr(req_context, 'kv_transfer_params', None)
@@ -459,7 +459,7 @@ class FileSystemTierManager(SecondaryTierManager):
                                     # PN88: sacar el desalojo a metricas. Best-effort
                                     # y con import local: si PN88 no esta, no pasa nada.
                                     try:
-                                        from vllm._genesis import kv_tier_metrics as _g88
+                                        from vllm.idiotsavant import kv_tier_metrics as _g88
                                         _g88.note_eviction('disk', 'orphan', 1, _peso)
                                     except Exception:
                                         pass
@@ -494,7 +494,7 @@ class FileSystemTierManager(SecondaryTierManager):
                     # PN88: ocupacion del tier como gauge. Va ANTES del early return
                     # para que se publique en cada chequeo, se pode o no.
                     try:
-                        from vllm._genesis import kv_tier_metrics as _g88
+                        from vllm.idiotsavant import kv_tier_metrics as _g88
                         _g88.set_occupancy('disk', _total, _limit)
                     except Exception:
                         pass
@@ -515,7 +515,7 @@ class FileSystemTierManager(SecondaryTierManager):
                         except OSError:
                             continue
                     try:
-                        from vllm._genesis import kv_tier_metrics as _g88
+                        from vllm.idiotsavant import kv_tier_metrics as _g88
                         _g88.note_eviction('disk', 'quota', _n, _freed)
                         _g88.set_occupancy('disk', _total - _freed, _limit)
                     except Exception:

@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from vllm.utils.math_utils import cdiv
 from vllm.v1.core.block_pool import BlockPool
-from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 from vllm.v1.core.kv_cache_utils import (
     BlockHashList,
     BlockHashListWithBlockSize,
@@ -484,7 +484,7 @@ class SingleTypeKVCacheManager(ABC):
         if block_mask is not None and __import__('os').environ.get('GENESIS_PN168_DIAG') == '1':  # [Genesis PN168: borde de reuso con EAGLE]
             _bl = self.req_to_blocks[request.request_id]
             _m = [start for start, v in enumerate(block_mask) if v]
-            __import__('logging').getLogger('genesis.pn168').warning(
+            __import__('logging').getLogger('idiotsavant.pn168').warning(
                 'PN168 diag req=%s g=%d bloques %d..%d prompt=%d marcados %s nulos %s', request.request_id[:10],
                 self.kv_cache_group_id, num_cached_blocks, num_full_blocks, request.num_prompt_tokens,
                 [num_cached_blocks + i for i in _m],
@@ -1494,7 +1494,7 @@ class MambaManager(SingleTypeKVCacheManager):
                 break  # we just need the last match - early stopping
 
         if __import__('os').environ.get('GENESIS_PN168_DIAG') == '1':  # [Genesis PN168: borde de reuso con EAGLE]
-            __import__('logging').getLogger('genesis.pn168').warning(
+            __import__('logging').getLogger('idiotsavant.pn168').warning(
                 'PN168 lookup g=%s max_length=%d max_bloques=%d alin=%d bs=%d hit=%d cacheados_al_final=%s',
                 kv_cache_group_ids, max_length, max_num_blocks, alignment_tokens, block_size, hit_length,
                 [j for j in range(max(0, max_num_blocks - 8), min(max_num_blocks + 2, len(block_hashes)))

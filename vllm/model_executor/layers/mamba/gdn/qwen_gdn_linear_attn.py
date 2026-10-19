@@ -21,9 +21,9 @@ from torch import nn
 
 from vllm import _custom_ops as ops
 from vllm import envs
-from vllm._genesis import gdn_vistas as _g164  # [Genesis PN164: vistas del GDN]
-from vllm._genesis import gdn_salida as _g163  # [Genesis PN163: salida del GDN]
-from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_vistas as _g164  # [Genesis PN164: vistas del GDN]
+from vllm.idiotsavant import gdn_salida as _g163  # [Genesis PN163: salida del GDN]
+from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 from vllm._aiter_ops import rocm_aiter_ops
 from vllm.config import (
     VllmConfig,
@@ -36,9 +36,9 @@ from vllm.forward_context import ForwardContext, get_forward_context
 from vllm.logger import init_logger
 from vllm.model_executor.custom_op import CustomOp, PluggableLayer
 from vllm.model_executor.layers.layernorm import RMSNormGated
-from vllm._genesis import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
-from vllm._genesis import gdn_ba_qkvz as _g155  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
-from vllm._genesis import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
+from vllm.idiotsavant import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
+from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+from vllm.idiotsavant import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
 from vllm.model_executor.layers.linear import (
     ColumnParallelLinear,
     MergedColumnParallelLinear,
@@ -829,7 +829,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         query, key, value = torch.split(mixed_qkv, [q_dim, k_dim, v_dim], dim=-1)
         # [Genesis PN122] con la recurrencia del arbol en PTX (gdn_arbol.cu), q/k/v van como VISTAS con
         # stride de token: el kernel las lee asi y las tres copias de abajo (6,6 us por capa) sobran.
-        from vllm._genesis.gdn_cinta import qkv_con_stride as _genesis_qkv_stride
+        from vllm.idiotsavant.gdn_cinta import qkv_con_stride as _genesis_qkv_stride
         if _genesis_qkv_stride():
             return (query.view(1, seq_len, -1, self.head_k_dim), key.view(1, seq_len, -1, self.head_k_dim),
                     value.view(1, seq_len, -1, self.head_v_dim))
@@ -962,7 +962,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             # 2 explicit copies. Wrapper falls through to original
             # PyTorch chain on any constraint violation (non-contig,
             # non-pow2 head_dim, kernel failure, etc.) — strict no-regression.
-            from vllm._genesis.kernels.pn50_gdn_fused_proj import (
+            from vllm.idiotsavant.kernels.pn50_gdn_fused_proj import (
                 fused_qkvzba_split_reshape_cat_contiguous as _pn50_fused,
             )
             _pn50_num_heads_qk = (self.key_dim // self.head_k_dim) // self.tp_size
@@ -989,7 +989,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         # Note: we should not use torch.empty here like other attention backends,
         # see discussions in https://github.com/vllm-project/vllm/pull/28182
         # [Genesis P28] Pre-allocated buffer attached by attach_buffer()
-        # at module __init__ (see vllm._genesis.kernels.gdn_core_attn_manager).
+        # at module __init__ (see vllm.idiotsavant.kernels.gdn_core_attn_manager).
         # Both branches are pure tensor ops — fully torch.dynamo-safe.
         core_attn_out = (
             (self._genesis_gdn_core_attn_buf[:num_tokens] if _g163.ACTIVO  # [Genesis PN163: salida del GDN]
@@ -2123,7 +2123,7 @@ def fused_gdn_gating(
     seq_len = 1
     grid = (batch, seq_len, triton.cdiv(num_heads, 8))
     # [Genesis P46] persistent `g` buffer (one-per-shape-key pool)
-    from vllm._genesis.kernels.gdn_gating_buffer import (
+    from vllm.idiotsavant.kernels.gdn_gating_buffer import (
         GdnGatingBufferManager as _GenesisGdnGatingBuf,
     )
     g = _GenesisGdnGatingBuf.acquire_g(

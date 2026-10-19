@@ -12,7 +12,7 @@ import vllm.envs as envs
 from vllm import _custom_ops as ops
 from vllm.distributed.utils import verify_group_size_divides_partition
 from vllm.logger import init_logger
-from vllm._genesis import marlin_s16 as _g130  # [Genesis PN130: Marlin W4A8 con escalas int16 con signo]
+from vllm.idiotsavant import marlin_s16 as _g130  # [Genesis PN130: Marlin W4A8 con escalas int16 con signo]
 from vllm.model_executor.layers.fused_moe import RoutedExperts
 from vllm.model_executor.layers.fused_moe.config import FusedMoEConfig
 from vllm.model_executor.layers.linear import LinearBase

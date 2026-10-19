@@ -25,7 +25,7 @@
   },
   "loggers": {
     "vllm": {"handlers": ["consola", "archivo"], "level": "INFO", "propagate": false},
-    "genesis": {"handlers": ["consola", "archivo"], "level": "DEBUG", "propagate": false}
+    "idiotsavant": {"handlers": ["consola", "archivo"], "level": "DEBUG", "propagate": false}
   },
   "root": {"handlers": ["archivo"], "level": "INFO"}
 }

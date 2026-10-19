@@ -30,7 +30,7 @@ from vllm.v1.kv_cache_interface import (
 from vllm.v1.utils import CpuGpuBuffer
 from vllm.v1.worker.gpu_input_batch import CachedRequestState
 from vllm.v1.worker.lora_model_runner_mixin import GPUInputBatch
-from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 # Constexpr global: con la cinta, las copias temporales con bias > 0 las hace
 # _g122.materializar_* (la columna especulativa ya no existe).
 _G122_CINTA = tl.constexpr(_g122.activo())

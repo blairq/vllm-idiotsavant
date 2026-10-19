@@ -1354,7 +1354,7 @@ def get_default_config(
         }
         # [Genesis P24] per-SM / env override for num_warps + num_stages
         try:
-            from vllm._genesis.kernels.marlin_tuning import (
+            from vllm.idiotsavant.kernels.marlin_tuning import (
                 get_num_warps_override as _genesis_num_warps_override,
                 get_num_stages_override as _genesis_num_stages_override,
             )
@@ -1433,7 +1433,7 @@ def get_default_config(
         }
         # [Genesis P24] per-SM / env override for num_warps + num_stages
         try:
-            from vllm._genesis.kernels.marlin_tuning import (
+            from vllm.idiotsavant.kernels.marlin_tuning import (
                 get_num_warps_override as _genesis_num_warps_override,
                 get_num_stages_override as _genesis_num_stages_override,
             )

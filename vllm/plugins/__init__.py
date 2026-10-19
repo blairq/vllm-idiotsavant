@@ -88,7 +88,7 @@ def load_general_plugins():
     # [Genesis PN143: enganche de proceso] registros de Genesis que TIENEN que correr dentro de este proceso:
     # apply_all corre aparte y hace exec, asi que lo que registre en memoria se pierde.
     try:
-        from vllm._genesis import plugins_arranque as _genesis_plug
+        from vllm.idiotsavant import plugins_arranque as _genesis_plug
         _genesis_plug.cargar()
     except Exception:
         pass

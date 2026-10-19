@@ -226,7 +226,7 @@ class OffloadingConnectorStats(KVConnectorStats):
             # dict crudo de drain() ({counters,hist,gauges}). Se fusiona con
             # merge() y se registra su tipo para que reduce()/observe()
             # lo ruteen sin chocar con los asserts.
-            from vllm._genesis import kv_tier_metrics as _g88m
+            from vllm.idiotsavant import kv_tier_metrics as _g88m
 
             self._types.setdefault(_G88_BUCKET, 'genesis')
             _g88_dst = self._values.setdefault(_G88_BUCKET, {})
@@ -273,7 +273,7 @@ class OffloadingConnectorStats(KVConnectorStats):
         for key, label_value_map in self._values.items():
             if key == _G88_BUCKET:
                 # [Genesis PN88 kv tier metrics]
-                from vllm._genesis import kv_tier_metrics as _g88m
+                from vllm.idiotsavant import kv_tier_metrics as _g88m
 
                 for _payload in label_value_map.values():
                     return_dict.update(_g88m.reduce_for_log(_payload))
@@ -512,7 +512,7 @@ class OffloadPromMetrics(KVConnectorPromMetrics):
         for key, label_value_map in metric_data.items():
             if key == _G88_BUCKET:
                 # [Genesis PN88 kv tier metrics]
-                from vllm._genesis import kv_tier_metrics as _g88m
+                from vllm.idiotsavant import kv_tier_metrics as _g88m
 
                 for _payload in label_value_map.values():
                     _g88m.observe_bucket(self, _payload, engine_idx)

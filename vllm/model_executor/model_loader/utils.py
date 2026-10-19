@@ -107,13 +107,13 @@ def process_weights_after_loading(
         if isinstance(quant_method, QuantizeMethodBase):
             # [Genesis PN77] swap UnquantizedEmbeddingMethod → FP8 method on lm_head
             try:
-                from vllm._genesis.kernels_legacy.lm_head_fp8_method import (
+                from vllm.idiotsavant.kernels_legacy.lm_head_fp8_method import (
                     maybe_swap_pn77_quant_method as _pn77_swap,
                 )
                 quant_method = _pn77_swap(module, quant_method)
             except Exception as _pn77_e:
                 import logging as _pn77_logging
-                _pn77_logging.getLogger("genesis.pn77").warning(
+                _pn77_logging.getLogger("idiotsavant.pn77").warning(
                     "[PN77] swap helper crashed (%s) — keeping original method",
                     type(_pn77_e).__name__,
                 )

@@ -33,11 +33,11 @@ from vllm.distributed.kv_transfer.kv_connector.v1.offloading.metrics import (
     _TransferMetricName,
 )
 from vllm.logger import init_logger
-from vllm._genesis import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
+from vllm.idiotsavant import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
 from vllm.utils.math_utils import cdiv, round_down
 from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.output import SchedulerOutput
-from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
 from vllm.v1.kv_cache_interface import (
     ChunkedLocalAttentionSpec,
     FullAttentionSpec,
@@ -370,7 +370,7 @@ class RequestOffloadState:
         # autocumplida.
         if self.max_offload_tokens is None:
             try:
-                from vllm._genesis import kv_prefix_auto as _g103
+                from vllm.idiotsavant import kv_prefix_auto as _g103
 
                 _g103_a = (params or {}).get('genesis_agent')
                 _g103_v = _g103.limite_para(
@@ -653,7 +653,7 @@ class OffloadingConnectorScheduler:
                     # En modo estricto un bloque en vuelo corta el prefijo: lo que
                     # se devuelve contiene SOLO bloques listos, que es lo que
                     # prepare_load exige (assert block.is_ready).
-                    from vllm._genesis import kv_lazy_streaming as _g91
+                    from vllm.idiotsavant import kv_lazy_streaming as _g91
                     if _g91.is_strict(req_context.req_id):
                         break
                     defer_lookup = True
@@ -683,7 +683,7 @@ class OffloadingConnectorScheduler:
                     consecutive_hits += 1
                 case LookupResult.HIT_PENDING:
                     # [Genesis PN91: bounded promotion deferral]
-                    from vllm._genesis import kv_lazy_streaming as _g91
+                    from vllm.idiotsavant import kv_lazy_streaming as _g91
                     if _g91.is_strict(req_context.req_id):
                         consecutive_hits = 0
                     else:
@@ -868,7 +868,7 @@ class OffloadingConnectorScheduler:
 
         if defer_lookup:
             # [Genesis PN91: bounded promotion deferral]
-            from vllm._genesis import kv_lazy_streaming as _g91
+            from vllm.idiotsavant import kv_lazy_streaming as _g91
             _g91.note_deferral(req_status.req.request_id)
             logger.debug(
                 "Offloading manager delayed request %s as backend requested",
@@ -1017,7 +1017,7 @@ class OffloadingConnectorScheduler:
         # SON el prefijo compartido. Es el numero que hay que usar para
         # max_offload_tokens, medido en vez de estimado.
         try:
-            from vllm._genesis import kv_prefix_probe as _g101
+            from vllm.idiotsavant import kv_prefix_probe as _g101
 
             _g101_p = (
                 getattr(req_status.req_context, 'kv_transfer_params', None) or {}
@@ -1780,7 +1780,7 @@ class OffloadingConnectorScheduler:
             returned by the engine.
         """
         # [Genesis PN91: bounded promotion deferral]
-        from vllm._genesis import kv_lazy_streaming as _g91
+        from vllm.idiotsavant import kv_lazy_streaming as _g91
         _g91.clear_request(request.request_id)
         req_status = self._req_status.get(request.request_id)
 

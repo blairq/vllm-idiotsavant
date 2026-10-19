@@ -242,7 +242,7 @@ class OpenAIServingChat(GenerateBaseServing):
 
         self._preflight(request.n or 1)
 
-        from vllm._genesis import recorte_mm as _g176  # [Genesis PN176: recorte mm]
+        from vllm.idiotsavant import recorte_mm as _g176  # [Genesis PN176: recorte mm]
         _g176.recortar(request, self.model_config)
         return await self.online_renderer.render_chat(request)
 
@@ -268,7 +268,7 @@ class OpenAIServingChat(GenerateBaseServing):
         raw_request: Request | None = None,
     ) -> AsyncGenerator[str, None] | ChatCompletionResponse | ErrorResponse:
         try:  # [Genesis PN169: sesion por pedido]
-            from vllm._genesis import sesion as _g169
+            from vllm.idiotsavant import sesion as _g169
             _g169.etiquetar(request, raw_request)
         except Exception:
             pass
@@ -276,7 +276,7 @@ class OpenAIServingChat(GenerateBaseServing):
         # in-place if conditions met (env-gated). No-op when env flags
         # off, when no tools, or when prompt below threshold.
         try:
-            from vllm._genesis.middleware.long_ctx_tool_adherence import (
+            from vllm.idiotsavant.middleware.long_ctx_tool_adherence import (
                 apply_hook as _genesis_p6869_apply_hook,
             )
             _genesis_p6869_apply_hook(self, request)
@@ -284,7 +284,7 @@ class OpenAIServingChat(GenerateBaseServing):
             # Hook failure is non-fatal — fall through to standard path.
             import logging as _genesis_p6869_logging
             _genesis_p6869_logging.getLogger(
-                'genesis.middleware.long_ctx_tool_adherence'
+                'idiotsavant.middleware.long_ctx_tool_adherence'
             ).debug('Genesis P68/P69 hook raised; ignored', exc_info=True)
         # Streaming response
         tokenizer = self.renderer.tokenizer
@@ -414,7 +414,7 @@ class OpenAIServingChat(GenerateBaseServing):
 
         assert len(generators) == 1
         (result_generator,) = generators
-        from vllm._genesis import cierre_forzado as _g175  # [Genesis PN175: cierre forzado]
+        from vllm.idiotsavant import cierre_forzado as _g175  # [Genesis PN175: cierre forzado]
         if not isinstance(sampling_params, BeamSearchParams):
             result_generator = _g175.envolver(
                 result_generator, engine_client=self.engine_client, engine_input=engine_input,

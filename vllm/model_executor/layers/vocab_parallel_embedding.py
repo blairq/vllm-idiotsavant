@@ -29,7 +29,7 @@ from vllm.model_executor.layers.quantization.base_config import (
 from vllm.model_executor.layers.utils import dispatch_unquantized_gemm
 from vllm.model_executor.parameter import BasevLLMParameter
 from vllm.model_executor.utils import set_weight_attrs
-from vllm._genesis import ar_int8 as _g158  # [Genesis PN158: embedding por P2P] (registra el op al importar)
+from vllm.idiotsavant import ar_int8 as _g158  # [Genesis PN158: embedding por P2P] (registra el op al importar)
 from vllm.platforms import current_platform
 
 DEFAULT_VOCAB_PADDING_SIZE = 64

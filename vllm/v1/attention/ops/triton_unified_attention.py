@@ -15,7 +15,7 @@ import torch
 import vllm.envs as envs
 from vllm.logger import init_logger
 from vllm.platforms import current_platform
-from vllm._genesis import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
+from vllm.idiotsavant import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
 from vllm.triton_utils import tl, triton
 from vllm.v1.attention.ops.triton_attention_helpers import (
     apply_alibi_to_score,

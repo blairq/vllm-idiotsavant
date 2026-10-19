@@ -632,7 +632,7 @@ class Worker(WorkerBase):
         # tokens de KV se calcula en el ENGINE CORE, otro proceso. Guardamos
         # esta mitad para que el informe pueda juntar las dos.
         try:
-            from vllm._genesis import analisis_arranque as _g83
+            from vllm.idiotsavant import analisis_arranque as _g83
 
             _g83.guardar_memoria(
                 rank=int(getattr(self, "rank", 0) or 0),

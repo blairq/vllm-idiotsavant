@@ -41,7 +41,7 @@ def chunk_gated_delta_rule_fwd(
     # full (B, NT, H, V, K) materialization (Cliff 2b OOM trigger).
     # Strict no-regression: any failure → vanilla fallback below.
     try:
-        from vllm._genesis.kernels.streaming_gdn_driver import (
+        from vllm.idiotsavant.kernels.streaming_gdn_driver import (
             streaming_chunk_gated_delta_rule_fwd as _genesis_pn59_streaming,
         )
         return _genesis_pn59_streaming(

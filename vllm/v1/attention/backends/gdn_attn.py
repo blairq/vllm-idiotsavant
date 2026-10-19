@@ -24,7 +24,7 @@ from vllm.v1.attention.backends.utils import (
     split_decodes_and_prefills,
 )
 from vllm.v1.kv_cache_interface import MambaSpec
-from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 
 
 class GDNAttentionBackend(AttentionBackend):
@@ -588,5 +588,5 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
         return self.build(0, m, num_accepted_tokens, num_decode_draft_tokens_cpu)
 
 
-from vllm._genesis import gdn_meta as _g151  # [Genesis PN151: metadata GDN en un kernel]
+from vllm.idiotsavant import gdn_meta as _g151  # [Genesis PN151: metadata GDN en un kernel]
 _g151.instalar(GDNAttentionMetadataBuilder)  # [Genesis PN151: metadata GDN en un kernel]
