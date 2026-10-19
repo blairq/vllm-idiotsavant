@@ -42,7 +42,6 @@ una conclusion que esta heuristica deba poder sacar sola.
 
 from __future__ import annotations
 
-import os
 
 _MIN_OBS_DEFECTO = 3
 _MARGEN_DEFECTO = 0
@@ -51,13 +50,6 @@ _MARGEN_DEFECTO = 0
 def habilitado() -> bool:
     v = "1"
     return v.strip().lower() not in ("0", "false", "no", "off")
-
-
-def _int_env(nombre: str, defecto: int) -> int:
-    try:
-        return max(0, int(os.environ.get(nombre, "") or defecto))
-    except ValueError:
-        return defecto
 
 
 def min_observaciones() -> int:

@@ -94,17 +94,12 @@ en la correccion ``h``, que es chica contra ``x``.
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 log = logging.getLogger("idiotsavant.pn120")
 
 _TRUTHY = ("1", "true", "yes", "on")
-
-
-def _flag(n: str, d: str = "0") -> bool:
-    return os.environ.get(n, d).strip().lower() in _TRUTHY
 
 
 # Se leen al IMPORTAR: esto corre dentro de la region que traza dynamo y leer

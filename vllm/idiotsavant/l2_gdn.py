@@ -19,11 +19,9 @@ from __future__ import annotations
 ACTIVO = True
 
 
-
 import logging
 
 log = logging.getLogger("idiotsavant.pn170")
-
 
 
 def tras_prepare(req, nuevas: list, store_output) -> None:
@@ -47,26 +45,6 @@ _cargas: dict = {}
 
 def registrar_kv(canonical_kv_caches) -> None:
     pass
-
-
-def _sumas(spec) -> list:
-    import torch
-    c = _kv["cajas"]
-    if c is None:
-        return []
-    torch.cuda.synchronize()
-    out = []
-    pos = 0
-    for g, (n, base) in enumerate(zip(spec.group_sizes, spec.block_indices)):
-        for i in range(n):
-            bid = int(spec.block_ids[pos + i])
-            s = 0
-            for ref in c.group_data_refs[g]:
-                t = c.tensors[ref.tensor_idx].tensor
-                s = (s * 1000003 + int(t[bid, :ref.page_size_bytes].view(torch.int32).to(torch.int64).sum().item())) % (1 << 61)
-            out.append((g, int(base) + i, s))
-        pos += n
-    return out
 
 
 def al_guardar(job_id, src_spec) -> None:

@@ -63,17 +63,6 @@ class _Marlin:
                                         self.n, self.k, True)
 
 
-def _rtn(w: torch.Tensor, bits: int, grupo: int):
-    """RTN simetrico: (q con signo [N, K], escala [N, K/g])."""
-    n, k = w.shape
-    g = k if grupo <= 0 else grupo
-    wf = w.float().view(n, k // g, g)
-    qmax = (1 << (bits - 1)) - 1
-    s = wf.abs().amax(-1).clamp_min(1e-8) / qmax
-    q = torch.round(wf / s[..., None]).clamp_(-qmax - 1, qmax)
-    return q.view(n, k).to(torch.int8), s
-
-
 def marlin_de_empacado(packed: torch.Tensor, escala: torch.Tensor, in_f: int) -> _Marlin:
     """Desde compressed-tensors pack-quantized (int4/int8 simetrico por grupo, empacado sobre la entrada)."""
     from compressed_tensors.compressors.pack_quantized.base import unpack_from_int32

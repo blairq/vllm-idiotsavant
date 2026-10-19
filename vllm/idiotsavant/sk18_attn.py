@@ -476,13 +476,6 @@ def _filas(x):
     return x.contiguous()
 
 
-def _cuant(x):
-    """fp [..., 256] -> int8, escala float32 [...]."""
-    s = x.abs().amax(-1).float().clamp_min(1e-8) / 127.0
-    q = torch.round(x.float() / s[..., None]).clamp_(-127, 127).to(torch.int8)
-    return q, s
-
-
 # ─────────────────────────────── escritura ────────────────────────────────
 def escribir(impl, layer, key, value, kv_cache, slot_mapping):
     """Un lanzamiento PTX entero (sk18h_escribir). Apta para CUDA graph."""
@@ -527,8 +520,6 @@ def escribir(impl, layer, key, value, kv_cache, slot_mapping):
         _espejar(impl, layer, ks, k16, v16, slot, n, dev, nh, bs, c)
     else:
         ks["escribir"].lanzar((n, nh), [k16, v16, slot, raw, c.refs, _signos_dev(dev), nh, bs, blk, VSH, k16.stride(0), v16.stride(0)])
-
-
 
 
 def _md_actual(impl, layer=None):

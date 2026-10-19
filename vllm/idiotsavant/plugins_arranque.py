@@ -29,15 +29,10 @@ sirve, no en el que parchea.
 from __future__ import annotations
 
 import logging
-import os
 
 log = logging.getLogger("idiotsavant.plugins")
 
 _cargado = False
-
-
-def _prendido(nombre: str, defecto: str = "0") -> bool:
-    return os.environ.get(nombre, defecto).strip().lower() in ("1", "true", "yes", "on")
 
 
 def cargar() -> None:
@@ -68,13 +63,8 @@ def cargar() -> None:
     # y en el frontend este enganche corre antes de que exista.
 
 
-
-
-
     # PN144 (escala del residual del borrador) se engancha en opciones.configurar(): el divisor
     # sale de --speculative-config.
-
-
 
 
     try:
