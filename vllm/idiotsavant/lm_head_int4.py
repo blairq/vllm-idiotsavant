@@ -48,13 +48,13 @@ MARCA = "_genesis_pn139_listo"
 
 
 def activo() -> bool:
-    return os.environ.get("GENESIS_ENABLE_PN139_LM_HEAD_INT4", "0") == "1"
+    return True
 
 
 def a8() -> bool:
     """W4A8: la activacion (salida de la norma final, rotada: cresta baja) en int8 por token, IMMA s8
     en vez de HMMA fp16. Con 36 filas el W4A16 limita por computo (972 us contra 402 con 9)."""
-    return os.environ.get("GENESIS_PN139_A8", "0") == "1"
+    return True
 
 
 def solo_borrador() -> bool:
@@ -63,7 +63,7 @@ def solo_borrador() -> bool:
     Por defecto apagado justamente porque en este modelo filtrar por el borrador dejaria el parche
     sin efecto: el lm_head es uno solo y compartido.
     """
-    return os.environ.get("GENESIS_PN139_SOLO_BORRADOR", "0") == "1"
+    return False
 
 
 def _es_del_borrador(prefijo: str) -> bool:

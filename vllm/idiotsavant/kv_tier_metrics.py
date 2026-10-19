@@ -188,7 +188,7 @@ def sink() -> TierStatsSink:
 
 
 def enabled() -> bool:
-    return os.environ.get("GENESIS_ENABLE_PN88_KV_TIER_METRICS") == "1"
+    return True
 
 
 _AGENTS_CACHE: frozenset[str] | None = None

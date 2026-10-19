@@ -92,9 +92,6 @@ from vllm.idiotsavant.guards import is_nvidia_cuda
 log = logging.getLogger("idiotsavant.kernels.ffn_intermediate_cache")
 
 
-_ENV_FLAG = "GENESIS_ENABLE_PN12_FFN_INTERMEDIATE_POOL"
-
-
 class FFNIntermediateCache:
     """Class-level registry of FFN intermediate output buffers.
 
@@ -141,7 +138,7 @@ class FFNIntermediateCache:
         (e.g., for unit tests). Production callers must additionally check
         `is_nvidia_cuda()` if they care about GPU placement.
         """
-        return os.environ.get(_ENV_FLAG, "").strip() in ("1", "true", "True")
+        return True
 
     @staticmethod
     def is_production_eligible() -> bool:

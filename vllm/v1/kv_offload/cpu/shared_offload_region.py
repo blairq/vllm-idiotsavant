@@ -103,12 +103,11 @@ class SharedOffloadRegion:
         # hermano que este arrancando.
         try:
             import os as _g81s_os, glob as _g81s_glob, time as _g81s_t, sys as _g81s_sys
-            if _g81s_os.environ.get('GENESIS_ENABLE_PN81_KV_DISK_QUOTA') == '1':
+            if True:
                 # Sin guard de edad: al arrancar, todo mmap que NADIE tenga
                 # mapeado es basura de una corrida anterior. El chequeo de
                 # /proc/*/maps es la unica salvaguarda necesaria.
-                _min_age = float(_g81s_os.environ.get(
-                    'GENESIS_SHM_ORPHAN_MIN_AGE_S', '0'))
+                _min_age = 0.0
                 _en_uso = set()
                 for _mp in _g81s_glob.glob('/proc/*/maps'):
                     try:

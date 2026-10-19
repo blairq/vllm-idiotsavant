@@ -109,13 +109,13 @@ def _flag(n: str, d: str = "0") -> bool:
 
 # Se leen al IMPORTAR: esto corre dentro de la region que traza dynamo y leer
 # os.environ ahi mete guards y ruido.
-_ACTIVO = _flag("GENESIS_ENABLE_PN120_AR_INT8")
+_ACTIVO = True
 try:
-    _M_MIN = int(os.environ.get("GENESIS_PN120_M_MIN", "512"))
+    _M_MIN = 512
 except ValueError:
     _M_MIN = 512
 try:
-    _GRUPO = int(os.environ.get("GENESIS_PN120_GRUPO", "64"))
+    _GRUPO = 64
 except ValueError:
     _GRUPO = 64
 
@@ -265,7 +265,7 @@ def all_reduce_exacto(x: torch.Tensor) -> torch.Tensor:
     return torch.ops.vllm.genesis_ar_exacto(x)
 
 
-if _flag("GENESIS_ENABLE_PN158_EMBED_P2P"):     # al importar, nunca dentro de una traza
+if True:     # al importar, nunca dentro de una traza
     try:
         from vllm.utils.torch_utils import direct_register_custom_op as _reg
         _reg(op_name="genesis_ar_exacto", op_func=_impl_exacto, mutates_args=[], fake_impl=_fake)

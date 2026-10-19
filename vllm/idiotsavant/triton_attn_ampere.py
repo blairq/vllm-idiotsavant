@@ -42,14 +42,14 @@ from vllm.idiotsavant import borrador_attn as _sk31
 
 log = logging.getLogger("idiotsavant.pn124")
 
-_ACTIVO = os.environ.get("GENESIS_ENABLE_PN124_TRITON_AMPERE", "0") == "1"
-_APLANAR = os.environ.get("GENESIS_PN124_APLANAR_SPEC", "1") == "1"
+_ACTIVO = True
+_APLANAR = True
 # 16 (28-09): el borrador DFlash2 verifica bloques de 9 tokens y con 8 caia siempre al 2D (12 bloques
 # en 82 SM, ~1 ms por paso en sus 5 capas).
-_Q_MAX = int(os.environ.get("GENESIS_PN124_Q_MAX", "16"))
-_VERIFICAR = [int(os.environ.get("GENESIS_PN124_VERIFICAR", "0"))]
+_Q_MAX = 16
+_VERIFICAR = [0]
 # Queries por secuencia con las que se deja entrar al kernel 3D SIN aplanar (upstream: 1). 1 = apagado.
-_Q3D = [int(os.environ.get("GENESIS_PN124_Q3D", "1")) if _ACTIVO else 1]
+_Q3D = [16 if _ACTIVO else 1]
 
 
 def q_max_3d() -> int:

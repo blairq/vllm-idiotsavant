@@ -31,7 +31,7 @@ import torch
 
 log = logging.getLogger("idiotsavant.pn125")
 
-_BUSQUEDA = os.environ.get("GENESIS_PN125_BUSQUEDA", "1").strip() not in ("0", "false", "no", "off")
+_BUSQUEDA = True
 _FACTORES = (6.5, 6.75, 7.0, 7.25, 7.5, 7.75, 8.0, 8.25, 8.5)
 _FILAS = 1024
 

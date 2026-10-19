@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN164_GDN_VISTAS", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 
 
 def vistas(gdn, mixed):

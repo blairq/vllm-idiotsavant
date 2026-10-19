@@ -23,7 +23,7 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn154")
-_APAGAR = os.environ.get("GENESIS_PN154_APAGAR", "0") == "1"
+_APAGAR = False
 _cfg = {"leido": False, "had": {}}
 
 
@@ -69,7 +69,7 @@ def rotar(lineal, x: torch.Tensor) -> torch.Tensor:
 
 
 # ─── SK-25: la operacion por cabeza + Hadamard + int8 en un kernel, y Marlin W4A8 directo ──────────
-FUSIONADO = os.environ.get("GENESIS_PN154_FUSIONADO", "1") == "1"
+FUSIONADO = True
 _k25: dict = {}
 
 

@@ -131,13 +131,8 @@ import torch
 
 log = logging.getLogger("idiotsavant.silu_and_mul_customop")
 
-_ENV_ENABLE_PN25 = "GENESIS_ENABLE_PN25_SILU_INDUCTOR_SAFE"
-
-
 def is_pn25_enabled() -> bool:
-    return os.environ.get(_ENV_ENABLE_PN25, "").strip().lower() in (
-        "1", "true", "yes", "on",
-    )
+    return True
 
 
 def should_apply() -> bool:

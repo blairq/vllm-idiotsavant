@@ -6399,9 +6399,7 @@ class GPUModelRunner(
             # ngram, draft-model methods uniformly.
             # Fallback to [0] if env disabled or attribute missing.
             import os as _genesis_pn33_os
-            _genesis_pn33_disabled = _genesis_pn33_os.environ.get(
-                'GENESIS_DISABLE_PN33_SPEC_DECODE_WARMUP_K', ''
-            ).strip() in ('1', 'true', 'yes', 'on')
+            _genesis_pn33_disabled = False
             _genesis_pn33_K = getattr(
                 self.speculative_config, 'num_speculative_tokens', 0
             ) or 0

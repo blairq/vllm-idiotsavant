@@ -66,17 +66,7 @@ log = logging.getLogger("idiotsavant.gdn_core_attn_manager")
 
 
 # ─── Env budget (resolved ONCE at import, dynamo-safe) ──────────────────────
-_ENV_MAX_BT = "GENESIS_GDN_MAX_BATCHED_TOKENS"
-
-
-def _read_env_budget() -> Optional[int]:
-    env = os.environ.get(_ENV_MAX_BT, "")
-    if env.isdigit() and int(env) > 0:
-        return int(env)
-    return None
-
-
-_ENV_BUDGET: Optional[int] = _read_env_budget()
+_ENV_BUDGET: Optional[int] = None
 _DEFAULT_MAX_BT: int = 4096
 
 
@@ -96,7 +86,7 @@ def resolve_max_batched_tokens(hint: Optional[int] = None) -> int:
     # Try central resolver (consults vllm scheduler_config)
     try:
         from vllm.idiotsavant.prealloc_budget import resolve_token_budget
-        return resolve_token_budget(domain_env=_ENV_MAX_BT)
+        return resolve_token_budget()
     except Exception as e:
         log.warning(
             "[Genesis P28] prealloc_budget resolver failed (%s); "

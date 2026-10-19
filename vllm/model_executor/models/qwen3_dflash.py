@@ -378,7 +378,7 @@ def _dense_kv_rows(attn):
     w = getattr(qkv, "weight", None)
     if w is not None and w.dim() == 2:
         import os as _os
-        if _os.environ.get("GENESIS_PN142_DIAG") == "1" and not globals().get("_g142_av1"):
+        if False and not globals().get("_g142_av1"):
             globals()["_g142_av1"] = True
             print("[PN142 DIAG] camino DENSO: weight %s %s" % (tuple(w.shape), w.dtype), flush=True)
         return w[attn.q_size:]
@@ -395,7 +395,7 @@ def _dense_kv_rows(attn):
     fuera = scale.dtype if scale.dtype.is_floating_point else torch.bfloat16
     salida = dense.to(fuera)[attn.q_size:]
     import os as _os
-    if _os.environ.get("GENESIS_PN142_DIAG") == "1" and not globals().get("_g142_av2"):
+    if False and not globals().get("_g142_av2"):
         globals()["_g142_av2"] = True
         print("[PN142 DIAG] camino CUANTIZADO: packed %s %s | scale %s %s | bits=%d grupo=%d "
               "| denso %s min=%.4g max=%.4g | salida %s"

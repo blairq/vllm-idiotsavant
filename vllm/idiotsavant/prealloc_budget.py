@@ -112,7 +112,7 @@ def resolve_token_budget(
         return _CACHED
 
     # Priority 1: global override
-    env = os.environ.get("GENESIS_PREALLOC_TOKEN_BUDGET", "")
+    env = ""
     if env.isdigit() and int(env) > 0:
         _CACHED = int(env)
         log.info(

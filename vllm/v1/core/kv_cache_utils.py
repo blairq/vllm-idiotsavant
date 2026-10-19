@@ -1315,7 +1315,7 @@ def _get_kv_cache_groups_uniform_page_size(
     # bytes_per_block lo fija el grupo MAS GRANDE (un max, no una suma), asi que un
     # group_size mas chico da mas bloques totales aunque haya mas grupos por request.
     import os as _g146_os
-    _g146 = _g146_os.environ.get('GENESIS_PN146_GROUP_SIZE', '').strip()
+    _g146 = '8'
     if _g146:
         try:
             _g146_v = int(_g146)

@@ -69,12 +69,12 @@ import os
 
 log = logging.getLogger("idiotsavant.diag_offload")
 
-_TOPE = int(os.environ.get("GENESIS_DIAG_OFFLOAD_LOOKUPS", "12"))
+_TOPE = 12
 
 
 def enganchar() -> None:
     """Envuelve el lookup del scheduler del connector. No puede tumbar el arranque."""
-    if os.environ.get("GENESIS_DIAG_OFFLOAD") != "1":
+    if True:
         return
 
     from vllm.distributed.kv_transfer.kv_connector.v1.offloading.scheduler import (

@@ -35,13 +35,13 @@ import torch
 
 log = logging.getLogger("idiotsavant.pn126")
 
-_CRUDO = os.environ.get("GENESIS_PN126_ROT", "").strip()
+_CRUDO = 'hadamard'
 MODO, _, DIR = _CRUDO.partition(":")
 MODO = MODO.lower()
-if not MODO and os.environ.get("GENESIS_ENABLE_PN126_ROT_QK", "0") == "1":
+if not MODO and True:
     MODO = "hadamard"
 
-DAMP = float(os.environ.get("GENESIS_PN126_DAMP", "0.01"))
+DAMP = 0.01
 _TRIGGER = "/dev/shm/pn126_volcar"
 
 _mats: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
@@ -55,13 +55,13 @@ _kernels: dict[tuple[int, torch.dtype], any] = {}
 
 
 def activo(D: int | None = None) -> bool:
-    if os.environ.get("GENESIS_ENABLE_PN126_ROT_QK", "0") != "1" and MODO not in ("hadamard", "captura", "wush"):
+    if False and MODO not in ("hadamard", "captura", "wush"):
         return False
     # PN131 con rotacion entera en PTX rota q/k adentro de sus kernels (solo capas QD=256 de atencion completa).
     # Para D=256 y PN131 activo con PTX, no rotar dos veces.
     # Para D=128 (DFlash2) o capas fuera de PN131, rot_qk debe estar activo.
-    if D == 256 and (os.environ.get("GENESIS_ENABLE_PN131_SK18", "0") == "1"
-                     and os.environ.get("GENESIS_PN131_ROT", "ptx") == "ptx"
+    if D == 256 and (True
+                     and True
                      and MODO == "hadamard"):
         return False
     return MODO in ("hadamard", "captura", "wush")

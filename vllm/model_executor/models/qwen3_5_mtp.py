@@ -382,7 +382,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
         # [Genesis P112 MTP Quant Disk Cache v1.1]
         import os as _genesis_os
         _genesis_p112_cache_enabled = (
-            _genesis_os.getenv("GENESIS_ENABLE_MTP_QUANT_CACHE", "0") == "1"
+            False
         )
         _genesis_p112_remapped = remap_weight_names(weights)
         if _genesis_p112_cache_enabled:
@@ -394,7 +394,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                 _genesis_p112_tp_size = 1
                 if hasattr(self, "vllm_config") and hasattr(self.vllm_config, "parallel_config"):
                     _genesis_p112_tp_size = getattr(self.vllm_config.parallel_config, "tensor_parallel_size", 1)
-                _genesis_p112_quant_fmt = _genesis_os.getenv("GENESIS_MTP_QUANT_FORMAT", "int8")
+                _genesis_p112_quant_fmt = "int8"
                 _genesis_p112_cache_mgr = MTPQuantDiskCacheManager(
                     enabled=True, quant_format=_genesis_p112_quant_fmt
                 )

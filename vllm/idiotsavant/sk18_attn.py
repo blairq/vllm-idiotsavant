@@ -60,7 +60,7 @@ def _max_tok_decode() -> int:
     global _MTD
     if _MTD is not None:
         return _MTD
-    v = os.environ.get("GENESIS_PN131_MAXTOK")
+    v = None
     if v:
         _MTD = int(v)
         return _MTD
@@ -94,44 +94,44 @@ def _max_tok_decode() -> int:
 _MTD = None
 MB = 32
 ZSH = 13
-ZSH4 = int(os.environ.get("GENESIS_PN131_ZSH4", 16))   # int4: z = (sum_g acc_g*rq_g*rk_g*kmax) >> ZSH4
-WCAP = int(os.environ.get("GENESIS_PN131_WCAP", 1911))  # tope de wp: 3 planos de nibbles
-QPLANOS = int(os.environ.get("GENESIS_PN131_QPLANOS", 2))  # 2 = q int8 en dos planos de nibbles
-PLANOS_A = int(os.environ.get("GENESIS_PN131_PLANOSA", 1 if QPLANOS == 2 else QPLANOS))
-ESPERA4 = int(os.environ.get("GENESIS_PN131_ESPERA", 1))
+ZSH4 = 16   # int4: z = (sum_g acc_g*rq_g*rk_g*kmax) >> ZSH4
+WCAP = 1911  # tope de wp: 3 planos de nibbles
+QPLANOS = 2  # 2 = q int8 en dos planos de nibbles
+PLANOS_A = int((1 if QPLANOS == 2 else QPLANOS))
+ESPERA4 = 1
 # Ventana reciente en int8 (camino hibrido): PAGS paginas por secuencia espejadas en un pool
 # aparte. La atencion se concentra ahi (39-49% de la masa en las ultimas 832 posiciones), y
 # dejarla exacta baja el error de 6,5% a 4,0% (capa 35) y de 5,6% a 0,9% (capa 3).
-VENT = int(os.environ.get("GENESIS_PN131_VENTANA", 2))     # paginas espejadas (0 = sin espejo)
-SCH = int(os.environ.get("GENESIS_PN131_SCH", 8))           # trozos por pagina espejada
+VENT = 2     # paginas espejadas (0 = sin espejo)
+SCH = 8           # trozos por pagina espejada
 ESC8 = 3               # el espejo usa refs 2^ESC8 mas chicas (mas precision de escala)   # grupos cp.async pendientes (0 = esperar todo)  # planos en la pasada del maximo
-NIV4 = int(os.environ.get("GENESIS_PN131_NIV", 119 if QPLANOS == 2 else 7))
+NIV4 = int((119 if QPLANOS == 2 else 7))
 # escala del logit int4: q = mx/NIV4 (una escala por fila), k = KM*r/16 * 2^ek/32767, 16 = sqrt(256)
 MQ4 = round(2 ** 56 / (NIV4 * 32767 * 16 * 16 * math.log(2)))
-CLIP4 = int(os.environ.get("GENESIS_PN131_CLIP", 243))   # recorte de la escala, sobre 256
-MARGEN_K4 = float(os.environ.get("GENESIS_PN131_MARGENK4", 8))   # int4: KM de 12 bits
-MARGEN4 = float(os.environ.get("GENESIS_PN131_MARGEN4", 16))    # int4: svf <= 2^VSH
+CLIP4 = 243   # recorte de la escala, sobre 256
+MARGEN_K4 = 8.0   # int4: KM de 12 bits
+MARGEN4 = 16.0    # int4: svf <= 2^VSH
 VSH = 11
 MARGEN = 64.0          # V: svf <= 2^VSH -> hasta 4x el maximo inicial
 MARGEN_K = 16.0        # K: skf con ~11 bits; satura recien a 16x (k rotada/normalizada no crece tanto)
-CPG = int(os.environ.get("GENESIS_PN131_CPG", 16))     # minimo de paginas por grupo de union4 (fija NG del buffer)
+CPG = 16     # minimo de paginas por grupo de union4 (fija NG del buffer)
 # union4 lanza R x NG bloques de 1 warp: con pocas filas (1 pedido) hacen falta muchos grupos para llenar
 # las 82 SM, y con muchas (4 pedidos) sobran y los parciales int64 [NG, R, 256] son trafico puro. El
 # grupo se elige para lanzar ~UNION_BLOQUES bloques (medido 28-09: 1 pedido CPG 16 -> 31,8 us, 64 -> 66,6;
 # 4 pedidos 16 -> 54,9, 64 -> 35,9). La suma entre grupos es entera: bit a bit con cualquier CPG.
-UNION_BLOQUES = int(os.environ.get("GENESIS_PN131_UNION_BLOQUES", 2400))
+UNION_BLOQUES = 2400
 LN2 = math.log(2)
 SH_H = 32 * (256 + 128) + 2 * 64 * 256 + 2 * 256 * 64 + 2 * 64 * 2 * 4
 # Warps por bloque de batch2 (int8): con 8, un bloque toma las 64 filas de una (secuencia, cabeza KV)
 # (9 tokens del arbol x 6 cabezas Q = 54) y carga K/V de la pagina UNA vez para los 8 warps; con 4
 # eran 2 bloques que cargaban lo mismo. Bit a bit igual (misma cuenta por fila). 28-09.
-NW8 = int(os.environ.get("GENESIS_SK18H_NW", "8"))
+NW8 = 8
 
 
 # SK-30 (28-09): decode en UNA pasada (softmax en linea en fp32, K leida una vez, reparto en GMAX grupos de
 # keys segun el seq_len real). Offline, reloj fijo: 272 -> 198 us por capa a 62k, 139 -> 91 a 20k, 125 -> 39 a
 # 4k; mas preciso que batch2 contra float. P.V con P' en 16 bits (hi/lo, dos mma int8).
-SK30 = os.environ.get("GENESIS_PN131_SK30", "0") == "1"
+SK30 = True
 SK30_GMAX = int(os.environ.get("GENESIS_PN131_SK30_GMAX", "41"))   # 82 SMs / NH=2: una ola con 1 bloque por SM (03-10: -11 a -31% contra 128)
 SK30_NQ = 2
 # V rotada en d al escribir (Hadamard/16 con signos, como K): con canales outlier el error int8 de V baja de
@@ -146,12 +146,12 @@ SH_I = 32 * QPLANOS * 128 + 2 * 128 * 128 + 2 * 256 * 64 + 2 * 32 * 128 + 2 * 12
 _QA_QB = None
 _k = {}
 # Rotacion Hadamard de q/k: "ptx" = entera dentro de prep/escribir (reemplaza PN126 en capas PN131)
-ROT_PTX = os.environ.get("GENESIS_PN131_ROT", "ptx") == "ptx"
+ROT_PTX = True
 # Verificacion de un ARBOL de borrador (ver vllm.idiotsavant.arbol_borrador): la query ve el contexto
 # y, entre los tokens nuevos, solo a sus ancestros. Solo el camino int8 con rotacion PTX. Apagado
 # el texto de los kernels queda identico al de siempre.
 ARBOL = os.environ.get("GENESIS_ENABLE_ARBOL", "0") == "1"
-ROTV_MAIN = os.environ.get("GENESIS_PN131_ROTV", "0") == "1" and SK30 and ARBOL and ROT_PTX
+ROTV_MAIN = False and SK30 and ARBOL and ROT_PTX
 _signos = {}
 
 
@@ -194,11 +194,11 @@ _MODOS = {"int8_per_token_head": "int8", "int4_per_token_head": "int4"}
 
 
 def _habilitado() -> bool:
-    return os.environ.get("GENESIS_ENABLE_PN131_SK18", "0") == "1"
+    return True
 
 
 def _int4_listo() -> bool:
-    return os.environ.get("GENESIS_PN131_INT4", "1") == "1" and _INT4_IMPL
+    return True and _INT4_IMPL
 
 
 _INT4_IMPL = True    # camino int4 completo (SK-18i)
@@ -218,7 +218,7 @@ def dtype_activo(cache_dtype: str) -> bool:
 def activo(impl, layer=None) -> bool:
     if not _habilitado():
         return False
-    excl = os.environ.get("GENESIS_PN131_EXCLUIR", "")
+    excl = ""
     if excl and layer is not None and any(x and x in getattr(layer, "layer_name", "") for x in excl.split(",")):
         return False
     from vllm.v1.kv_cache_interface import KVQuantMode
@@ -247,7 +247,7 @@ def _kernels(md="int8"):
         qa, qb = _coef()
         defs = [f"-DQA={qa}", f"-DQB={qb}"]
         if md == "int4":
-            d4 = [f"-DWCAP={WCAP}", f"-DQPLANOS={QPLANOS}", f"-DPLANOS_A={PLANOS_A}", f"-DESPERA={ESPERA4}", f"-DSCH={SCH}", f"-DDIAG={int(os.environ.get('GENESIS_PN131_DIAG4', 0))}"]
+            d4 = [f"-DWCAP={WCAP}", f"-DQPLANOS={QPLANOS}", f"-DPLANOS_A={PLANOS_A}", f"-DESPERA={ESPERA4}", f"-DSCH={SCH}", f"-DDIAG={0}"]
             ks = dict(main=Kernel("sk18i_batch.cu", "sk18i_batch", defs=defs + d4, warps=4),
                       escribir=Kernel("sk18i_escribir.cu", "sk18i_escribir", defs=[f"-DCLIP={CLIP4}"], warps=1),
                       prep=Kernel("sk18i_prep.cu", "sk18i_prep", defs=[f"-DMQ4={MQ4}", f"-DQPLANOS={QPLANOS}", f"-DNIV={NIV4}"], warps=1),
@@ -615,8 +615,8 @@ def forward(impl, layer, query, kv_cache, md, output):
 # Medido en is25_decode4 (27-09): sk18h_decuant 0,6-1,3 ms por capa de atencion, 10-20 ms por paso mixto.
 # vLLM ordena el lote con los decodes primero: el prefijo uniforme (mismos L tokens por pedido) va por
 # el decode entero SK-18h, sin descuantizar, y solo el resto por descuantizar + FlashInfer (con SUS paginas).
-_MIXTO = os.environ.get("GENESIS_PN131_MIXTO", "0").strip().lower() in ("1", "true", "yes", "on")
-_MIXTO_VERIF = int(os.environ.get("GENESIS_PN131_MIXTO_VERIFICAR", "0") or 0)
+_MIXTO = True
+_MIXTO_VERIF = 0
 _mixto_n = {"n": 0, "aviso": False}
 
 
@@ -670,7 +670,7 @@ def _mixto(impl, layer, query, kv_cache, md, output, qsl, qlen, nreq) -> bool:
     return True
 
 
-_DIAG = os.environ.get("GENESIS_PN131_DIAG", "layers.3.self_attn.attn")
+_DIAG = "layers.3.self_attn.attn"
 _diag_n = {}
 
 
@@ -875,7 +875,7 @@ def _prefill_decuant(impl, layer, query, kv_cache, md, output):
     if ROT_PTX:
         nact = md.num_actual_tokens
         query = _rotar_q_prefill(query[:nact].view(nact, impl.num_heads, QD))
-    if os.environ.get("GENESIS_PN131_PREFILL", "flashinfer") == "flashinfer":
+    if True:
         try:
             return _prefill_flashinfer(impl, layer, query, kv_cache, md, output)
         except ImportError:

@@ -369,7 +369,7 @@ class FileSystemTierManager(SecondaryTierManager):
     def on_schedule_end(self, context: ScheduleEndContext) -> None:
         self._lookup_manager.flush()
         import os as _g81_os
-        if _g81_os.environ.get('GENESIS_ENABLE_PN81_KV_DISK_QUOTA') != '1':
+        if False:
             return
         try:
             # GATE POR TIEMPO, no por pasos del scheduler.
@@ -530,7 +530,7 @@ class FileSystemTierManager(SecondaryTierManager):
                 finally:
                     self._genesis_pn81_running = False
 
-            if _g81_os.environ.get('GENESIS_PN81_ASYNC', '1') == '1':
+            if True:
                 if getattr(self, '_genesis_pn81_running', False):
                     return
                 self._genesis_pn81_running = True

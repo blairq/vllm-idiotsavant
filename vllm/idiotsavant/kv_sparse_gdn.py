@@ -106,12 +106,7 @@ _STATS = {
 
 
 def is_sparse_gdn_enabled() -> bool:
-    return os.environ.get("GENESIS_ENABLE_PN93_SPARSE_GDN", "1").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    return False
 
 
 def checkpoint_stride() -> int:
@@ -119,7 +114,7 @@ def checkpoint_stride() -> int:
 
     `1` desactiva el salteo (se guardan todos, comportamiento de upstream).
     """
-    raw = os.environ.get("GENESIS_PN93_GDN_CHECKPOINT_STRIDE")
+    raw = None
     if raw:
         try:
             return max(1, int(raw))

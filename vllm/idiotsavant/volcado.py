@@ -54,15 +54,15 @@ log = logging.getLogger("idiotsavant.volcado")
 _instalado = False
 _lock = threading.Lock()
 _escritos = 0
-MAX_VOLCADOS = int(os.environ.get("GENESIS_VOLCADO_MAX", "20"))
+MAX_VOLCADOS = 20
 
 
 def activo() -> bool:
-    return os.environ.get("GENESIS_VOLCADO", "1").strip().lower() not in ("0", "false", "no", "off")
+    return True
 
 
 def _dir() -> str:
-    d = os.environ.get("GENESIS_VOLCADO_DIR", "/root/.cache/vllm/genesis_volcados")
+    d = '/root/.cache/vllm/genesis_volcados'
     try:
         os.makedirs(d, exist_ok=True)
     except OSError:
@@ -201,9 +201,9 @@ def volcar(motivo: str, exc: BaseException | None = None, **datos) -> str | None
         L.append("-- memoria de GPU --")
         L += _gpu()
         L.append("")
-        L.append("-- variables GENESIS_* --")
+        L.append("-- variables VLLM_* --")
         L += ["  %-40s = %s" % (k, v) for k, v in sorted(os.environ.items())
-              if k.startswith(("GENESIS_", "VLLM_"))]
+              if k.startswith("VLLM_") and "KEY" not in k]
         with open(ruta, "w", encoding="utf-8", errors="replace") as f:
             f.write("\n".join(L) + "\n")
         # A stderr tambien, porque lo primero que uno mira es `docker logs`.

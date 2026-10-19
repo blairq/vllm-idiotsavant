@@ -15,12 +15,12 @@ from __future__ import annotations
 
 import os
 
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN173_CHUNK_DINAMICO", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 SIN_DECODE = int(os.environ.get("GENESIS_PN173_CHUNK_SOLO", "2640"))
 CON_DECODE = int(os.environ.get("GENESIS_PN173_CHUNK_CON_DECODE", "880"))
 # Tambien cuenta como interactivo un pedido al que le falta poco prefill (un turno con cache): sin esto su primer
 # token salia a 15 s en vez de 12 (su propio prefill corto corria con pasos de 2640 del pedido grande).
-POCO = int(os.environ.get("GENESIS_PN173_FALTA_POCO", "8192"))
+POCO = 8192
 
 
 def ajustar(scheduler) -> None:

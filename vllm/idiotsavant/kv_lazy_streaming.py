@@ -86,9 +86,7 @@ _STATS = {
 
 
 def is_lazy_streaming_enabled() -> bool:
-    return os.environ.get(
-        "GENESIS_ENABLE_PN91_KV_LAZY_STREAMING", "1"
-    ).strip().lower() in ("1", "true", "yes", "on")
+    return True
 
 
 def deferral_budget_seconds() -> float:
@@ -97,7 +95,7 @@ def deferral_budget_seconds() -> float:
     `0` fuerza el modo estricto desde el primer diferimiento. Un valor muy alto
     equivale al comportamiento de upstream.
     """
-    raw = os.environ.get("GENESIS_PN91_MAX_DEFER_SECONDS")
+    raw = '15.0'
     if raw:
         try:
             return max(0.0, float(raw))
@@ -112,7 +110,7 @@ def deferral_budget_seconds() -> float:
 
 def deferral_budget_steps() -> int:
     """Tope secundario en pasos, por si los pasos son instantáneos."""
-    raw = os.environ.get("GENESIS_PN91_MAX_DEFER_STEPS")
+    raw = '400'
     if raw:
         try:
             return max(0, int(raw))

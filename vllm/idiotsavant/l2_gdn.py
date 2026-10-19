@@ -17,14 +17,14 @@ from __future__ import annotations
 
 import os
 
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN170_L2_GDN", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 
 
 
 import logging
 
 log = logging.getLogger("idiotsavant.pn170")
-DIAG = os.environ.get("GENESIS_PN170_DIAG", "0") == "1"
+DIAG = False
 
 
 
@@ -50,7 +50,7 @@ def handoff(req, group_idx: int, block_id: int, boundary: int) -> None:
 
 
 # ---- diagnostico de bytes (GENESIS_PN170_SUMAS=1): checksum por (grupo, indice logico) al guardar y al cargar ----
-SUMAS = os.environ.get("GENESIS_PN170_SUMAS", "0") == "1"
+SUMAS = False
 _kv = {"cajas": None}
 _cargas: dict = {}
 
@@ -101,7 +101,7 @@ def carga_lista(job_id) -> None:
 # Un acierto externo solo cae donde hay estado GDN guardado: cortes de segmento de la retencion (16 chunks con 14080),
 # P-2 de cada prompt (el estado de P-3, ver PN168) y la junction compartida. Para un acierto de H chunks el lookup de
 # la ventana pide [H-w-e, H] (w = ventana en chunks, e = 1 por EAGLE). Lo demas del borrador se guardaba de gusto.
-RECORTE = os.environ.get("GENESIS_ENABLE_PN171_BORRADOR_RECORTADO", "0").strip().lower() in ("1", "true", "yes", "on")
+RECORTE = True
 SEGMENTO = int(os.environ.get("GENESIS_PN171_SEGMENTO", "14080") or 0)
 
 

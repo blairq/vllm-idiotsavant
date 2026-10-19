@@ -37,7 +37,7 @@ _vistos: set[str] = set()
 
 
 def activo() -> bool:
-    return os.environ.get("GENESIS_DIAG_LMHEAD", "0").strip().lower() in ("1", "true", "yes", "on")
+    return False
 
 
 def _firma(t) -> str:

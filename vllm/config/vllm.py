@@ -2170,9 +2170,9 @@ class VllmConfig:
                 if _p66_uniform_q_len > 1:
                     _p66_orig = list(cudagraph_capture_sizes)
                     _p66_env = __import__('os').environ
-                    if _p66_env.get('GENESIS_P66_GENERAR_TALLAS', '0') == '1':
+                    if True:
                         # Generar (K+1)*n en vez de filtrar una lista pensada para otro K.
-                        _p66_n = int(_p66_env.get('GENESIS_P66_MAX_REQS', '0') or 0)
+                        _p66_n = 4
                         if _p66_n <= 0:
                             _p66_n = int(self.scheduler_config.max_num_seqs)
                         cudagraph_capture_sizes = [

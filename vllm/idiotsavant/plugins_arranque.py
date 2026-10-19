@@ -63,7 +63,7 @@ def cargar() -> None:
 
     _avisar_si_falta_disco()
 
-    if _prendido("GENESIS_DIAG_LMHEAD"):
+    if False:
         try:
             from vllm.idiotsavant.diag_lm_head import enganchar
 
@@ -81,14 +81,14 @@ def cargar() -> None:
         except Exception as e:  # noqa: BLE001
             log.error("[ARBOL] no se pudo instalar: %s: %s", type(e).__name__, e)
 
-    if os.environ.get("GENESIS_DIAG_CAPAS_DUMP", "").strip():
+    if '':
         try:
             from vllm.idiotsavant import diag_capas_dump
             diag_capas_dump.instalar()
         except Exception as e:  # noqa: BLE001
             log.error("[DIAG capas] no se pudo instalar: %s: %s", type(e).__name__, e)
 
-    if _prendido("GENESIS_CAPTURA_BORRADOR"):
+    if False:
         # Datos para ajustar DFlash2 contra noon: features del fc en los pasos de prefill.
         try:
             from vllm.idiotsavant import captura_borrador
@@ -96,7 +96,7 @@ def cargar() -> None:
         except Exception as e:  # noqa: BLE001
             log.error("[CAPTURA] no se pudo instalar: %s: %s", type(e).__name__, e)
 
-    if os.environ.get("GENESIS_DIAG_DDTREE_DUMP", "").strip():
+    if '':
         try:
             from vllm.idiotsavant.diag_ddtree_dump import enganchar as _ddt
 
@@ -105,7 +105,7 @@ def cargar() -> None:
             log.error("[DIAG] no se pudo enganchar el volcado ddtree (%s: %s)",
                       type(e).__name__, e)
 
-    if _prendido("GENESIS_DIAG_DRAFTER_A16"):
+    if False:
         try:
             from vllm.idiotsavant.diag_drafter_a16 import enganchar as _a16
 
@@ -123,7 +123,7 @@ def cargar() -> None:
         log.error("[PN144] no se pudo escalar el residual del borrador DFlash2 (%s: %s). "
                   "En fp16 el borrador va a dar NaN y aceptar 0.", type(e).__name__, e)
 
-    if _prendido("GENESIS_DIAG_OFFLOAD"):
+    if False:
         try:
             from vllm.idiotsavant.diag_offload import enganchar as _eng_off
 
@@ -131,7 +131,7 @@ def cargar() -> None:
         except Exception as e:                                   # noqa: BLE001
             log.error("[DIAG offload] no se pudo enganchar (%s: %s)", type(e).__name__, e)
 
-    if _prendido("GENESIS_DIAG_KV"):
+    if False:
         try:
             from vllm.idiotsavant.diag_kv import enganchar as _eng_kv
 
@@ -140,7 +140,7 @@ def cargar() -> None:
             log.error("[DIAG KV] no se pudo enganchar el volcado de KVCacheConfig (%s: %s)",
                       type(e).__name__, e)
 
-    if _prendido("GENESIS_DIAG_DFLASH"):
+    if False:
         try:
             from vllm.idiotsavant.diag_dflash import enganchar as _eng_dflash
 
@@ -149,7 +149,7 @@ def cargar() -> None:
             log.error("[DIAG] no se pudo enganchar el borrador DFlash (%s: %s)",
                       type(e).__name__, e)
 
-    if _prendido("GENESIS_ENABLE_PN131_SK18") and _prendido("GENESIS_PN131_NATIVO"):
+    if True:
         try:
             from vllm.idiotsavant.sk18_backend import registrar
 

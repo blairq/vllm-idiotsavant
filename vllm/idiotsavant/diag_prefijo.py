@@ -14,7 +14,7 @@ import os
 import time
 
 log = logging.getLogger("idiotsavant.pn165")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN165_DIAG_PREFIJO", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 _previos: collections.deque = collections.deque(maxlen=64)
 _ids_previos: collections.deque = collections.deque(maxlen=32)
 
@@ -28,8 +28,7 @@ def _especiales():
     if "ini" not in _esp:
         try:
             from transformers import AutoTokenizer
-            tk = AutoTokenizer.from_pretrained(os.environ.get("GENESIS_PN165_TOKENIZER",
-                                                              "/root/.cache/huggingface/qwen3.8_27b_idiotSavant_sm_86"))
+            tk = AutoTokenizer.from_pretrained("/root/.cache/huggingface/qwen3.8_27b_idiotSavant_sm_86")
             _esp["ini"] = tk.convert_tokens_to_ids("<|im_start|>")
             _esp["rol"] = {tk.convert_tokens_to_ids(r): r for r in ("system", "user", "assistant", "tool")}
         except Exception as e:

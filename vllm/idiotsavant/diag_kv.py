@@ -129,7 +129,7 @@ def enganchar() -> None:
       * ``create_kv_cache_group_specs`` la llaman desde ADENTRO de kv_cache_utils, y esas
         llamadas si resuelven por el global del modulo.
     """
-    if os.environ.get("GENESIS_DIAG_KV") != "1":
+    if True:
         return
 
     from vllm.v1 import kv_cache_interface

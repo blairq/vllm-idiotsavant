@@ -123,7 +123,7 @@ def should_persist_to_secondary_tiers(
 
     agent_clean = str(agent).strip().lower()
 
-    allowed_env = os.environ.get("GENESIS_KV_DISK_WRITERS")
+    allowed_env = None
     if allowed_env is not None:
         allowed_set = {a.strip().lower() for a in allowed_env.split(",") if a.strip()}
     else:
@@ -197,7 +197,7 @@ def is_key_persisted(key: Any) -> bool:
 
 
 def max_pending_bytes() -> int:
-    raw = os.environ.get("GENESIS_PN90_MAX_PENDING_MB")
+    raw = '256'
     if raw:
         try:
             return max(1, int(raw)) * 1024 * 1024

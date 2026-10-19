@@ -27,8 +27,8 @@ import torch
 from vllm.triton_utils import tl, triton
 
 log = logging.getLogger("idiotsavant.pn151")
-_ACTIVO = os.environ.get("GENESIS_ENABLE_PN151_GDN_META", "0").strip().lower() in ("1", "true", "yes", "on")
-_VERIFICAR = int(os.environ.get("GENESIS_PN151_VERIFICAR", "0") or 0)
+_ACTIVO = True
+_VERIFICAR = 0
 _verif = {"n": 0, "mal": 0}
 
 

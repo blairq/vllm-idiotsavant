@@ -85,14 +85,8 @@ log = logging.getLogger("idiotsavant.kernels.lm_head_fp8_method")
 PN77_APPLIED_MARKER = "_already_called_process_weights_after_loading"
 PN77_PATH_ATTR = "_genesis_pn77_path"  # "marlin" | "scaled_mm" | "cast_back"
 
-ENV_FLAG = "GENESIS_ENABLE_PN77_FP8_LM_HEAD"
-
-
 def _is_enabled() -> bool:
-    """Read env once; opt-in default OFF."""
-    return os.environ.get(ENV_FLAG, "").strip().lower() in (
-        "1", "true", "yes", "y", "on",
-    )
+    return True
 
 
 def _detect_hardware_tier() -> str:

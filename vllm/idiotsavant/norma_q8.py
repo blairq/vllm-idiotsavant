@@ -23,7 +23,7 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn156")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN156_NORMA_Q8", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 _k26: dict = {}
 
 

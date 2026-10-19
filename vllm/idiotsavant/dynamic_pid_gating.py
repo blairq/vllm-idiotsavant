@@ -195,36 +195,36 @@ class PIDAdmissionController:
         return cls._instance
 
     def __init__(self) -> None:
-        self.enabled = _env_flag("GENESIS_ENABLE_PN115_PID_GATING", "0")
+        self.enabled = True
 
         # Los dos controladores son independientes.
-        self.kv_gating_enabled = _env_flag("GENESIS_PN115_KV_GATING", "1")
-        self.latency_pid_enabled = _env_flag("GENESIS_PN115_LATENCY_PID", "0")
+        self.kv_gating_enabled = True
+        self.latency_pid_enabled = False
         # Se apaga solo si el motor usa async scheduling (ver _observe_step).
         self.latency_pid_forced_off_reason: str = ""
 
-        env_target = os.environ.get("GENESIS_PID_TARGET_STEP_MS")
+        env_target = None
         # None = línea base auto, POR NIVEL DE CONCURRENCIA.
         self.target_step_ms: Optional[float] = float(env_target) if env_target else None
 
         env_min_c = os.environ.get("GENESIS_PID_MIN_CONCURRENCY")
         self.min_concurrency: int = max(1, int(env_min_c)) if env_min_c else 2
 
-        env_max_c = os.environ.get("GENESIS_PID_MAX_CONCURRENCY")
+        env_max_c = None
         self.max_concurrency: Optional[int] = int(env_max_c) if env_max_c else None
 
-        self.high_prio_threshold = int(os.environ.get("GENESIS_PID_HIGH_PRIO_THRESHOLD", "0"))
-        self.kp = float(os.environ.get("GENESIS_PID_KP", "0.15"))
-        self.kd = float(os.environ.get("GENESIS_PID_KD", "0.05"))
+        self.high_prio_threshold = 0
+        self.kp = 0.15
+        self.kd = 0.05
 
         # Cuánto puede empeorar un paso respecto de su línea base A LA MISMA
         # concurrencia antes de considerarlo congestión.
-        self.latency_slack = float(os.environ.get("GENESIS_PID_LATENCY_SLACK", "0.30"))
+        self.latency_slack = 0.3
         # Muestras mínimas en un nivel de concurrencia antes de controlar ahí.
-        self.min_baseline_samples = int(os.environ.get("GENESIS_PID_MIN_SAMPLES", "12"))
+        self.min_baseline_samples = 12
         # La línea base puede derivar hacia arriba: un paso afortunado no la
         # fija para siempre.
-        self.baseline_decay = float(os.environ.get("GENESIS_PID_BASELINE_DECAY", "1.02"))
+        self.baseline_decay = 1.02
 
         # Serializacion de prefills. El prefill NO escala con la concurrencia
         # (medido 2026-09-12: 1.504 / 1.511 / 1.489 tok/s agregados con 1, 2 y

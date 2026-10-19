@@ -25,7 +25,7 @@ _otras = 0
 
 
 def _es_del_borrador(prefijo: str) -> bool:
-    marcas = os.environ.get("GENESIS_DIAG_DRAFTER_PREFIJOS", "draft,mtp,dflash").split(",")
+    marcas = "draft,mtp,dflash".split(",")
     p = prefijo.lower()
     return any(m and m in p for m in marcas)
 

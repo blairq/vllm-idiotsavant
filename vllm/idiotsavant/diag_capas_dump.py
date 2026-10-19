@@ -21,7 +21,7 @@ import os
 import numpy as np
 
 log = logging.getLogger("idiotsavant.diag_capas")
-DIR = os.environ.get("GENESIS_DIAG_CAPAS_DUMP", "").strip()
+DIR = ''
 _buf: dict[int, list] = {}      # capa -> lista de chunks del prefill (se concatenan)
 _rank0 = None
 
@@ -51,7 +51,7 @@ def _envolver(cls):
                 # el prefill llega en chunks: se acumulan y se reescribe el archivo al final de
                 # cada chunk, asi despues del ultimo tiene todas las posiciones
                 _buf.setdefault(int(self.layer_idx), []).append(s.half().cpu().numpy())
-                n = int(os.environ.get("GENESIS_DIAG_CAPAS_N", "64"))
+                n = 64
                 if int(self.layer_idx) == n - 1 and len(_buf) == n:
                     arr = np.stack([np.concatenate(_buf[i]) for i in range(n)])
                     np.save(os.path.join(DIR, "capas.npy"), arr)

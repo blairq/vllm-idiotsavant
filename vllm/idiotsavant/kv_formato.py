@@ -26,8 +26,9 @@ Que hace
 config, otro directorio. Sobre-incluir solo cuesta reuso de cache; sub-incluir cuesta salidas
 corruptas, asi que ante la duda una variable ENTRA.
 
-``FORMATO`` se sube a mano cuando un kernel cambia el layout de lo que escribe sin que cambie
-ninguna variable (por ejemplo, un cambio en ``sk18h_escribir2.cu``).
+Lo que antes variaba por entorno (rotacion de q/k, SK-18, cinta de PN122) hoy es fijo en el
+codigo: ``FORMATO`` se sube a mano cuando cualquiera de esas piezas cambia el layout de lo que
+escribe (por ejemplo, un cambio en ``sk18h_escribir2.cu``).
 
 Limite conocido: las referencias ek/ev de PN131 se fijan con el primer write de cada arranque y
 no se conocen aca. Son estables mientras el primer pedido sea el mismo healthcheck.
@@ -37,25 +38,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import sys
 
-FORMATO = 1
-
-# Variables de PN131 que NO cambian lo que se escribe (tamaños de buffers, diagnostico, camino
-# de prefill, que lee decuantizando). Todas las demas GENESIS_PN131_* entran.
-_PN131_SOLO_RUNTIME = {
-    "GENESIS_PN131_BMAX", "GENESIS_PN131_DIAG", "GENESIS_PN131_NATIVO",
-    "GENESIS_PN131_PREFILL", "GENESIS_PN131_MAXTOK", "GENESIS_PN131_CPG",
-}
-_SUELTAS = (
-    "GENESIS_ENABLE_PN131_SK18",
-    "GENESIS_ENABLE_PN126_ROT_QK", "GENESIS_PN126_ROT", "GENESIS_PN126_DFLASH",
-    "GENESIS_PN126_DAMP",
-    "GENESIS_ENABLE_PN122_GDN_CINTA",
-    "GENESIS_ENABLE_PN144_DFLASH2_ESCALA", "GENESIS_PN144_ESCALA_RESIDUAL",
-)
+# 2: las variables de entorno pasaron a ser constantes del codigo.
+FORMATO = 2
 
 
 def _de_argv() -> dict:
@@ -90,12 +77,6 @@ def componentes() -> dict:
         pass
     for k, v in _de_argv().items():      # la linea de comandos siempre esta; completa lo que falte
         c.setdefault(k, v)
-    for k in _SUELTAS:
-        if k in os.environ:
-            c[k] = os.environ[k]
-    for k in sorted(os.environ):
-        if k.startswith("GENESIS_PN131_") and k not in _PN131_SOLO_RUNTIME:
-            c[k] = os.environ[k]
     return c
 
 

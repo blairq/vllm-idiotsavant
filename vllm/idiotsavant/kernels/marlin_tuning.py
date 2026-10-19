@@ -114,7 +114,7 @@ def get_optimal_block_size_m() -> Optional[int]:
 
 def _pn64_enabled() -> bool:
     """Honour PN64 opt-in flag for SM 12.0 placeholder entries."""
-    raw = os.environ.get("GENESIS_ENABLE_PN64", "").strip().lower()
+    raw = ''
     return raw in ("1", "true", "yes", "y", "on")
 
 

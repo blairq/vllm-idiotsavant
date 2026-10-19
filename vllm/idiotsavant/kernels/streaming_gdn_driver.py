@@ -129,9 +129,7 @@ def streaming_chunk_gated_delta_rule_fwd(
     # remains as escape hatch for paranoid operators on 48+ GiB rigs who
     # want bit-equivalent legacy behavior until Level 2 has soaked in
     # PROD; opt-in via GENESIS_PN59_STRICT_NO_METADATA=1.
-    strict_metadata_gate = os.environ.get(
-        "GENESIS_PN59_STRICT_NO_METADATA", "0"  # ← Level 2 default flipped 1→0
-    ).strip().lower() in ("1", "true", "yes", "y", "on")
+    strict_metadata_gate = False
     metadata_gate_passes = has_no_chunk_metadata or not strict_metadata_gate
     metadata_decision_note = (
         "GENESIS_PN59_STRICT_NO_METADATA=1 (legacy escape hatch active)"
@@ -140,7 +138,7 @@ def streaming_chunk_gated_delta_rule_fwd(
     )
 
     window_nt = GdnScratchPool.get_window_nt()
-    min_t_env = os.environ.get("GENESIS_PN59_MIN_T", "").strip()
+    min_t_env = '256'
     if min_t_env.isdigit():
         threshold_T = int(min_t_env)
     else:
@@ -178,9 +176,7 @@ def streaming_chunk_gated_delta_rule_fwd(
                 "every bypass.)",
                 reason,
             )
-        elif os.environ.get("GENESIS_PN59_DEBUG", "").strip().lower() in (
-            "1", "true", "yes", "y", "on",
-        ):
+        elif False:
             log.info("[PN59] vanilla path (reason: %s)", reason)
         return _vanilla_path(
             q, k, v, g, beta, scale, initial_state, output_final_state,

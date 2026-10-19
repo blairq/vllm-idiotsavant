@@ -84,7 +84,7 @@ _DEFAULT_BLOQUES = 0  # 0 = apagado
 
 def bloques_pedidos() -> int:
     try:
-        return max(0, int(os.environ.get("GENESIS_PN100_RING_BLOCKS", "0") or 0))
+        return max(0, 32)
     except ValueError:
         return _DEFAULT_BLOQUES
 

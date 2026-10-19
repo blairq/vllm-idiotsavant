@@ -24,9 +24,9 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn159")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN159_VOCAB_BORRADOR", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 TAM = int(os.environ.get("GENESIS_PN159_VOCAB", "65536"))     # 32k: -3,5% de aceptacion; 64k: igual
-DIN = int(os.environ.get("GENESIS_PN159_DINAMICO", "0"))           # filas del anillo dinamico por rango (0 = fase 1)
+DIN = 0           # filas del anillo dinamico por rango (0 = fase 1)
 _HECHO = False
 _din: dict = {}
 _ORDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "datos", "pn159_orden.npy")
@@ -236,12 +236,12 @@ def _anillo_fake(h, vs, is_):
     return torch.empty_like(vs), torch.empty_like(is_)
 
 
-_SK28 = os.environ.get("GENESIS_PN159_SK28", "0") == "1"      # apagado hasta validarlo en el servidor
+_SK28 = False      # apagado hasta validarlo en el servidor
 _k28: dict = {}
 # GENESIS_PN159_VERIFICAR=1: con SK-28/29 corre tambien la rama de flashinfer y cuenta en la GPU las filas cuyo
 # conjunto de ids difiere. Vale dentro del grafo: el contador se copia a memoria fijada del host en cada paso y
 # un hilo lo registra cada 30 s (grep "PN159 verificar" en los logs del worker).
-_VERIF = os.environ.get("GENESIS_PN159_VERIFICAR", "0") == "1"
+_VERIF = False
 _ver: dict = {}
 
 

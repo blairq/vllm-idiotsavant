@@ -18,12 +18,12 @@ import os
 
 import torch
 
-B = int(os.environ.get("GENESIS_PN148_BLOQUE", "512"))
+B = 512
 # Kernel fusionado SiluAndMul + Hadamard (silu_had.py): 624 us contra 2042 del camino de torch a 8192
 # tokens, y la mitad de error. Solo existe para B = 512.
-FUSIONADO = os.environ.get("GENESIS_PN148_FUSIONADO", "1") == "1" and B == 512
+FUSIONADO = True and B == 512
 # SK-23: ademas sale int8 por token y down_proj (Marlin W4A8) lo toma sin volver a cuantizar.
-INT8 = FUSIONADO and os.environ.get("GENESIS_PN148_INT8", "1") == "1"
+INT8 = FUSIONADO and True
 if FUSIONADO:
     from vllm.idiotsavant import silu_had  # noqa: F401  (registra las ops genesis::pn148_*)
 
@@ -99,7 +99,7 @@ def _reducir(down, out: torch.Tensor) -> torch.Tensor:
     return out
 
 
-VERIFICAR = os.environ.get("GENESIS_PN148_VERIFICAR", "0") == "1"   # solo con --enforce-eager
+VERIFICAR = False   # solo con --enforce-eager
 _n_verif: dict = {}
 
 

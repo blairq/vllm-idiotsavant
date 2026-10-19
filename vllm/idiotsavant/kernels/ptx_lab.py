@@ -68,7 +68,7 @@ class Kernel:
         self._shared_attr = None
 
     def _clave(self, texto: str) -> str:
-        texto += os.environ.get("GENESIS_LINEINFO", "")
+        texto += ""
         return hashlib.sha256((texto + f"|{self.entrada}|sm_{self.arch}|O{self.opt}|"
                                + " ".join(self.defs)).encode()).hexdigest()[:16]
 
@@ -87,7 +87,7 @@ class Kernel:
             out = os.path.join(d, "k.ptx")
             # GENESIS_LINEINFO=1 agrega -lineinfo para que ncu pueda atribuir las metricas a la
             # linea de fuente. Entra en la clave de cache porque cambia el binario.
-            extra = ["-lineinfo"] if os.environ.get("GENESIS_LINEINFO") == "1" else []
+            extra = ["-lineinfo"] if False else []
             r = subprocess.run(["nvcc", "-ptx", f"-arch=sm_{self.arch}", f"-O{self.opt}",
                                 "--use_fast_math", *extra, *self.defs, str(self.src), "-o", out],
                                capture_output=True, text=True)
@@ -101,7 +101,7 @@ class Kernel:
         with tempfile.TemporaryDirectory() as d:
             fp, fc = os.path.join(d, "k.ptx"), os.path.join(d, "k.cubin")
             pathlib.Path(fp).write_text(ptx)
-            extra = ["-lineinfo"] if os.environ.get("GENESIS_LINEINFO") == "1" else []
+            extra = ["-lineinfo"] if False else []
             r = subprocess.run(["ptxas", f"-arch=sm_{self.arch}", f"-O{self.opt}", *extra,
                                 fp, "-o", fc],
                                capture_output=True, text=True)

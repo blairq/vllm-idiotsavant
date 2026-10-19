@@ -106,7 +106,7 @@ def _get_threshold_chars() -> int:
     adherence behavior for genuinely long histories while leaving
     casual IDE-agent flows alone.
     """
-    raw = os.environ.get("GENESIS_P68_P69_LONG_CTX_THRESHOLD_CHARS", "50000")
+    raw = '1000'
     try:
         return max(1000, int(raw))
     except (ValueError, TypeError):
@@ -314,7 +314,7 @@ def _build_p69_reminder(tool_names: list[str]) -> str:
     # Si algún A/B futuro muestra que reabre muertes silenciosas, la palanca
     # a tocar es el texto de STOP CONDITION — NO borrar PARALLELISM ni
     # reintroducir la lista de tools.
-    style = os.environ.get("GENESIS_P69_REMINDER_STYLE", "json").strip().lower()
+    style = 'qwen3_coder'
     if style in ("qwen3_coder", "xml"):
         return (
             "\n\n---\n"
@@ -389,8 +389,8 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
         "reason": "",
     }
 
-    p68_enabled = _env_flag("GENESIS_ENABLE_P68_AUTO_FORCE_TOOL")
-    p69_enabled = _env_flag("GENESIS_ENABLE_P69_LONG_CTX_TOOL_REMINDER")
+    p68_enabled = False
+    p69_enabled = True
 
     if not (p68_enabled or p69_enabled):
         result["reason"] = "both env flags off; no-op"
@@ -437,7 +437,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
         # request with `400 ValueError: features not supported by xgrammar`.
         # Operators on a non-xgrammar backend (guidance / outlines /
         # llguidance) can override via GENESIS_P68_FORCE=1.
-        force_p68 = _env_flag("GENESIS_P68_FORCE")
+        force_p68 = False
         incompat = (
             None if force_p68 else _find_xgrammar_incompat_tool(tools)
         )
@@ -495,9 +495,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
     if p69_enabled:
         try:
             tail_roles = ("user", "tool")
-            if os.environ.get(
-                "GENESIS_P69_TOOL_TAIL", "1"
-            ).strip().lower() in ("0", "false", "no", "off"):
+            if False:
                 tail_roles = ("user",)
             last = messages[-1] if isinstance(messages, list) else None
             if last is not None and isinstance(last, dict):

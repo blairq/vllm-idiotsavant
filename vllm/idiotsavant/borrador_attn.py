@@ -20,9 +20,9 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.sk31")
-ACTIVO = os.environ.get("GENESIS_PN124_SK31", "0") == "1"
-GMAX = int(os.environ.get("GENESIS_PN124_SK31_GMAX", "32"))
-BMAX = int(os.environ.get("GENESIS_PN124_SK31_BMAX", "16"))
+ACTIVO = False
+GMAX = 32
+BMAX = 16
 RB, QD = 64, 128
 SH = 2 * 64 * 144 + 2 * 64 * 128 + 2 * 64 * 136 * 2 + 64 * 72 * 2 + 2 * 64 * 2 * 4 + 2 * 64 * 4
 _est: dict = {}

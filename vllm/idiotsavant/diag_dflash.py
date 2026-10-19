@@ -26,7 +26,7 @@ import os
 
 log = logging.getLogger("idiotsavant.diag_dflash")
 
-_PASOS = int(os.environ.get("GENESIS_DIAG_DFLASH_PASOS", "4"))
+_PASOS = 4
 
 
 def _stats(t) -> str:
@@ -94,7 +94,7 @@ def cazar_nan(modelo, etiqueta: str = "borrador") -> None:
     # buffer precargado. Con la cuenta de NaN entrando y saliendo de cada modulo en orden, el
     # salto de 0 a 1 queda entre dos lineas concretas.
     corridas = {"n": 0}
-    TOPE = int(os.environ.get("GENESIS_DIAG_DFLASH_TRAZA", "260"))
+    TOPE = 260
 
     def _cuenta(x) -> int:
         if isinstance(x, torch.Tensor) and x.is_floating_point():
@@ -152,7 +152,7 @@ def enganchar() -> None:
             if not estado["pesos"]:
                 estado["pesos"] = True
                 log.warning("[DIAG dflash] pesos compartidos -> %s", _pesos_compartidos(self))
-                if os.environ.get("GENESIS_DIAG_DFLASH_NAN") == "1":
+                if False:
                     # Recien aca: antes de la primera pasada real el modelo todavia no
                     # existe. Los hooks entran en vigor desde la llamada siguiente.
                     cazar_nan(self.model, "borrador")

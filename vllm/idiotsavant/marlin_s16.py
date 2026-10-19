@@ -33,7 +33,7 @@ log = logging.getLogger("idiotsavant.pn130")
 
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 _SRC = os.path.join(_AQUI, "kernels", "marlin_s16")
-BUILD = os.environ.get("GENESIS_MARLIN_S16_BUILD", "/root/.cache/vllm/genesis_marlin_s16")
+BUILD = "/root/.cache/vllm/genesis_marlin_s16"
 _cargado = False
 # La firma del op cambio cuando PN140 sumo `a_sums_or_none` antes de `workspace`. Una .so vieja
 # en la cache y un fuente nuevo (o al reves) dejaban la llamada con un argumento corrido, y el
@@ -43,7 +43,7 @@ _cargado = False
 
 
 def activo() -> bool:
-    return os.environ.get("GENESIS_ENABLE_PN130_MARLIN_S16", "0").strip().lower() in ("1", "true", "yes", "on")
+    return True
 
 
 def _so() -> str | None:

@@ -491,7 +491,7 @@ def assert_vllm_pin_allowed(
     import os as _os
 
     if policy is None:
-        policy = _os.environ.get("GENESIS_VLLM_PIN_POLICY", "warn").strip().lower()
+        policy = 'warn'
     if policy not in ("warn", "strict"):
         policy = "warn"
 

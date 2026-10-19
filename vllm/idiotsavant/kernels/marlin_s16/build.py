@@ -4,7 +4,7 @@ import torch
 from torch.utils import cpp_extension
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(AQUI, "src")
-BUILD = os.environ.get("GENESIS_MARLIN_S16_BUILD", "/root/.cache/genesis/marlin_s16")
+BUILD = "/root/.cache/genesis/marlin_s16"
 os.makedirs(BUILD, exist_ok=True)
 os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.6")
 t0 = time.time()
@@ -27,8 +27,8 @@ mod = cpp_extension.load(
     extra_cflags=["-O3", "-std=c++17", "-DTORCH_TARGET_VERSION=0x020c000000000000", "-DUSE_CUDA"],
     extra_cuda_cflags=["-O3", "-std=c++17", "-DTORCH_TARGET_VERSION=0x020c000000000000", "-DUSE_CUDA",
                        "-DMARLIN_NAMESPACE_NAME=marlin", "-Xcompiler", "-fvisibility=default"]
-    + (["-DGENESIS_QSERVE_CRUDO"] if os.environ.get("GENESIS_QSERVE_CRUDO") == "1" else [])
-    + ["-DGENESIS_MAX_BLOQUES_POR_SM=" + os.environ.get("GENESIS_MAX_BLOQUES_POR_SM", "1")]
-    + ["-DGENESIS_TOPE_M=" + os.environ.get("GENESIS_TOPE_M", "8")],
+    + (["-DGENESIS_QSERVE_CRUDO"] if False else [])
+    + ['-DGENESIS_MAX_BLOQUES_POR_SM=1']
+    + ['-DGENESIS_TOPE_M=8'],
     is_python_module=False, verbose=True)
 print(f"listo en {time.time()-t0:.0f}s:", hasattr(torch.ops.genesis_marlin, "marlin_gemm_s16"))

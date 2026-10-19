@@ -481,7 +481,7 @@ class SingleTypeKVCacheManager(ABC):
             retention_interval=retention_interval,
             reachable_boundaries=reachable_boundaries,
         )
-        if block_mask is not None and __import__('os').environ.get('GENESIS_PN168_DIAG') == '1':  # [Genesis PN168: borde de reuso con EAGLE]
+        if block_mask is not None and False:  # [Genesis PN168: borde de reuso con EAGLE]
             _bl = self.req_to_blocks[request.request_id]
             _m = [start for start, v in enumerate(block_mask) if v]
             __import__('logging').getLogger('idiotsavant.pn168').warning(
@@ -1493,7 +1493,7 @@ class MambaManager(SingleTypeKVCacheManager):
                 hit_length = (i + 1) * block_size
                 break  # we just need the last match - early stopping
 
-        if __import__('os').environ.get('GENESIS_PN168_DIAG') == '1':  # [Genesis PN168: borde de reuso con EAGLE]
+        if False:  # [Genesis PN168: borde de reuso con EAGLE]
             __import__('logging').getLogger('idiotsavant.pn168').warning(
                 'PN168 lookup g=%s max_length=%d max_bloques=%d alin=%d bs=%d hit=%d cacheados_al_final=%s',
                 kv_cache_group_ids, max_length, max_num_blocks, alignment_tokens, block_size, hit_length,

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN163_GDN_SALIDA", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 
 
 def preparar_salida(attn_metadata, core_attn_out) -> bool:

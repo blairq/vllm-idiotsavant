@@ -102,8 +102,6 @@ from vllm.idiotsavant.guards import is_nvidia_cuda
 log = logging.getLogger("idiotsavant.kernels.gdn_scratch_pool")
 
 
-_ENV_FLAG_MASTER = "GENESIS_ENABLE_PN59_STREAMING_GDN"
-_ENV_WINDOW_NT = "GENESIS_VARIANT_D_WINDOW_NT"
 _DEFAULT_WINDOW_NT = 4
 
 
@@ -156,9 +154,7 @@ class GdnScratchPool:
         which made the wrapper return True from `apply()` while the runtime
         pool still rejected eligibility — silent no-op trap.
         """
-        return os.environ.get(_ENV_FLAG_MASTER, "").strip().lower() in (
-            "1", "true", "yes", "y", "on",
-        )
+        return True
 
     @staticmethod
     def is_production_eligible() -> bool:
@@ -168,11 +164,7 @@ class GdnScratchPool:
     @staticmethod
     def get_window_nt() -> int:
         """Read tunable WINDOW_NT from env (default 4 chunks = 256 tokens at BT=64)."""
-        try:
-            v = int(os.environ.get(_ENV_WINDOW_NT, str(_DEFAULT_WINDOW_NT)))
-            return max(1, min(64, v))
-        except ValueError:
-            return _DEFAULT_WINDOW_NT
+        return _DEFAULT_WINDOW_NT
 
     # ──────────────────────────────────────────────────────────────────
     # Core API: h_window

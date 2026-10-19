@@ -154,17 +154,12 @@ def decompress(
     return (weight_f32 * scale_f32).to(output_dtype)
 
 
-_PN77_ENV = "GENESIS_ENABLE_PN77_FP8_LM_HEAD"
 _PN77_MARKER = "_genesis_pn77_fp8"  # set on layer when compression is active
 _PN77_SCALE_ATTR = "weight_scale"  # standard vllm-conventional scale buffer name
 
 
 def _is_enabled() -> bool:
-    """Read env once-per-process; opt-in."""
-    import os
-    return os.environ.get(_PN77_ENV, "").strip().lower() in (
-        "1", "true", "yes", "y", "on",
-    )
+    return True
 
 
 def maybe_compress_lm_head_to_fp8(model) -> tuple[str, str]:
@@ -188,7 +183,7 @@ def maybe_compress_lm_head_to_fp8(model) -> tuple[str, str]:
     """
     if not _is_enabled():
         return "skipped", (
-            f"opt-in: set {_PN77_ENV}=1 to enable FP8 lm_head compression "
+            "FP8 lm_head compression disabled "
             f"(saves ~606 MiB/rank on 27B Qwen3.5/3.6, ~243 MiB/rank on 35B)"
         )
 

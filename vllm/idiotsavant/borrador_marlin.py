@@ -22,11 +22,11 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn157")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN157_BORRADOR_MARLIN", "0").strip().lower() in ("1", "true", "yes", "on")
-BITS_CONV = int(os.environ.get("GENESIS_PN157_BITS_CONV", "0"))     # 8, 4, o 0 (densa: int8 por canal cuesta ~1% de aceptacion)
+ACTIVO = True
+BITS_CONV = 0     # 8, 4, o 0 (densa: int8 por canal cuesta ~1% de aceptacion)
 # grupo del int8 de la conv: -1 por canal (lo que vio la destilacion con --conv_int8), 64 = la mitad de error en el
 # kernel de la conv (0,54% contra 0,95%, tests/proto/pn163_kp_conv.py) a igual tiempo (11,8 contra 21,6 us en fp16)
-GRUPO_CONV = int(os.environ.get("GENESIS_PN157_GRUPO_CONV", "-1"))
+GRUPO_CONV = -1
 
 
 def _empacar_gptq(q: torch.Tensor, bits: int) -> torch.Tensor:

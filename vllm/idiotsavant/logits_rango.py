@@ -40,8 +40,8 @@ from vllm.triton_utils import tl, triton
 from vllm.v1.worker.gpu.sample.gumbel import gumbel_noised_argmax as _gna
 
 log = logging.getLogger("idiotsavant.pn153")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN153_LOGITS_RANGO", "0").strip().lower() in ("1", "true", "yes", "on")
-_VERIFICAR = [int(os.environ.get("GENESIS_PN153_VERIFICAR", "0"))]
+ACTIVO = True
+_VERIFICAR = [0]
 _C_MAX = 64
 _MARGEN = 16
 _ctx = [None]

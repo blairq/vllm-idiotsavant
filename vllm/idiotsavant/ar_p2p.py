@@ -25,9 +25,9 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn152")
-_ACTIVO = os.environ.get("GENESIS_ENABLE_PN152_AR_P2P", "0").strip().lower() in ("1", "true", "yes", "on")
-_MAX_BYTES = int(os.environ.get("GENESIS_PN152_MAX_BYTES", str(1 << 20)))   # por ranura
-_BLOQUES = int(os.environ.get("GENESIS_PN152_BLOQUES", "4"))   # barrido 27-09: 4 gana en 90 KB (14,8 us) y empata en 360/540 KB
+_ACTIVO = True
+_MAX_BYTES = 1048576   # por ranura
+_BLOQUES = 4   # barrido 27-09: 4 gana en 90 KB (14,8 us) y empata en 360/540 KB
 _estado = {"listo": False, "fallo": None}
 
 
@@ -134,8 +134,8 @@ _G = 64
 # bytes fp16 desde los que va en int8 (0 = nunca). Medido 27-09: int8 gana en todos los tamanos (9 filas
 # 13,3 vs 14,9 us; 36 filas 26,7 vs 44,9) y la cuenta es la de PN120, que en el prefill cuesta KL 0,0001
 # (0,0193 vs 0,0192 en respuestas, kl_ar_int8.sh); servido: paso -1,3% (1 pedido) / -3,5% (4). El compose usa 1.
-_MIN_I8 = int(os.environ.get("GENESIS_PN152_MIN_I8", "0"))
-_BLOQUES_I8 = int(os.environ.get("GENESIS_PN152_BLOQUES_I8", "8"))   # barrido 27-09: 8 gana con 36 y 54 filas
+_MIN_I8 = 1
+_BLOQUES_I8 = 8   # barrido 27-09: 8 gana con 36 y 54 filas
 
 
 def sirve_i8(x: torch.Tensor) -> bool:

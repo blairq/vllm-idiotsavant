@@ -45,14 +45,14 @@ import torch
 log = logging.getLogger("idiotsavant.pn122")
 
 _TRUTHY = ("1", "true", "yes", "on")
-_ACTIVO = os.environ.get("GENESIS_ENABLE_PN122_GDN_CINTA", "0").strip().lower() in _TRUTHY
+_ACTIVO = '1' in _TRUTHY
 
 
 def activo() -> bool:
     return _ACTIVO
 
 
-_DEBUG = os.environ.get("GENESIS_PN122_DEBUG", "0").strip().lower() in _TRUTHY
+_DEBUG = '0' in _TRUTHY
 
 # Arbol de borrador (apagado por defecto). Con el arbol, los tokens 1..K del paso no son una
 # cadena: cada uno cuelga de un ancestro. Cambian dos cosas y nada mas:
@@ -79,10 +79,10 @@ _ARBOL = os.environ.get("GENESIS_ENABLE_ARBOL", "0").strip().lower() in _TRUTHY
 # (Gb es nilpotente, asi que la serie es finita) y todo en layout traspuesto [BV, BT], con k y q
 # ya normalizados en un buffer del prep. El riesgo es el derrame de registros: b_h [BV, BK] ya son
 # 4096 floats por programa. Ver [[arbol-gdn-forma-cerrada-bole-treewy]].
-_CERRADA = os.environ.get("GENESIS_ARBOL_CERRADA", "0").strip().lower() in _TRUTHY
+_CERRADA = '0' in _TRUTHY
 # Los productos pesados (S_0 k y S_0 q) en int8 sobre tensor cores. Solo con la forma cerrada:
 # es la unica que deja S_0 FIJO durante el arbol, asi que se cuantiza una vez y se usa 2T veces.
-_INT8 = os.environ.get("GENESIS_ARBOL_INT8", "1").strip().lower() in _TRUTHY
+_INT8 = '1' in _TRUTHY
 _camino_gpu: torch.Tensor | None = None     # [slots, TM] int32; la cadena es arange(TM)
 _cerr: dict = {}                            # buffers del sistema triangular, por device
 _anc_gpu: torch.Tensor | None = None        # [tokens del lote] int32, bits de ancestros por token
@@ -210,7 +210,7 @@ def num_speculative_blocks(vllm_config) -> int:
         k = 0                                       # v0.29.0: RecoverSSM no usa esos slots
     # Diagnostico: GENESIS_PN122_SIN_LIBERAR=1 conserva los bloques especulativos
     # (cinta y kernel activos, sin ahorro) para aislar el efecto de sacarlos.
-    if os.environ.get("GENESIS_PN122_SIN_LIBERAR", "0") == "1":
+    if False:
         return k
     return 0 if _ACTIVO else k
 
@@ -890,7 +890,7 @@ def _k_escribir_par(A_log, a, b, dt_bias, beta_sp, threshold, k, v, cu, sidx, sl
         tl.store(row + H * K + HV * V + HV + hv, bb.to(tl.float32))
 
 
-_ESCRIBIR_MODO = os.environ.get("GENESIS_PN122_ESCRIBIR_PAR", "0").strip().lower()
+_ESCRIBIR_MODO = 'ptx'
 _ESCRIBIR_MODO = "par" if _ESCRIBIR_MODO in _TRUTHY else ("ptx" if _ESCRIBIR_MODO == "ptx" else "serie")
 _k_cinta_ptx: dict = {}
 _f32_cache: dict = {}
@@ -974,7 +974,7 @@ def escribir_cinta(A_log, a, b, dt_bias, k, v, cu_seqlens, sidx, slots, cinta, N
             num_warps=4, num_stages=3)
 
 
-_DIAG_CRESTA = os.environ.get("GENESIS_DIAG_GDN_CRESTA", "0").strip().lower() in _TRUTHY
+_DIAG_CRESTA = '0' in _TRUTHY
 _cresta_n = 0
 
 
@@ -1009,7 +1009,7 @@ def _diag_cresta(layer, ssm_state, sidx) -> None:
                 cr(SR, "fila"), cr(SR, "col"), S.abs().max().item(), S.abs().median().item())
 
 
-_ARBOL_PTX = os.environ.get("GENESIS_PN122_ARBOL_PTX", "0").strip().lower() in _TRUTHY
+_ARBOL_PTX = '1' in _TRUTHY
 _ARBOL_RPW = 4                      # filas por warp (barrido 27-09: 4 gana a 8 y a 2)
 
 

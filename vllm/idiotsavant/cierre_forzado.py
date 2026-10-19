@@ -31,7 +31,7 @@ from typing import Any
 
 log = logging.getLogger("idiotsavant.pn175")
 
-_MAX = int(os.environ.get("GENESIS_PN175_MAX_TOKENS", "4096"))
+_MAX = 4096
 _CIERRE = "</think>\n\n"
 _cuenta = {"forzados": 0}
 

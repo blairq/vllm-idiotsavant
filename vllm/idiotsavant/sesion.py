@@ -11,7 +11,7 @@ import logging
 import os
 
 log = logging.getLogger("idiotsavant.pn169")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN169_SESION", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 CAMPOS = (("x-genesis-sesion", "genesis_sesion"), ("x-genesis-padre", "genesis_padre"),
           ("x-genesis-raiz", "genesis_raiz"), ("x-genesis-agente", "genesis_agente_oc"))
 _vistas: set = set()

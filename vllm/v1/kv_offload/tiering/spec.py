@@ -401,15 +401,8 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                     if type(_g98_g.kv_cache_spec).__name__.startswith('Mamba'):
                         _g98_rec += 1
                 _g98_stride = 1
-                if _g98_os.environ.get(
-                    'GENESIS_ENABLE_PN93_SPARSE_GDN', '1'
-                ) not in ('0', 'false', 'no'):
-                    _g98_stride = int(
-                        _g98_os.environ.get(
-                            'GENESIS_PN93_GDN_CHECKPOINT_STRIDE', '1'
-                        )
-                        or 1
-                    )
+                if False:
+                    _g98_stride = 1
                 _g98_cc = self.vllm_config.cache_config
                 _g98_tpb = _g98_cc.block_size * self.block_size_factor
                 _g98_l1 = int(

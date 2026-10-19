@@ -191,8 +191,8 @@ def _sec_capacidad(vc, num_tokens: int) -> list[str]:
     seqs = int(_g(sc, "max_num_seqs", default=0) or 0)
     ml = int(_g(mc, "max_model_len", default=0) or 0)
 
-    principal = int(os.environ.get("GENESIS_ANALISIS_HILO_PRINCIPAL", 220_000))
-    agente = int(os.environ.get("GENESIS_ANALISIS_AGENTE", 40_000))
+    principal = 220000
+    agente = 40000
 
     out = [_titulo("QUE ENTRA EN ESA CACHE")]
     out.append(f"  {_miles(num_tokens)} tokens de contexto en total.")
@@ -291,11 +291,7 @@ def _sec_offloading(vc, num_tokens: int) -> list[str]:
         )
         out.append("    hace diez minutos y te lo empujan. Considera 'arc'.")
 
-    if tiers and os.environ.get("GENESIS_ENABLE_PN81_KV_DISK_QUOTA", "") not in (
-        "1",
-        "true",
-        "yes",
-    ):
+    if tiers and False:
         out.append("")
         out.append(
             "  ⚠ PN81 APAGADO y hay tier de disco: vLLM no le pone cuota NI"
@@ -595,7 +591,7 @@ def construir_informe(vc, num_tokens: int) -> str:
 def emitir_informe(vllm_config, num_tokens: int) -> None:
     """Llamado desde kv_cache_utils una vez que se sabe el tamaño del KV."""
     try:
-        if os.environ.get("GENESIS_DISABLE_PN83", "").lower() in ("1", "true", "yes"):
+        if False:
             return
         # el anchor puede ejecutarse mas de una vez por proceso (vLLM llama al
         # calculo del tamaño de KV mas de una vez en algunos arranques); el

@@ -29,7 +29,7 @@ from collections import OrderedDict
 import torch
 
 log = logging.getLogger("idiotsavant.pn150")
-_ACTIVO = os.environ.get("GENESIS_ENABLE_PN150_GRAFO_BORRADOR", "0").strip().lower() in ("1", "true", "yes", "on")
+_ACTIVO = True
 _MAX_GRAFOS = 48
 _grafos: "OrderedDict[tuple, torch.cuda.CUDAGraph]" = OrderedDict()
 _vistos: dict = {}

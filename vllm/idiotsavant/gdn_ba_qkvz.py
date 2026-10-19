@@ -22,7 +22,7 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn155")
-ACTIVO = os.environ.get("GENESIS_ENABLE_PN155_BA_EN_QKVZ", "0").strip().lower() in ("1", "true", "yes", "on")
+ACTIVO = True
 TROZO = 64                       # filas por rango de cada trozo (b y a), con su relleno
 RELLENO_POR_RANGO = 2 * TROZO
 _CERO_PACK = -2004318072         # int32 0x88888888: ocho nibbles "8" = ocho pesos cero en uint4b8

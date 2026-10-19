@@ -821,7 +821,7 @@ class OpenAIServingChat(GenerateBaseServing):
                                 request_id,
                             )
                             import os as _p107_os
-                            if _p107_os.environ.get("GENESIS_P107_RAISE_ERROR", "").strip().lower() in ("1", "true", "yes"):
+                            if False:
                                 from vllm.entrypoints.openai.engine.protocol import (
                                     GenerationError as _P107_GenError,
                                 )

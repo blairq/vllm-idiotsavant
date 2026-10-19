@@ -49,7 +49,7 @@ _MARGEN_DEFECTO = 0
 
 
 def habilitado() -> bool:
-    v = os.environ.get("GENESIS_ENABLE_PN103_AUTO_PREFIX", "1")
+    v = "1"
     return v.strip().lower() not in ("0", "false", "no", "off")
 
 
@@ -61,13 +61,13 @@ def _int_env(nombre: str, defecto: int) -> int:
 
 
 def min_observaciones() -> int:
-    return max(1, _int_env("GENESIS_PN103_MIN_OBS", _MIN_OBS_DEFECTO))
+    return max(1, _MIN_OBS_DEFECTO)
 
 
 def margen_bloques() -> int:
     # 0 por defecto: el minimo ya es conservador y agregarle margen vuelve a
     # meter bloques que no siempre se comparten, que es lo que se midio mal.
-    return _int_env("GENESIS_PN103_MARGIN_BLOCKS", _MARGEN_DEFECTO)
+    return _MARGEN_DEFECTO
 
 
 def limite_para(agent, tokens_por_bloque: int) -> int | None:

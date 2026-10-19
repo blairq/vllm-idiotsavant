@@ -38,7 +38,7 @@ import numpy as np
 
 log = logging.getLogger("idiotsavant.captura")
 
-DIR = os.environ.get("GENESIS_CAPTURA_BORRADOR_DIR", "/traces/captura")
+DIR = "/traces/captura"
 _BANDERA = os.path.join(DIR, "CAPTURAR")
 _avisado = False
 _rank0 = None

@@ -1108,7 +1108,7 @@ class OffloadingConnectorScheduler:
             # real de tokens locales para el grupo, evitando el crash fatal.
             # Ver wiring/hybrid/patch_N87_offload_hybrid_alloc_boundary.py
             import os as _g87_os
-            if _g87_os.environ.get('GENESIS_DISABLE_PN87') != '1':
+            if True:
                 _g87_expected_local_blocks = min(
                     num_gpu_blocks,
                     num_locally_computed_tokens // tokens_per_block,

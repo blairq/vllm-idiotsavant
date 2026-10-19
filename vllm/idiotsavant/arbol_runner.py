@@ -117,7 +117,7 @@ def _contar(motivo: str, pedidos_decode: int) -> None:
 #   8 sin compactar estados ocultos         16 sin compactar la conv   32 volcar el paso al log
 #  64 mascara de cadena en un paso que POR LO DEMAS va en arbol (aisla la mascara)
 # Cambiarlo SOLO con el servidor ocioso: los dos ranks de TP tienen que leer lo mismo.
-_DEBUG = os.environ.get("GENESIS_ARBOL_DEBUG", "0") == "1"
+_DEBUG = False
 _modo_cache = [0, 0.0]
 
 
@@ -179,9 +179,9 @@ def _init(K: int, max_reqs: int, slots: int, dev, KC: int = 16) -> None:
 #   codigo  cadena 292/914   arbol determinista 282/912          arbol + Rheo 269/858
 # El muestreado entra con prioridad inflada (la proxy) y ocupa 1-4 de los 8 lugares; el paper usa
 # arboles de decenas de nodos. Reintentar solo si el arbol crece. GENESIS_ARBOL_RHEO=1 lo prende.
-_RHEO = os.environ.get("GENESIS_ARBOL_RHEO", "0") == "1"
+_RHEO = False
 
-_DUPLICADO = os.environ.get("GENESIS_ARBOL_PRUEBA_DUPLICADO", "0") == "1"
+_DUPLICADO = False
 _path0 = None
 
 
@@ -546,7 +546,7 @@ def _envolver_conv() -> None:
 def instalar() -> None:
     if not ACTIVO:
         return
-    if os.environ.get("GENESIS_ENABLE_PN122_GDN_CINTA", "0") != "1":
+    if False:
         log.error("[ARBOL] necesita PN122 (la cinta de GDN): queda APAGADO")
         return
     _envolver_borrador()

@@ -167,7 +167,7 @@ def _k_salidas_par(x, stride_xt, out, stride_ot, cs, stride_cs_seq, stride_cs_di
                      tl.load(x + (bos + c) * stride_xt + f, mask=mf, other=0.0), mask=mf)
 
 
-_SALIDAS_MODO = __import__("os").environ.get("GENESIS_ARBOL_SALIDAS_PAR", "0").strip().lower()
+_SALIDAS_MODO = 'ptx'
 _SALIDAS_MODO = "par" if _SALIDAS_MODO in ("1", "true", "yes", "on") else ("ptx" if _SALIDAS_MODO == "ptx" else "serie")
 _k_conv_ptx: dict = {}
 _FPT, _NHILOS = 1, 32               # barrido 27-09: 3,5 us (1 pedido) y 5,2 (4) contra 5,4/7,8 de Triton
