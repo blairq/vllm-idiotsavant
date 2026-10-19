@@ -14,9 +14,8 @@ por canal) con ``int16_t``, compilado como extension propia y registrado como
 para que las negativas entren en el int16. Medido en k_proj real de noon: error
 0,87% (el de cuantizar x a int8) contra 2,82% con PN125 y 0,03% en W4A16.
 
-La extension se compila una vez (~1 min, nvcc del contenedor) en
-``GENESIS_MARLIN_S16_BUILD`` (default ``/root/.cache/vllm/genesis_marlin_s16``,
-montado por modelo) desde ``apply_all``; los workers solo la cargan.
+La extension se compila en el build de la imagen (``docker/Dockerfile.idiotsavant``, ~1 min) dentro
+del paquete, en ``kernels/marlin_s16/build``; en runtime solo se carga.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ log = logging.getLogger("idiotsavant.pn130")
 
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 _SRC = os.path.join(_AQUI, "kernels", "marlin_s16")
-BUILD = "/root/.cache/vllm/genesis_marlin_s16"
+BUILD = os.path.join(_SRC, "build")
 _cargado = False
 # La firma del op cambio cuando PN140 sumo `a_sums_or_none` antes de `workspace`. Una .so vieja
 # en la cache y un fuente nuevo (o al reves) dejaban la llamada con un argumento corrido, y el
@@ -90,8 +89,8 @@ def construir() -> str:
         so = None
     if so:
         return so
-    env = dict(os.environ, GENESIS_MARLIN_S16_BUILD=BUILD, TORCH_CUDA_ARCH_LIST="8.6")
-    r = subprocess.run([sys.executable, os.path.join(_SRC, "build.py")], env=env,
+    env = dict(os.environ, TORCH_CUDA_ARCH_LIST="8.6")
+    r = subprocess.run([sys.executable, os.path.join(_SRC, "build.py"), BUILD], env=env,
                        capture_output=True, text=True)
     so = _so()
     if r.returncode != 0 or not so:
@@ -111,7 +110,8 @@ def cargar() -> bool:
         return True
     so = _so()
     if so is None:
-        log.info("[PN130] extension todavia sin compilar en %s (la compila apply_all)", BUILD)
+        log.error("[PN130] falta la extension compilada en %s (se compila en el build de la imagen): "
+                  "Marlin W4A8 corre sin escalas int16, unos 11%% mas lento en prefill", BUILD)
         return False
     torch.ops.load_library(so)
     from torch.library import register_fake

@@ -22,7 +22,7 @@ devolvia ``"\\n"`` + EOS (2 tokens) en 1,8 s, y uno nuevo del mismo largo, en el
 Que hace
 --------
 ``huella()`` devuelve una cadena corta y estable que resume todo lo de arriba. PN81 la mete en
-``FileMapper.fields`` como ``genesis_kv_format``, asi que participa del hash del directorio: otra
+``FileMapper.fields`` como ``kv_format``, asi que participa del hash del directorio: otra
 config, otro directorio. Sobre-incluir solo cuesta reuso de cache; sub-incluir cuesta salidas
 corruptas, asi que ante la duda una variable ENTRA.
 

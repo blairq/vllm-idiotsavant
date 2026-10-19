@@ -39,7 +39,7 @@ def libcuda():
 
 
 def _dir(nombre: str) -> pathlib.Path:
-    d = pathlib.Path(os.path.expanduser(f"~/.cache/genesis/ptx_lab/{nombre}"))
+    d = pathlib.Path(os.path.expanduser(f"~/.cache/vllm/idiotsavant/ptx/{nombre}"))
     d.mkdir(parents=True, exist_ok=True)
     return d
 

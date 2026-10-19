@@ -23,7 +23,7 @@ Esto engancha dos caminos, porque vLLM usa los dos:
 Que escribe
 -----------
 Un archivo por incidente en ``GENESIS_VOLCADO_DIR`` (por defecto
-``/root/.cache/vllm/genesis_volcados``, que esta montado, asi que sobrevive a la muerte del
+``/root/.cache/vllm/idiotsavant/volcados``, que esta montado, asi que sobrevive a la muerte del
 contenedor). Adentro: la excepcion, el traceback completo y, POR CADA FRAME, sus variables
 locales resumidas — los tensores como forma/dtype/dispositivo y un par de estadisticas, las
 listas como largo mas los primeros y ultimos elementos, los textos recortados. Nunca el
@@ -62,7 +62,7 @@ def activo() -> bool:
 
 
 def _dir() -> str:
-    d = '/root/.cache/vllm/genesis_volcados'
+    d = '/root/.cache/vllm/idiotsavant/volcados'
     try:
         os.makedirs(d, exist_ok=True)
     except OSError:
@@ -273,7 +273,7 @@ def instalar() -> None:
 
 # ───────────────────────── logs a archivo, por proceso ─────────────────────────
 
-def config_logging(destino: str = "/root/.cache/vllm/genesis_logs") -> str:
+def config_logging(destino: str = "/root/.cache/vllm/idiotsavant/logs") -> str:
     """Escribe un dictConfig para ``VLLM_LOGGING_CONFIG_PATH`` y devuelve su ruta.
 
     Se usa la palanca NATIVA de vLLM en vez de inventar uuna: la variable

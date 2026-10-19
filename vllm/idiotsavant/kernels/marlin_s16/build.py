@@ -4,7 +4,7 @@ import torch
 from torch.utils import cpp_extension
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(AQUI, "src")
-BUILD = "/root/.cache/genesis/marlin_s16"
+BUILD = sys.argv[1] if len(sys.argv) > 1 else os.path.join(AQUI, "build")
 os.makedirs(BUILD, exist_ok=True)
 os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.6")
 t0 = time.time()

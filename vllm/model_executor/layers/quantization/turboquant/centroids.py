@@ -95,7 +95,7 @@ def _genesis_pn57_path():
     global _GENESIS_PN57_CACHE_PATH
     if _GENESIS_PN57_CACHE_PATH is None:
         _GENESIS_PN57_CACHE_PATH = _os.path.expanduser(
-            "~/.cache/genesis/turboquant_centroids.pkl"
+            "~/.cache/vllm/idiotsavant/turboquant_centroids.pkl"
         )
     return _GENESIS_PN57_CACHE_PATH
 

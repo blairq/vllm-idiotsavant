@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir pandas scipy xxhash
 
 COPY vllm/ ${SITE}/vllm/
 
+# Marlin W4A8 con escalas int16 (PN130): extensión propia, compilada acá para sm_86.
+RUN TORCH_CUDA_ARCH_LIST=8.6 python3 -c \
+    "from vllm.idiotsavant import marlin_s16; print(marlin_s16.construir())"
+
 # Reemplaza al `python3 -m vllm._genesis.volcado` del entrypoint: el dictConfig
 # ahora es un archivo fijo de la imagen.
 COPY docker/idiotsavant/logging.json /etc/vllm-idiotsavant/logging.json
