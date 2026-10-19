@@ -9,13 +9,27 @@ con un valor que no es el pedido.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from vllm.config import VllmConfig
 
 log = logging.getLogger("idiotsavant.opciones")
+
+# Clave del config.json con la que un checkpoint de residuo rotado declara su rotacion. La segunda es
+# la de los checkpoints publicados hasta ahora.
+CLAVES_ROTACION = ("residual_rotation", "genesis_rotacion")
+
+
+def rotacion(config: Any) -> dict:
+    """La declaracion de rotacion de un config (objeto de HF o dict), o {} si no es rotado."""
+    for clave in CLAVES_ROTACION:
+        rc = config.get(clave) if isinstance(config, dict) else getattr(config, clave, None)
+        if rc:
+            return dict(rc)
+    return {}
+
 
 @dataclass(frozen=True)
 class Opciones:
@@ -26,6 +40,10 @@ class Opciones:
     max_model_len: int
     prefix_cache_retention_interval: int
     kv_metric_agents: tuple[str, ...]
+    # Del checkpoint target (ver rotacion()): 0 / {} / False si no lo declara.
+    rot_down_block: int = 0
+    had_entrada: dict = field(default_factory=dict)
+    gdn_gates_in_qkvz: bool = False
 
 
 _actual: Opciones | None = None
@@ -34,6 +52,7 @@ _actual: Opciones | None = None
 def configurar(vllm_config: VllmConfig) -> None:
     global _actual
     spec = vllm_config.speculative_config
+    rc = rotacion(vllm_config.model_config.hf_config)
     _actual = Opciones(
         tree_drafting=bool(spec is not None and spec.tree_drafting),
         draft_vocab_size=spec.draft_vocab_size if spec is not None else 0,
@@ -48,6 +67,10 @@ def configurar(vllm_config: VllmConfig) -> None:
             if (kv := vllm_config.kv_transfer_config) is not None
             else ()
         ),
+        rot_down_block=int(rc.get("bloque_down") or 0),
+        had_entrada=dict(rc.get("had_entrada") or {}),
+        # El checkpoint del 28-09 lo declara en "requiere"; uno nuevo puede usar la clave propia.
+        gdn_gates_in_qkvz=bool(rc.get("gdn_gates_in_qkvz")) or "PN155" in str(rc.get("requiere", "")),
     )
     _al_configurar()
 

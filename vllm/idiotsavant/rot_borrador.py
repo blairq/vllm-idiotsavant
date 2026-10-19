@@ -25,9 +25,9 @@ def _hadamard(n: int) -> torch.Tensor:
 
 def preparar(modelo, config) -> None:
     """Desde el __init__ del modelo del borrador: buffers en el dispositivo y dtype del modelo."""
-    rc = getattr(config, "genesis_rotacion", None)
-    if isinstance(config, dict):
-        rc = config.get("genesis_rotacion")
+    from vllm.idiotsavant.opciones import rotacion
+
+    rc = rotacion(config)
     modelo._g149_on = bool(rc)
     if not rc:
         return

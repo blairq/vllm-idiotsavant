@@ -12,8 +12,8 @@ ortogonal. Por que:
     produce la entrada (la salida de la atencion, la norma con compuerta del GDN) tiene la cabeza entera
     en registros: ahi la Hadamard y el int8 salen gratis y desaparece el _per_token_quant de Marlin.
 
-Se prende SOLO si el checkpoint lo declara (config.json -> genesis_rotacion.had_entrada): con un checkpoint
-del 25-09 este parche no hace nada. GENESIS_PN154_APAGAR=1 lo apaga igual (solo para depurar: con el actual rompe).
+Se prende SOLO si el checkpoint lo declara (config.json -> residual_rotation / genesis_rotacion -> had_entrada):
+con un checkpoint del 25-09 este parche no hace nada.
 """
 from __future__ import annotations
 
@@ -31,13 +31,8 @@ def _had_entrada() -> dict:
     """{"o_proj": 256, "out_proj": 128} del checkpoint, o {} si no lo declara."""
     if not _cfg["leido"]:
         _cfg["leido"] = True
-        try:
-            from vllm.config import get_current_vllm_config
-            hf = get_current_vllm_config().model_config.hf_config
-            rot = getattr(hf, "genesis_rotacion", None) or {}
-            _cfg["had"] = dict(rot.get("had_entrada", {})) if isinstance(rot, dict) else {}
-        except Exception as e:  # noqa: BLE001
-            log.warning("[PN154] no se pudo leer genesis_rotacion del config: %s", e)
+        from vllm.idiotsavant import opciones
+        _cfg["had"] = dict(opciones.actual().had_entrada)
     return {} if _APAGAR else _cfg["had"]
 
 

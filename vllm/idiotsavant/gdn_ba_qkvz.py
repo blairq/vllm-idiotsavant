@@ -10,9 +10,9 @@ por rango (Marlin pide N >= 64). Por eso se suman a in_proj_qkvz como un quinto 
 (dos trozos de 64 por rango, los shards 4 y 5 del MergedColumnParallelLinear: vLLM solo acepta ids de
 trozo enteros) y el forward separa b y a de la salida. El relleno son pesos cero (nibble 8) con escala 1.
 
-Solo con checkpoints que traen in_proj_a/b cuantizadas (config: no estan en ``ignore``) y
-GENESIS_ENABLE_PN155_BA_EN_QKVZ=1. El mapeo de pesos se decide al importar (variable de entorno); si
-el checkpoint no coincide, falla al cargar con un mensaje claro.
+Solo con checkpoints que traen in_proj_a/b cuantizadas y lo declaran en su rotacion (ver
+opciones.rotacion). El mapeo de pesos lo fija el __init__ del modelo; si el checkpoint no coincide,
+falla al cargar con un mensaje claro.
 """
 from __future__ import annotations
 
@@ -22,28 +22,31 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn155")
-ACTIVO = True
 TROZO = 64                       # filas por rango de cada trozo (b y a), con su relleno
 RELLENO_POR_RANGO = 2 * TROZO
 _CERO_PACK = -2004318072         # int32 0x88888888: ocho nibbles "8" = ocho pesos cero en uint4b8
 
 
-def destino(cual: str):
-    """Entrada de ``orig_to_new_stacked`` para ".in_proj_b" / ".in_proj_a"."""
-    if ACTIVO:
-        return (".in_proj_qkvz", 4 if cual == "b" else 5)
-    return (".in_proj_ba", 0 if cual == "b" else 1)
+def activo() -> bool:
+    from vllm.idiotsavant import opciones
+
+    return opciones.actual().gdn_gates_in_qkvz
+
+
+def mapeo_ba() -> dict:
+    """``orig_to_new_stacked`` de in_proj_b / in_proj_a: los trozos 4 y 5 de in_proj_qkvz."""
+    return {".in_proj_b": (".in_proj_qkvz", 4), ".in_proj_a": (".in_proj_qkvz", 5)}
 
 
 def tamanos_qkvz(key_dim: int, value_dim: int, tp: int) -> list:
     base = [key_dim, key_dim, value_dim, value_dim]
-    return base + [TROZO * tp, TROZO * tp] if ACTIVO else base
+    return base + [TROZO * tp, TROZO * tp] if activo() else base
 
 
 def preparar(gdn) -> None:
     """Desde el __init__ del GDN, despues de crear in_proj_qkvz: engancha el cargador de los trozos b/a
     y escribe el relleno (los parametros de compressed-tensors nacen con torch.empty)."""
-    if not ACTIVO:
+    if not activo():
         return
     lin = gdn.in_proj_qkvz
     nv = gdn.num_v_heads // gdn.tp_size

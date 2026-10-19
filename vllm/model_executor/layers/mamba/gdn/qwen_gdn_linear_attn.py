@@ -446,7 +446,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         # ba_proj doesn't support blockwise fp8 quantization.
         # Qwen3-Next and Qwen3.5 have different in_proj_ba checkpoint
         # layouts, so we use a factory method to create the projection.
-        self.in_proj_ba = None if _g155.ACTIVO else self.create_ba_proj(  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+        self.in_proj_ba = None if _g155.activo() else self.create_ba_proj(  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
             hidden_size=self.hidden_size,
             num_v_heads=self.num_v_heads,
             quant_config=self.quant_config,

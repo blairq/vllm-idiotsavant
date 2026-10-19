@@ -9,12 +9,10 @@ Con TP=2 cada rango tiene su mitad de la dimension intermedia (8704 = 17 x 512):
 cruzan la particion, asi que cada rango aplica su parte sola, sin comunicacion. Y el int8 por token
 de Marlin cuantiza la entrada YA rotada, que es donde la cresta baja de ~27 a ~4.
 
-B sale de GENESIS_PN148_BLOQUE (512 por defecto). Sin checkpoint rotado este parche ROMPE el modelo:
-solo se prende con GENESIS_ENABLE_PN148_ROT_DOWN=1 junto con el checkpoint que lo pide.
+Sin checkpoint rotado este parche ROMPE el modelo: se prende solo si el checkpoint declara
+``bloque_down`` en su rotacion (ver opciones.rotacion), y ese bloque tiene que ser B.
 """
 from __future__ import annotations
-
-import os
 
 import torch
 
@@ -26,6 +24,15 @@ FUSIONADO = True and B == 512
 INT8 = FUSIONADO and True
 if FUSIONADO:
     from vllm.idiotsavant import silu_had  # noqa: F401  (registra las ops genesis::pn148_*)
+
+
+def activo() -> bool:
+    from vllm.idiotsavant import opciones
+
+    b = opciones.actual().rot_down_block
+    if b and b != B:
+        raise ValueError(f"PN148: el checkpoint declara bloque_down={b}; solo esta implementado {B}")
+    return bool(b)
 
 
 def hadamard() -> torch.Tensor:

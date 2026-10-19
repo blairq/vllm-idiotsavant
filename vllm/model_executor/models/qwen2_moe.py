@@ -112,11 +112,16 @@ class Qwen2MoeMLP(nn.Module):
             )
         self.act_fn = SiluAndMul()
         self.expert_gate = expert_gate
-        self.register_buffer('_g148_h', _g148.hadamard(), persistent=False)  # [Genesis PN148: Hadamard antes de down_proj]
+        self._g148 = _g148.activo()  # [Genesis PN148: Hadamard antes de down_proj]
+        if self._g148:
+            self.register_buffer('_g148_h', _g148.hadamard(), persistent=False)
 
     def forward(self, x, _q156=None):  # [Genesis PN156: norma que escribe int8]
         gate_up = _g156.lineal(self.gate_up_proj, x, _q156)
-        out = _g148.act_had_down(self, gate_up)  # [Genesis PN148: Hadamard antes de down_proj]
+        if self._g148:  # [Genesis PN148: Hadamard antes de down_proj]
+            out = _g148.act_had_down(self, gate_up)
+        else:
+            out, _ = self.down_proj(self.act_fn(gate_up))
 
         if self.expert_gate is not None:
             out = F.sigmoid(self.expert_gate(x)[0]) * out

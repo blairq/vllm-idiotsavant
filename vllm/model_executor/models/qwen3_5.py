@@ -222,13 +222,19 @@ class Qwen3_5Model(Qwen3NextModel):
         orig_to_new_stacked={
             ".in_proj_qkv": (".in_proj_qkvz", (0, 1, 2)),
             ".in_proj_z": (".in_proj_qkvz", 3),
-            ".in_proj_b": __import__("vllm.idiotsavant.gdn_ba_qkvz", fromlist=["x"]).destino("b"),  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
-            ".in_proj_a": __import__("vllm.idiotsavant.gdn_ba_qkvz", fromlist=["x"]).destino("a"),
+            ".in_proj_b": (".in_proj_ba", 0),
+            ".in_proj_a": (".in_proj_ba", 1),
         }
     )
 
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
         super(Qwen3NextModel, self).__init__()
+        from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+
+        if _g155.activo():
+            self.hf_to_vllm_mapper = type(self).hf_to_vllm_mapper | WeightsMapper(
+                orig_to_new_stacked=_g155.mapeo_ba()
+            )
 
         config: Qwen3_5TextConfig | Qwen3_5MoeTextConfig = (
             vllm_config.model_config.hf_text_config
