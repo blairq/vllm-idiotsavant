@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis version — single source of truth.
+"""Version of the genesis-vllm-patches tree this package comes from.
 
 Update this on each release tag. All other modules MUST import from
 here rather than hardcoding their own version string.

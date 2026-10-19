@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN124: TRITON_ATTN rápido en Ampere (SM86) para head_dim 256.
+"""PN124: TRITON_ATTN rápido en Ampere (SM86) para head_dim 256.
 
 Por qué
 -------

@@ -409,7 +409,7 @@ class CustomAllreduce:
         if self.disabled or self.world_size > 8:
             return False
         # [B3] Bypass custom AR during CUDA graph capture to prevent CuMem IPC crash.
-        # Con GENESIS_B3_CAPTURA=1 (y sin --enable-cumem-allocator) se permite capturarlo:
+        # Capturarlo en un grafo esta deshabilitado (en produccion tampoco se hacia):
         # en decode TODAS las all-reduce van dentro del grafo, asi que con el bypass NCCL
         # se queda con el 100% (141 lanzamientos, 4,0 ms por paso, 25,6 us cada uno).
         if getattr(self, '_IS_CAPTURING', False):

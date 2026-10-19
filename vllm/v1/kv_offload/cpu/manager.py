@@ -188,7 +188,6 @@ class CPUOffloadingManager(OffloadingManager):
             )
 
         self.allocation_sizes_in_current_batch.append(len(keys_to_store))
-        # _GENESIS_PN100_STAGING_RING
         # Un agente efimero (coder/explorer/...) no puede ocupar mas de K
         # bloques de L2. Antes de calcular desalojos, el anillo recicla lo
         # SUYO mas viejo para hacerse lugar; asi el excedente efimero nunca
@@ -245,7 +244,6 @@ class CPUOffloadingManager(OffloadingManager):
             for key, block in evicted:
                 self._free_block(block)
                 to_evict.append(key)
-            # _GENESIS_PN95_L2_OCCUPANCY
             # El desalojo de L2 ES la escritura al SSD: con PN90, un
             # bloque solo baja a disco cuando lo echan de RAM. Sin este
             # contador no se puede distinguir 'no hubo presion' de
@@ -318,7 +316,6 @@ class CPUOffloadingManager(OffloadingManager):
                     self._policy.remove(key)
                     self._free_block(block)
 
-        # _GENESIS_PN95_L2_OCCUPANCY
         # Unico punto por el que pasan todas las altas y bajas del pool.
         # Va ANTES del bloque de eventos a proposito: los eventos pueden
         # estar apagados y la ocupacion cambia igual.

@@ -69,7 +69,7 @@ THREAD_CONFIGS = [(128, 128, 256), (64, 256, 256), (64, 128, 128), (128, 64, 128
 THREAD_M_BLOCKS = [0.5, 1, 2, 3, 4, 5, 6, 7, 8]
 
 QUANT_CONFIGS = [
-    # Genesis PN130: solo GPTQ/AutoRound INT4 simetrico con activaciones INT8.
+    # PN130: solo GPTQ/AutoRound INT4 simetrico con activaciones INT8.
     {
         "a_type": ["kS8"],
         "b_type": "kU4B8",

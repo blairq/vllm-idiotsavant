@@ -198,7 +198,7 @@ def _avisar(motivo):
 
 def salidas(x, conv_state, weight, activation, conv_state_indices, num_accepted_tokens,
             query_start_loc, anc3, out=None, escribir_estado=False, par=None):
-    # par: None = GENESIS_ARBOL_SALIDAS_PAR (0 serie | 1 Triton desenrollado | ptx), o forzado
+    # par: None = el modo fijo (ptx), o forzado (0 serie | 1 Triton desenrollado | ptx)
     # (False / True / "ptx") para los tests. Los tres dan lo mismo bit a bit.
     """Mismos argumentos que ``causal_conv1d_update`` en el camino spec (``x`` [tokens, dim],
     ``conv_state`` [bloques, dim, state_len], ``weight`` [dim, 4], sin bias) mas ``anc3`` (ver ``arbol_borrador.preparar_paso_kernel``).

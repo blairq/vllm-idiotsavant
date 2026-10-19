@@ -85,7 +85,7 @@ class Kernel:
             return dest.read_text()
         with tempfile.TemporaryDirectory() as d:
             out = os.path.join(d, "k.ptx")
-            # GENESIS_LINEINFO=1 agrega -lineinfo para que ncu pueda atribuir las metricas a la
+            # Con lineinfo (apagado) se agrega -lineinfo para que ncu pueda atribuir las metricas a la
             # linea de fuente. Entra en la clave de cache porque cambia el binario.
             extra = ["-lineinfo"] if False else []
             r = subprocess.run(["nvcc", "-ptx", f"-arch=sm_{self.arch}", f"-O{self.opt}",

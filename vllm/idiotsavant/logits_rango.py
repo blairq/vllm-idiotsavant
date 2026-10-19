@@ -22,7 +22,7 @@ No es exacto (y va por el camino de siempre): top_p sin top_k, min_p, penalidade
 words, logprobs, gramatica, contar NaN, gumbel en fp64, RheoSampling. La unica aproximacion aceptada:
 un empate de mas de ``_MARGEN`` tokens exactamente en el valor del k-esimo.
 
-``GENESIS_PN153_VERIFICAR=N``: en las primeras N llamadas calcula tambien los logits enteros y compara
+Verificacion (apagada; ``_VERIFICAR``): en las primeras N llamadas calcula tambien los logits enteros y compara
 el token muestreado por los dos caminos (temperatura, top_k/top_p y gumbel, sin efectos laterales).
 Los motivos del camino de siempre se cuentan y se vuelcan a /dev/shm/pn153_stats_<pid>.
 """

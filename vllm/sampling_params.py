@@ -1034,16 +1034,16 @@ class SamplingParams(
         # [PN147: saneo para spec decode] anularlos en vez de rechazar el pedido entero (lo que hacia
         # el proxy j-space). En streaming el rechazo llegaba con HTTP 200 y cuerpo vacio.
         if self.min_p > _SAMPLING_EPS or self.logit_bias:
-            global _GENESIS_PN147_AVISADO
+            global _ISV_PN147_AVISADO
             try:
-                _GENESIS_PN147_AVISADO
+                _ISV_PN147_AVISADO
             except NameError:
-                _GENESIS_PN147_AVISADO = False
-            if not _GENESIS_PN147_AVISADO:
+                _ISV_PN147_AVISADO = False
+            if not _ISV_PN147_AVISADO:
                 logger.warning('[PN147] min_p=%s / logit_bias no van con '
                                'decodificacion especulativa: se anulan (aviso unico)',
                                self.min_p)
-                _GENESIS_PN147_AVISADO = True
+                _ISV_PN147_AVISADO = True
             self.min_p = 0.0
             self.logit_bias = None
 

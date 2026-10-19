@@ -51,9 +51,9 @@ How to use
 ----------
 Operator opt-in via env:
 
-    GENESIS_ENABLE_PN12_FFN_INTERMEDIATE_POOL=1
+    always on in this tree
 
-Genesis text-patch (PN12) rewrites `SiluAndMul.forward_cuda` to:
+The PN12 patch rewrites `SiluAndMul.forward_cuda` to:
 
     if FFNIntermediateCache.should_apply():
         out = FFNIntermediateCache.acquire_silu_out(

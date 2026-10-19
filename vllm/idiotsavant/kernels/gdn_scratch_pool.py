@@ -54,7 +54,7 @@ Pattern lifted from FFNIntermediateCache (PN12), proven safe:
 
 Window memory budget
 --------------------
-At Genesis 27B Lorbus shapes (B=1, H=24, K=V=128, fp16):
+At 27B (Lorbus) shapes (B=1, H=24, K=V=128, fp16):
   WINDOW_NT=4: 1 × 4 × 24 × 128 × 128 × 2 = 3.0 MiB
   WINDOW_NT=8: 6.0 MiB
   WINDOW_NT=16: 12.0 MiB
@@ -77,10 +77,9 @@ How to use
 ----------
 Operator opt-in via env:
 
-    GENESIS_ENABLE_PN59_STREAMING_GDN=1
-    GENESIS_VARIANT_D_WINDOW_NT=4   # tune per shape
+    always on in this tree; window of 4 chunks
 
-Genesis text-patch (PN59) wraps `chunk_gated_delta_rule_fwd_h` to use
+The PN59 patch wraps `chunk_gated_delta_rule_fwd_h` to use
 this pool when the request meets streaming criteria (single-seq, T >
 window threshold). Falls through to vanilla `_orig_fwd` otherwise.
 
@@ -148,7 +147,7 @@ class GdnScratchPool:
         """Env gate. Operator must explicitly opt in.
 
         Audit P3 fix 2026-05-05: unified bool parser to match the rest of
-        the Genesis env-flag conventions ("1", "true", "yes", "y", "on" —
+        the old env-flag conventions ("1", "true", "yes", "y", "on" —
         case-insensitive). Was previously rejecting "yes"/"on"/"True " etc.
         which made the wrapper return True from `apply()` while the runtime
         pool still rejected eligibility — silent no-op trap.

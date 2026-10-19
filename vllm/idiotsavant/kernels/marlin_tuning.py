@@ -103,7 +103,7 @@ def get_optimal_block_size_m() -> Optional[int]:
         return None
 
     # Audit P1 fix 2026-05-05: PN64 is registered opt-in in dispatcher
-    # (env_flag=GENESIS_ENABLE_PN64, default_on=False), so the SM 12.0
+    # (PN64, off), so the SM 12.0
     # placeholder entry must respect that flag — otherwise the audit reads
     # the registry as opt-in but the table lookup fires unconditionally.
     if cc == (12, 0) and not _pn64_enabled():
@@ -174,7 +174,7 @@ def log_selected_tuning(
 
     cc = get_compute_capability()
     log.info(
-        "[Genesis Marlin tuning] SM=%s E=%d topk=%d bsm=%d "
+        "[Marlin tuning] SM=%s E=%d topk=%d bsm=%d "
         "num_warps=%s num_stages=%s",
         cc, num_experts, topk, selected_bsm,
         get_num_warps_override() or "default",

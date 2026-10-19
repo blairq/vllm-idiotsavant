@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN91: deferral acotado de promociones (L3 SSD → L2 RAM).
+"""PN91: deferral acotado de promociones (L3 SSD → L2 RAM).
 
 El problema real
 ----------------

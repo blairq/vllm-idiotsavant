@@ -203,7 +203,6 @@ def pin_mmap_region(region: SharedOffloadRegion) -> None:
     rank = region.rank
 
     base_ptr = region._base.data_ptr()
-    # _GENESIS_PN94_PER_RANK_HOST_REGISTER
     # vLLM registra la region ENTERA desde todos los ranks. Con TP>1 los dos
     # mapean el mismo /dev/shm, asi que el segundo registra paginas fisicas ya
     # registradas y falla con cudaErrorInvalidValue: ese rank se queda con DMA
@@ -288,7 +287,6 @@ def pin_mmap_region(region: SharedOffloadRegion) -> None:
             rank,
             result,
         )
-        # _GENESIS_PN82_HOST_REGISTER_STICKY_V2
         # El runtime de CUDA deja el ultimo error LATCHEADO en el contexto
         # hasta que alguien lo consume. Chequear el valor de retorno no lo
         # limpia. PyTorch consulta ese estado en cada op, asi que la primera

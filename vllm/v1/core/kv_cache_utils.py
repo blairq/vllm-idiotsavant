@@ -2056,7 +2056,6 @@ def update_kv_cache_capacity(
         f"{max_model_len:,}",
         max_concurrency,
     )
-    # _GENESIS_PN83_ANALISIS_ARRANQUE
     # Ultimo punto del arranque donde ya se sabe TODO: config completa mas el tamaño
     # real de la cache en tokens. Aca se junta con el desglose de memoria que dejo el
     # worker y se escribe el informe para humanos. El loop es por-rank: el guard emite

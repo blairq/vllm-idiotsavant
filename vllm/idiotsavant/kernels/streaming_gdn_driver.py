@@ -5,7 +5,7 @@ Window-iterative replacement for the `chunk_gated_delta_rule_fwd_h →
 chunk_fwd_o` consumer pair in `fla/ops/chunk.py:chunk_gated_delta_rule_fwd`.
 
 Eliminates the `(B, NT, H, V, K)` peak materialization (Cliff 2b OOM
-trigger, 805 MiB at T=64K Genesis 27B Lorbus shapes) by processing
+trigger, 805 MiB at T=64K on 27B (Lorbus) shapes) by processing
 WINDOW_NT chunks at a time, reusing a small pooled buffer.
 
 Empirical confirmation (issue #20, 2026-05-05): noonghunna confirmed
@@ -26,7 +26,7 @@ for `chunk_gated_delta_rule_fwd` in chunk.py.
 Eligibility
 -----------
 Streaming path engages ONLY when ALL of:
-  * `GENESIS_ENABLE_PN59_STREAMING_GDN=1` (master env)
+  * always on in this tree
   * single-sequence prefill (cu_seqlens is None OR shape == (2,))
   * T > WINDOW_NT * BT * 4 (else overhead exceeds savings)
   * h dtype/device standard (no edge cases)
@@ -91,7 +91,7 @@ def streaming_chunk_gated_delta_rule_fwd(
     #
     # Three-mode resolution (Sander 2026-05-05 PM, "защита и там и там"):
     #
-    #   GENESIS_PN59_STRICT_NO_METADATA=auto  (DEFAULT, new behavior):
+    #   auto  (the mode in use):
     #       VRAM-aware. When metadata is present AND streaming-enabled:
     #         - probe free VRAM via cuda.mem_get_info()
     #         - estimate vanilla alloc = numel(v) * dtype_size * safety_factor
@@ -100,12 +100,12 @@ def streaming_chunk_gated_delta_rule_fwd(
     #         - if free ≥ estimated_alloc → use vanilla (metadata-correct)
     #       Protects on BOTH 24 GB chunked AND 48 GB non-chunked paths.
     #
-    #   GENESIS_PN59_STRICT_NO_METADATA=1     (audit P2.4 strict):
+    #   strict (audit P2.4, not used):
     #       Always reject streaming on metadata presence. Original audit
     #       behavior. Operators on 48+ GB can use this for guaranteed
     #       correctness.
     #
-    #   GENESIS_PN59_STRICT_NO_METADATA=0     (operator opt-in):
+    #   off   (not used):
     #       Always engage streaming on metadata presence (no VRAM check,
     #       no probe overhead). For 24 GB single-card where vanilla
     #       always OOMs anyway.
@@ -127,11 +127,11 @@ def streaming_chunk_gated_delta_rule_fwd(
     # us derive them from win_start/win_end without GPU sync). Strict gate
     # remains as escape hatch for paranoid operators on 48+ GiB rigs who
     # want bit-equivalent legacy behavior until Level 2 has soaked in
-    # PROD; opt-in via GENESIS_PN59_STRICT_NO_METADATA=1.
+    # PROD; strict mode is not used.
     strict_metadata_gate = False
     metadata_gate_passes = has_no_chunk_metadata or not strict_metadata_gate
     metadata_decision_note = (
-        "GENESIS_PN59_STRICT_NO_METADATA=1 (legacy escape hatch active)"
+        "strict metadata gate (legacy escape hatch active)"
         if strict_metadata_gate
         else "Level 2A — metadata threaded per-window (default)"
     )
@@ -152,7 +152,7 @@ def streaming_chunk_gated_delta_rule_fwd(
             else "multi-seq" if not is_single_seq
             else (
                 f"chunk metadata present + {metadata_decision_note} "
-                "(set GENESIS_PN59_STRICT_NO_METADATA=0 to force-stream "
+                "(the strict metadata gate is off in this tree "
                 "anyway — see club-3090#22)"
             ) if not metadata_gate_passes
             else f"T={T} ≤ threshold={threshold_T}"
@@ -171,7 +171,7 @@ def streaming_chunk_gated_delta_rule_fwd(
                 "[PN59] streaming-GDN bypassed for this call class — "
                 "vanilla path will run. Reason: %s. (This message will "
                 "appear ONCE per reason class per process; subsequent "
-                "bypasses are silent. Set GENESIS_PN59_DEBUG=1 to log "
+                "bypasses are silent. Debug logging is off "
                 "every bypass.)",
                 reason,
             )
@@ -205,7 +205,7 @@ def streaming_chunk_gated_delta_rule_fwd(
         # Strict no-regression: any failure → vanilla fallback
         log.warning(
             "[PN59] streaming path raised %s — falling back to vanilla. "
-            "Disable PN59 if recurrent: GENESIS_ENABLE_PN59_STREAMING_GDN=0",
+            "PN59 cannot be disabled in this tree: report it",
             type(e).__name__,
         )
         return _vanilla_path(

@@ -86,34 +86,34 @@ def solve_lloyd_max(
 # [Audit A-02 fix 2026-05-05] All `os.*` calls live inside helper bodies
 # with LOCAL `import os`. Module-level constants do NOT use `os` so we
 # never require `import os` at target module top level.
-_GENESIS_PN57_CACHE_PATH = None  # lazily resolved on first use
-_GENESIS_PN57_DISK = None  # lazily loaded
+_ISV_PN57_CACHE_PATH = None  # lazily resolved on first use
+_ISV_PN57_DISK = None  # lazily loaded
 
 def _isv_pn57_path():
     import os as _os  # LOCAL — no top-level dependency
-    global _GENESIS_PN57_CACHE_PATH
-    if _GENESIS_PN57_CACHE_PATH is None:
-        _GENESIS_PN57_CACHE_PATH = _os.path.expanduser(
+    global _ISV_PN57_CACHE_PATH
+    if _ISV_PN57_CACHE_PATH is None:
+        _ISV_PN57_CACHE_PATH = _os.path.expanduser(
             "~/.cache/vllm/idiotsavant/turboquant_centroids.pkl"
         )
-    return _GENESIS_PN57_CACHE_PATH
+    return _ISV_PN57_CACHE_PATH
 
 def _isv_pn57_load_disk():
     import os as _os  # LOCAL
-    global _GENESIS_PN57_DISK
-    if _GENESIS_PN57_DISK is not None:
-        return _GENESIS_PN57_DISK
+    global _ISV_PN57_DISK
+    if _ISV_PN57_DISK is not None:
+        return _ISV_PN57_DISK
     try:
         import pickle
         _path = _isv_pn57_path()
         if _os.path.isfile(_path):
             with open(_path, "rb") as _f:
-                _GENESIS_PN57_DISK = pickle.load(_f)
+                _ISV_PN57_DISK = pickle.load(_f)
         else:
-            _GENESIS_PN57_DISK = {}
+            _ISV_PN57_DISK = {}
     except Exception:
-        _GENESIS_PN57_DISK = {}
-    return _GENESIS_PN57_DISK
+        _ISV_PN57_DISK = {}
+    return _ISV_PN57_DISK
 
 def _isv_pn57_save_disk():
     try:
@@ -123,7 +123,7 @@ def _isv_pn57_save_disk():
         _os.makedirs(_os.path.dirname(_path), exist_ok=True)
         _dirn = _os.path.dirname(_path)
         with tempfile.NamedTemporaryFile("wb", dir=_dirn, delete=False) as _tf:
-            pickle.dump(_GENESIS_PN57_DISK, _tf)
+            pickle.dump(_ISV_PN57_DISK, _tf)
             _tmp = _tf.name
         _os.replace(_tmp, _path)
     except Exception:

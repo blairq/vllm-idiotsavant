@@ -26,9 +26,9 @@ try:
     from vllm.idiotsavant.kernels.silu_and_mul_customop import (
         get_op_callable as _isv_pn25_get_op_callable,
     )
-    _GENESIS_PN25_SILU_AND_MUL_OP = _isv_pn25_get_op_callable()
+    _ISV_PN25_SILU_AND_MUL_OP = _isv_pn25_get_op_callable()
 except Exception:
-    _GENESIS_PN25_SILU_AND_MUL_OP = None
+    _ISV_PN25_SILU_AND_MUL_OP = None
 
 
 @triton.jit
@@ -146,12 +146,12 @@ class SiluAndMul(CustomOp):
 
     @staticmethod
     def forward_native(x: torch.Tensor) -> torch.Tensor:
-        """PyTorch-native — Genesis PN25 v7.68 routes through an
+        """PyTorch-native — PN25 v7.68 routes through an
         opaque custom op cached at activation.py import time, BEFORE
         vLLM's aot_compile_fullgraph trace. Do not register custom
         ops here (would trigger Dynamo-Unsupported on spawn workers).
         """
-        _isv_pn25_op = _GENESIS_PN25_SILU_AND_MUL_OP
+        _isv_pn25_op = _ISV_PN25_SILU_AND_MUL_OP
         if _isv_pn25_op is not None:
             return _isv_pn25_op(x)
         d = x.shape[-1] // 2
@@ -168,10 +168,10 @@ class SiluAndMul(CustomOp):
         output_shape = x.shape[:-1] + (d,)
         try:
             from vllm.idiotsavant.kernels.ffn_intermediate_cache import (
-                FFNIntermediateCache as _GENESIS_PN12_Cache,
+                FFNIntermediateCache as _ISV_PN12_Cache,
             )
-            if _GENESIS_PN12_Cache.is_production_eligible() and x.dim() == 2:
-                out = _GENESIS_PN12_Cache.acquire_silu_out(
+            if _ISV_PN12_Cache.is_production_eligible() and x.dim() == 2:
+                out = _ISV_PN12_Cache.acquire_silu_out(
                     num_tokens=x.shape[0],
                     intermediate_size=d,
                     dtype=x.dtype, device=x.device,

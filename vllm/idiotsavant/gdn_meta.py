@@ -13,7 +13,7 @@ grafo FULL) — todo eso se calcula con un solo kernel que escribe directo en lo
 mismas reglas. Las condiciones se chequean con tensores de CPU (sin sincronizar). Cualquier otro caso
 (prefills, mezclados, sin PN122) sigue por el builder original.
 
-``GENESIS_PN151_VERIFICAR=1``: en las primeras llamadas corre las DOS versiones y compara todos los tensores
+Verificacion (apagada; ``_VERIFICAR``): en las primeras llamadas corre las DOS versiones y compara todos los tensores
 (la rapida primero, se clona, y la original despues sobreescribe los buffers). Loguea el resultado.
 """
 

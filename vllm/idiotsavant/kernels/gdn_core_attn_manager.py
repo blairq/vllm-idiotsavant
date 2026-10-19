@@ -72,7 +72,7 @@ def resolve_max_batched_tokens(hint: Optional[int] = None) -> int:
 
     [P73 fix v7.42] Now delegates to central `prealloc_budget.resolve_token_budget`
     which consults vllm scheduler_config IF env not set. Back-compat: still
-    honors GENESIS_GDN_MAX_BATCHED_TOKENS as a domain-specific override.
+    uses the scheduler's max_num_batched_tokens.
     Resolves the chunk-overflow root cause (5664-token chunk vs hardcoded 4096).
     """
     if hint is not None and hint > 0:

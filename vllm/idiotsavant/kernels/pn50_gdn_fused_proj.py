@@ -21,7 +21,7 @@ This is ~5-6 separate kernel launches plus 2 explicit copies. PN50 fuses
 this into a single Triton kernel with grid `(batch, num_heads_qk)`.
 
 Claimed gain (SGLang H200 Qwen3.5-35B-A3B tp=2): +7.4% TPS, -10.8% TTFT,
--31.2% ITL P95. On Genesis 27B Lorbus INT4 + TQ k8v4 + MTP K=3 expect
+-31.2% ITL P95. On 27B (Lorbus) INT4 + TQ k8v4 + MTP K=3 expect
 modest gain (memory-bound layer; A5000 PCIe slower than H200).
 
 Numerical safety
@@ -37,10 +37,10 @@ Shape constraints
 - head_qk and head_v must be powers of 2 ≥ 16 (Triton tl.arange limit)
 - mixed_qkvz/mixed_ba must be contiguous (kernel uses scalar pointer arith)
 
-For Genesis 27B Lorbus (head_k=head_v=128, num_heads_qk=2/tp, num_heads_v=16/tp):
+For 27B (Lorbus) (head_k=head_v=128, num_heads_qk=2/tp, num_heads_v=16/tp):
   V_PER_GROUP = 8, V_PER_GROUP * HEAD_V = 1024 — fits Triton block limits.
 
-Genesis-side guards
+Our guards
 -------------------
 The wrapper `fused_qkvzba_split_reshape_cat_contiguous` adds:
 - input contiguity check (fall-through to PyTorch if non-contiguous)

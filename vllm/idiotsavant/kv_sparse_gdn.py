@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN93: checkpointing disperso del estado recurrente (GDN / Mamba).
+"""PN93: checkpointing disperso del estado recurrente (GDN / Mamba).
 
 Por qué
 -------
@@ -277,7 +277,7 @@ def note_hit_truncated(group_idx: int, tokens: int) -> None:
     miss genuino, y por eso se etiqueta por grupo en vez de sumarlo todo junto.
 
     Si `kv_tier_hit_truncated_tokens_total` de los grupos recurrentes crece,
-    bajá `GENESIS_PN93_GDN_CHECKPOINT_STRIDE`.
+    bajá el stride de checkpoint de PN93.
     """
     if tokens <= 0:
         return

@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN115 — admisión por headroom de KV + bypass por prioridad.
+"""PN115 — admisión por headroom de KV + bypass por prioridad.
 
 Tres mecanismos INDEPENDIENTES, cada uno con su switch:
 
-1. Gating por headroom de KV (`GENESIS_PN115_KV_GATING`, default 1)
+1. Gating por headroom de KV (siempre; --kv-admission-headroom)
    Difiere la admisión de un request en espera cuando meterlo dejaría al
    motor sin bloques KV libres. Es protección real: evita que
    `allocate_slots` falle y que el scheduler entre en tormenta de
    preemption. Se apoya SOLO en el BlockPool (verdad física); no estima
    capacidad en tokens ni proyecta uso.
 
-2. PID de latencia (`GENESIS_PN115_LATENCY_PID`, default 0)
+2. PID de latencia (apagado)
    Baja la concurrencia admitida cuando el paso de decode es más lento que
    su línea base PARA ESA MISMA CONCURRENCIA. Va APAGADO por defecto:
    cambia throughput por latencia, y con `--async-scheduling` la señal que
@@ -56,61 +56,61 @@ def _env_flag(name: str, default: str) -> bool:
     return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
-# Prometheus metrics for Genesis PN115 PID admission tuner
+# Prometheus metrics for PN115 PID admission tuner
 try:
     from prometheus_client import Counter, Gauge
 
     PROM_PID_EMA_STEP_MS = Gauge(
         "vllm:pid_ema_step_time_ms",
-        "Genesis PN115 PID EMA step time in milliseconds",
+        "PN115 PID EMA step time in milliseconds",
     )
     PROM_PID_TARGET_STEP_MS = Gauge(
         "vllm:pid_target_step_time_ms",
-        "Genesis PN115 PID target step time in milliseconds",
+        "PN115 PID target step time in milliseconds",
     )
     PROM_PID_ACTIVE_KV_TOKENS = Gauge(
         "vllm:pid_active_kv_tokens",
-        "Genesis PN115 active KV cache tokens tracked by PID controller",
+        "PN115 active KV cache tokens tracked by PID controller",
     )
     PROM_PID_MAX_KV_TOKENS = Gauge(
         "vllm:pid_max_kv_tokens",
-        "Genesis PN115 maximum active KV cache token budget before backoff",
+        "PN115 maximum active KV cache token budget before backoff",
     )
     PROM_PID_CONCURRENCY_LIMIT = Gauge(
         "vllm:pid_concurrency_limit",
-        "Genesis PN115 dynamic concurrency admission limit",
+        "PN115 dynamic concurrency admission limit",
     )
     PROM_PID_STATUS = Gauge(
         "vllm:pid_status",
-        "Genesis PN115 admission status (1=normal/unthrottled, 0=throttled)",
+        "PN115 admission status (1=normal/unthrottled, 0=throttled)",
     )
     PROM_PID_GATED_TOTAL = Counter(
         "vllm:pid_gated_requests_total",
-        "Genesis PN115 total count of request admission deferrals/gates",
+        "PN115 total count of request admission deferrals/gates",
     )
     PROM_PID_BYPASS_TOTAL = Counter(
         "vllm:pid_priority_bypass_total",
-        "Genesis PN115 total count of high-priority emergency bypasses",
+        "PN115 total count of high-priority emergency bypasses",
     )
     PROM_PID_PREEMPTIONS_TOTAL = Counter(
         "vllm:pid_emergency_preemptions_total",
-        "Genesis PN115 total count of emergency preemptions for high-priority admission",
+        "PN115 total count of emergency preemptions for high-priority admission",
     )
     PROM_PID_ACTIVE_CONCURRENCY = Gauge(
         "vllm:pid_active_concurrency",
-        "Genesis PN115 currently running requests in scheduler",
+        "PN115 currently running requests in scheduler",
     )
     PROM_PID_FREE_BLOCKS = Gauge(
         "vllm:pid_free_kv_blocks",
-        "Genesis PN115 free KV blocks reported by the BlockPool",
+        "PN115 free KV blocks reported by the BlockPool",
     )
     PROM_PID_GATED_PREFILL = Counter(
         "vllm:pid_gated_by_prefill_total",
-        "Genesis PN115 requests deferred because another prefill is in flight",
+        "PN115 requests deferred because another prefill is in flight",
     )
     PROM_PID_SHORT_BYPASS = Counter(
         "vllm:pid_short_prompt_bypass_total",
-        "Genesis PN115 short prompts admitted past the prefill serialization",
+        "PN115 short prompts admitted past the prefill serialization",
     )
 except Exception as _prom_err:  # pragma: no cover
     log.debug("Prometheus client not initialized for PN115: %s", _prom_err)

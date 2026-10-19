@@ -626,7 +626,6 @@ class Worker(WorkerBase):
             "Available KV cache memory: %s GiB",
             format_gib(self.available_kv_cache_memory_bytes),
         )
-        # _GENESIS_PN83_ANALISIS_ARRANQUE
         # El desglose de memoria solo existe aca, en el WORKER. El total de
         # tokens de KV se calcula en el ENGINE CORE, otro proceso. Guardamos
         # esta mitad para que el informe pueda juntar las dos.

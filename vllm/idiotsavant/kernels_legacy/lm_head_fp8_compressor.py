@@ -165,7 +165,7 @@ def _is_enabled() -> bool:
 def maybe_compress_lm_head_to_fp8(model) -> tuple[str, str]:
     """Top-level entry point — called from `load_weights` post-load via PN77 wiring.
 
-    Returns (status, reason) tuple matching Genesis dispatcher convention:
+    Returns (status, reason) tuple matching the patch convention:
       ('skipped', '<why>')   — env off / tied / already compressed / no lm_head
       ('applied', '<info>')  — compression done, marker set, weight replaced
       ('failed',  '<why>')   — internal error; caller logs but model still loads
@@ -237,7 +237,7 @@ def maybe_compress_lm_head_to_fp8(model) -> tuple[str, str]:
     try:
         old_weight = lm_head.weight
         # Snapshot ALL attributes set on the old Parameter (excluding
-        # built-in tensor attributes — only Genesis-or-vllm-attached extras).
+        # built-in tensor attributes — only our or vllm-attached extras).
         preserved_attrs = {
             k: v for k, v in old_weight.__dict__.items()
             if not k.startswith("_") and k not in ("data", "grad", "requires_grad")

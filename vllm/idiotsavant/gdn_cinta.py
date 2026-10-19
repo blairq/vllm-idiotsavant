@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN122: rollback del MTP en GDN con CINTA en vez de K copias del estado.
+"""PN122: rollback del MTP en GDN con CINTA en vez de K copias del estado.
 
 Por qué
 -------
@@ -172,7 +172,7 @@ def sync_bits() -> int:
 
 
 def debug_builder(num_spec_decodes, nacc, slots, sidx, cu, seq_lens) -> None:
-    """Diagnostico (sincroniza con la GPU: solo con GENESIS_PN122_DEBUG=1)."""
+    """Diagnostico (sincroniza con la GPU; apagado)."""
     global _debug_n
     bits = sync_bits()
     if bits & 2:
@@ -207,7 +207,7 @@ def num_speculative_blocks(vllm_config) -> int:
         k = sc.num_speculative_tokens if sc else 0
     if getattr(vllm_config.cache_config, "use_kda_recoverssm", False):
         k = 0                                       # v0.29.0: RecoverSSM no usa esos slots
-    # Diagnostico: GENESIS_PN122_SIN_LIBERAR=1 conserva los bloques especulativos
+    # Diagnostico (quedo afuera): conservar los bloques especulativos
     # (cinta y kernel activos, sin ahorro) para aislar el efecto de sacarlos.
     return 0
 
@@ -916,8 +916,8 @@ def escribir_cinta(A_log, a, b, dt_bias, k, v, cu_seqlens, sidx, slots, cinta, N
     """Escribe las filas 1..T-1 de la cinta. Tres caminos, mismo resultado bit a bit:
 
     * ``serie`` (default): ``_k_escribir``, un programa por pedido (34 us por capa con un pedido);
-    * ``par`` (GENESIS_PN122_ESCRIBIR_PAR=1): ``_k_escribir_par``, Triton en grilla (2,1 us);
-    * ``ptx`` (GENESIS_PN122_ESCRIBIR_PAR=ptx): ``kernels/cuda/pn122_cinta.cu``, un bloque por fila
+    * ``par``: ``_k_escribir_par``, Triton en grilla (2,1 us);
+    * ``ptx`` (el que se usa): ``kernels/cuda/pn122_cinta.cu``, un bloque por fila
       con cargas vectoriales y la reduccion sin shared (ver el encabezado del .cu).
 
     ``par`` fuerza el modo (``False``/``True``/``"ptx"``), para los tests."""
@@ -980,7 +980,7 @@ def _diag_cresta(layer, ssm_state, sidx) -> None:
     que es como se cuantiza para el dot) y por COLUMNA (un canal con outliers estira todas las
     filas), y ademas la cresta del estado ROTADO con Hadamard, que es la alternativa.
 
-    Sincroniza con la GPU: solo con GENESIS_DIAG_GDN_CRESTA=1 y cada 200 pasos.
+    Sincroniza con la GPU: diagnostico apagado, cada 200 pasos.
     """
     global _cresta_n
     _cresta_n += 1

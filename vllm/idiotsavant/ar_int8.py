@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis PN120: all-reduce de TP comprimido a INT8.
+"""PN120: all-reduce de TP comprimido a INT8.
 
 Por qué
 -------
@@ -27,7 +27,7 @@ Qué hace
 Para TP=2 un all-reduce equivale a intercambiar los parciales y sumar. Si los
 parciales viajan en int8 con escala por grupo, son la mitad de bytes::
 
-    v = x.view(M, H/G, G)                # G = GENESIS_PN120_GRUPO (default 64)
+    v = x.view(M, H/G, G)                # G = _GRUPO (64)
     s = amax(|v|, dim=-1) / 127          # una escala POR GRUPO
     q = round(v / s)                     # int8
     all_gather(q), all_gather(s)         # la MITAD de bytes que el fp16
@@ -205,7 +205,7 @@ def _impl(x: torch.Tensor) -> torch.Tensor:
     # ESTE if corre de verdad, porque el op es opaco a dynamo.
     if m < _M_MIN or h % _GRUPO != 0:
         if _g152.activo() and w == 2 and _g152.sirve_i8(x):
-            return _g152.all_reduce_i8(x)          # int8 por grupo de 64 (GENESIS_PN152_MIN_I8)
+            return _g152.all_reduce_i8(x)          # int8 por grupo de 64 (ar_p2p._MIN_I8)
         if _g152.activo() and w == 2 and _g152.sirve(x):
             return _g152.all_reduce(x)
         return tensor_model_parallel_all_reduce(x)

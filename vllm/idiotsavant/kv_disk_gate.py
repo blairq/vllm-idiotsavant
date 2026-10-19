@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""KV Disk Write Gating & Tiered Demotion for multi-tier offloading (Genesis PN90).
+"""KV Disk Write Gating & Tiered Demotion for multi-tier offloading (PN90).
 
 Dos mecanismos independientes:
 
@@ -105,7 +105,7 @@ def should_persist_to_secondary_tiers(
     Reglas:
       1. `persist_disk` explícito en `kv_transfer_params` manda sobre todo.
       2. Si no, se compara `agent` contra la allowlist
-         (`GENESIS_KV_DISK_WRITERS`, o `DEFAULT_DISK_WRITERS`).
+         (`DEFAULT_DISK_WRITERS`).
       3. Sin tag de agente → False (protección estricta: no se escribe).
     """
     if kv_transfer_params and "persist_disk" in kv_transfer_params:

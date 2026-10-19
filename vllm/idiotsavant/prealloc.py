@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis safe pre-allocation framework — graph-safe, profiler-visible.
+"""Safe pre-allocation framework — graph-safe, profiler-visible.
 
 Motivation
 ----------
@@ -7,7 +7,7 @@ CUDA graph capture requires IDENTICAL memory pointers across replays. Lazy
 allocation inside captured forward paths (e.g. `torch.empty()` gated by a
 runtime condition) causes one of two failure modes:
 
-  1. Forced graph re-capture on every shape change (Genesis Patch 19 revert
+  1. Forced graph re-capture on every shape change (Patch 19 revert
      symptom: −30% throughput, 188× stdev).
   2. Silent stale-pointer reads causing data corruption (hardest class).
 
@@ -15,7 +15,7 @@ Additionally, vLLM's memory profiler (`profile_run` → `max_memory_allocated`)
 only SEES allocations that occur during its warmup dummy-batch forward. Any
 allocation gated on a condition unreachable during warmup (e.g. long-context
 continuation prefill) is profiler-invisible, leading to KV cache sizing that
-undersizes VRAM headroom → engine OOM at production scale (Genesis #40420).
+undersizes VRAM headroom → engine OOM at production scale (genesis-vllm-patches #40420).
 
 This module provides a canonical framework for SAFE pre-allocation:
 
@@ -28,7 +28,7 @@ This module provides a canonical framework for SAFE pre-allocation:
 
 Usage
 -----
-From any Genesis kernel module:
+From any idiotsavant kernel module:
 
     from vllm.idiotsavant.prealloc import PreallocBuffer as GPB
 
@@ -141,10 +141,10 @@ class PreallocBuffer:
             AssertionError with helpful message if n exceeds buf shape.
         """
         if n < 0:
-            raise ValueError(f"[Genesis prealloc] slice_to got negative n={n}")
+            raise ValueError(f"[prealloc] slice_to got negative n={n}")
         if n > buf.shape[dim]:
             raise AssertionError(
-                f"[Genesis prealloc] requested slice n={n} exceeds buffer "
+                f"[prealloc] requested slice n={n} exceeds buffer "
                 f"shape={buf.shape} on dim={dim}. Increase max shape at "
                 f"__init__ time. This indicates a config mismatch: the "
                 f"pre-allocated max size does not cover the actual workload."
@@ -194,7 +194,7 @@ class PreallocBuffer:
             cls._REGISTRY.clear()
         else:
             warnings.warn(
-                "[Genesis prealloc] clear_for_tests() called outside pytest; "
+                "[prealloc] clear_for_tests() called outside pytest; "
                 "this is almost certainly a bug. Buffers are being invalidated "
                 "at runtime which will break CUDA graph replay.",
                 RuntimeWarning,

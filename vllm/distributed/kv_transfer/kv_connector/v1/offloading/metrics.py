@@ -221,7 +221,7 @@ class OffloadingConnectorStats(KVConnectorStats):
         other_values = other._values
         if _G88_BUCKET in other_values:
             # [PN88 kv tier metrics]
-            # El payload Genesis no es {labelvalues: valor} tipado: es el
+            # El payload de PN88 no es {labelvalues: valor} tipado: es el
             # dict crudo de drain() ({counters,hist,gauges}). Se fusiona con
             # merge() y se registra su tipo para que reduce()/observe()
             # lo ruteen sin chocar con los asserts.

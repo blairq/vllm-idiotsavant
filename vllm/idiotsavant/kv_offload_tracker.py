@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""KV Offload Activity Tracker & REST Endpoints for vLLM (Genesis PN89/PN91).
+"""KV Offload Activity Tracker & REST Endpoints for vLLM (PN89/PN91).
 
 Provides in-memory ring-buffer tracking of recent chat completion requests,
 exposes GET /v1/kv-offload/requests, and provides safe zero-downtime cache
@@ -37,15 +37,15 @@ try:
 
     PROM_LAST_PP_TPS = Gauge(
         "vllm:request_last_pp_tokens_per_second",
-        "Genesis Prompt Processing (PP / prefill) tokens per second of the last completed request",
+        "Prompt Processing (PP / prefill) tokens per second of the last completed request",
     )
     PROM_LAST_TG_TPS = Gauge(
         "vllm:request_last_tg_tokens_per_second",
-        "Genesis Text Generation (TG / decode) tokens per second of the last completed request",
+        "Text Generation (TG / decode) tokens per second of the last completed request",
     )
     PROM_LAST_KV_HIT_RATE = Gauge(
         "vllm:request_last_kv_hit_rate_pct",
-        "Genesis KV cache hit percentage of the last completed request",
+        "KV cache hit percentage of the last completed request",
     )
     PROM_REQS_BY_PRIORITY = Counter(
         "vllm:requests_by_priority_total",
@@ -561,7 +561,7 @@ async def update_pid_config_endpoint(
     max_concurrency: Optional[int] = Query(None),
     min_concurrency: Optional[int] = Query(None),
 ):
-    """Dynamically update Genesis PN115 PID admission tuner configuration in live execution."""
+    """Dynamically update PN115 PID admission tuner configuration in live execution."""
     updates: dict[str, Any] = {}
     if enabled is not None:
         updates["enabled"] = enabled

@@ -235,7 +235,6 @@ def _sec_capacidad(vc, num_tokens: int) -> list[str]:
             + f" {num_tokens / ml:.2f}x".replace(".", ",")
         )
     out.append("")
-    out.append("  Ajustable: GENESIS_ANALISIS_HILO_PRINCIPAL / _AGENTE.")
     return out
 
 
@@ -450,29 +449,14 @@ def _sec_riesgos(vc, mem: dict) -> list[str]:
 
 
 def _pn82_activo() -> bool:
-    try:
-        from vllm.idiotsavant.guards import resolve_vllm_file
-
-        f = resolve_vllm_file("v1/kv_offload/cpu/gpu_worker.py")
-        if f is None:
-            return False
-        with open(f) as fh:
-            return "_GENESIS_PN82_HOST_REGISTER_STICKY" in fh.read()
-    except Exception:
-        return False
+    # El limpiador del error pegajoso de cudaHostRegister esta en el arbol
+    # (v1/kv_offload/cpu/gpu_worker.py).
+    return True
 
 
 def _pn84_activo() -> bool:
-    try:
-        from vllm.idiotsavant.guards import resolve_vllm_file
-
-        f = resolve_vllm_file("v1/core/kv_cache_coordinator.py")
-        if f is None:
-            return False
-        with open(f) as fh:
-            return "Genesis PN84" in fh.read()
-    except Exception:
-        return False
+    # El arreglo de PN84 no esta en este arbol (tampoco llegaba a produccion).
+    return False
 
 
 def _hay_capas_mamba(vc) -> bool:
@@ -573,7 +557,7 @@ def construir_informe(vc, num_tokens: int) -> str:
     lineas.append("─" * ANCHO)
     lineas.append(
         "  Re-ejecutar:  python3 -m vllm.idiotsavant.analisis_arranque"
-        "   ·   apagar: GENESIS_DISABLE_PN83=1"
+        ""
     )
     lineas.append("")
     return "\n".join(lineas)
@@ -610,7 +594,7 @@ def main() -> int:
     except FileNotFoundError:
         print(
             "No hay informe guardado. Se genera solo al arrancar el engine con "
-            "PN83 activo (default ON, kill switch GENESIS_DISABLE_PN83=1).",
+            "PN83 activo.",
             file=sys.stderr,
         )
         return 1

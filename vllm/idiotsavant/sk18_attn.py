@@ -681,7 +681,7 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
     bf = _get_bufs(dev, nh, bs, G)
     MB = bf.MB
     if B > bf.bmax:
-        raise RuntimeError(f"PN131: lote {B} > GENESIS_PN131_BMAX {bf.bmax}")
+        raise RuntimeError(f"PN131: lote {B} > --max-num-seqs {bf.bmax}")
     c = _capa(impl, dev)
     nt = B * L
     R = B * nh * MB

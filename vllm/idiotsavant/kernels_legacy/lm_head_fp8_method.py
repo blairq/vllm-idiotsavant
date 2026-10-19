@@ -61,7 +61,7 @@ DRIFT-RESISTANCE
 
 When upstream lands PR #41000 (config-driven `lm_head_quantized: true` in
 `Fp8Config`), the wiring text-patch detects `lm_head_quantized` marker in
-`fp8.py` source and self-retires. Genesis takes a back seat to upstream.
+`fp8.py` source and self-retires: upstream wins.
 
 Author: Sandermage (Sander) Barzov Aleksandr — Ukraine, Odessa.
 References:
@@ -132,7 +132,7 @@ def maybe_swap_pn77_quant_method(layer, current_method):
     """Hook invoked from text-patched `process_weights_after_loading` walker.
 
     Swaps `layer.quant_method` to `FP8LMHeadEmbeddingMethod` if:
-      - env GENESIS_ENABLE_PN77_FP8_LM_HEAD=1
+      - always on in this tree
       - `layer` is a ParallelLMHead (not regular embed_tokens)
       - hardware supports a useful FP8 path (not 'cast_back' fallback only)
       - current method is `UnquantizedEmbeddingMethod` (don't override

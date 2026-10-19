@@ -8,7 +8,7 @@ Hoy va por kernel_unified_attention (Triton, PN124 3D). SK-31: softmax en linea 
 segun el seq_len real (vale en grafo). Error contra float con la KV decuantizada 0,06% (Triton 0,03%).
 
 Se engancha en ``triton_attn_ampere.llamar`` y solo toma la llamada si es exactamente la del borrador; si no,
-sigue Triton. ``GENESIS_PN124_SK31=1``.
+sigue Triton. Apagado.
 """
 from __future__ import annotations
 

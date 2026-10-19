@@ -356,7 +356,6 @@ class RequestOffloadState:
             logger.warning(
                 "max_offload_tokens must be a non-negative int, got %r; ignoring", raw
             )
-        # _GENESIS_PN103_AUTO_PREFIX_LIMIT
         # Si el cliente no mando un limite, se usa el que PN101 MIDIO para
         # este agente. Un valor explicito siempre gana. Sin observaciones
         # suficientes se deja sin limite, que es lo que permite aprender
@@ -1007,7 +1006,6 @@ class OffloadingConnectorScheduler:
             return None, False
 
         req_status.update_offload_keys()
-        # _GENESIS_PN101_SHARED_PREFIX_PROBE
         # Las claves son hashes de contenido alineados a bloque, asi que
         # las iniciales en comun con la request anterior del mismo agente
         # SON el prefijo compartido. Es el numero que hay que usar para

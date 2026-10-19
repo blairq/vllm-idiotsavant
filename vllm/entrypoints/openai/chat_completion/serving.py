@@ -282,7 +282,7 @@ class OpenAIServingChat(GenerateBaseServing):
             import logging as _isv_p6869_logging
             _isv_p6869_logging.getLogger(
                 'idiotsavant.middleware.long_ctx_tool_adherence'
-            ).debug('Genesis P68/P69 hook raised; ignored', exc_info=True)
+            ).debug('P68/P69 hook raised; ignored', exc_info=True)
         # Streaming response
         tokenizer = self.renderer.tokenizer
         assert tokenizer is not None
@@ -798,7 +798,7 @@ class OpenAIServingChat(GenerateBaseServing):
                         # ~0.25% rate on Qwen3.6 27B-FP8 + MTP K=3 (per upstream
                         # author): EOS at reasoning→tool_call boundary leaves
                         # finish_reason=stop with no content/tool_calls. Raise
-                        # retryable error only when GENESIS_P107_RAISE_ERROR=1,
+                        # retryable error was optional and is disabled,
                         # otherwise complete cleanly to prevent infinite loops in
                         # agentic clients (OpenCode/Cline).
                         if (

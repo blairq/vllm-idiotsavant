@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis P73 — single source of truth for prealloc M-dim budget.
+"""P73 — single source of truth for prealloc M-dim budget.
 
-All Genesis prealloc patches (P28 GDN core_attn_out, P26 TQ prefill output,
+All prealloc patches (P28 GDN core_attn_out, P26 TQ prefill output,
 P37 MoE intermediate cache, P44 TQ mixed-batch attn_out, P39a FLA KKT, etc.)
 that size on `M = tokens-per-step` MUST resolve their budget through
 `resolve_token_budget()`. This guarantees that when operators raise
@@ -23,9 +23,7 @@ This module fixes the bug class by funneling ALL prealloc budget queries
 through a single resolver that consults (in priority order):
 
   1. Explicit `hint` arg (caller knows best — typically scheduler_config).
-  2. `GENESIS_PREALLOC_TOKEN_BUDGET` env (operator override).
-  3. Domain-specific env (back-compat: GENESIS_GDN_MAX_BATCHED_TOKENS,
-     GENESIS_TQ_MAX_BATCHED_TOKENS, GENESIS_MOE_MAX_BATCHED_TOKENS).
+  2. (the old env overrides are gone; the remaining steps follow)
   4. `vllm.config.get_current_vllm_config().scheduler_config
         .max_num_batched_tokens` (live config — set during engine init).
   5. Conservative default 4096 (preserves prior behavior; bump
@@ -92,9 +90,9 @@ def resolve_token_budget(
     Args:
         hint: caller-supplied value (highest priority). Typically passed
               from the scheduler config at allocation site.
-        domain_env: domain-specific env var name (back-compat with existing
-                    GENESIS_GDN_MAX_BATCHED_TOKENS, etc.). Consulted
-                    AFTER GENESIS_PREALLOC_TOKEN_BUDGET to allow per-pool
+        domain_env: domain-specific override name (kept for the callers; there
+                    are no env overrides any more), consulted before the
+                    scheduler config to allow per-pool
                     overrides if needed.
 
     Returns:
@@ -117,7 +115,7 @@ def resolve_token_budget(
         _CACHED = int(env)
         log.info(
             "[P73] token budget resolved → %d "
-            "(via GENESIS_PREALLOC_TOKEN_BUDGET)", _CACHED,
+            "(override)", _CACHED,
         )
         return _CACHED
 
@@ -147,7 +145,7 @@ def resolve_token_budget(
     _CACHED = _DEFAULT_FALLBACK
     log.info(
         "[P73] token budget resolved → %d (default fallback). "
-        "Set GENESIS_PREALLOC_TOKEN_BUDGET to override.", _CACHED,
+        "Set --max-num-batched-tokens to change it.", _CACHED,
     )
     return _CACHED
 
@@ -156,7 +154,7 @@ def assert_fits(num_tokens: int, where: str) -> None:
     """Runtime guard — raises clearly if a chunk would overflow a pool.
 
     Replaces silent torch `setStorage out of bounds` deep-stack with a
-    Genesis-attributed error pointing to the actionable env var.
+    clear error pointing to the actionable flag.
 
     Args:
         num_tokens: actual chunk size encountered at runtime
@@ -167,7 +165,7 @@ def assert_fits(num_tokens: int, where: str) -> None:
         raise RuntimeError(
             f"[P73 prealloc overflow] {where}: chunk={num_tokens} > "
             f"budget={budget}. Either:\n"
-            f"  (1) set GENESIS_PREALLOC_TOKEN_BUDGET={num_tokens} (or higher) "
+            f"  (1) raise --max-num-batched-tokens to {num_tokens} (or higher) "
             f"and restart, OR\n"
             f"  (2) lower --max-num-batched-tokens, OR\n"
             f"  (3) enable P74 chunk-clamp (caps prefill chunks to budget)."

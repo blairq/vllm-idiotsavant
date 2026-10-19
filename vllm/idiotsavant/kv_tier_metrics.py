@@ -628,7 +628,7 @@ _DOC = {
 
 
 def observe_bucket(prom, payload: dict, engine_idx: int = 0) -> None:
-    """Vuelca el bucket Genesis a métricas de Prometheus.
+    """Vuelca el bucket de tiers a métricas de Prometheus.
 
     `prom` es la instancia de `OffloadPromMetrics`; de ahí salen las clases de
     métrica (`_counter_cls`/`_gauge_cls`/`_histogram_cls`), los `labelnames`
@@ -657,7 +657,7 @@ def observe_bucket(prom, payload: dict, engine_idx: int = 0) -> None:
                     kwargs = {"buckets": list(_BUCKETS.get(name, (0.01, 0.1, 1.0, 10.0)))}
                 metric = cls(
                     name=f"vllm:{name}",
-                    documentation=_DOC.get(name, "Genesis KV tier metric."),
+                    documentation=_DOC.get(name, "KV tier metric."),
                     labelnames=base_labels + list(label_keys),
                     **kwargs,
                 )

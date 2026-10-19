@@ -22,20 +22,20 @@ Esto engancha dos caminos, porque vLLM usa los dos:
 
 Que escribe
 -----------
-Un archivo por incidente en ``GENESIS_VOLCADO_DIR`` (por defecto
+Un archivo por incidente en el directorio de volcados (por defecto
 ``/root/.cache/vllm/idiotsavant/volcados``, que esta montado, asi que sobrevive a la muerte del
 contenedor). Adentro: la excepcion, el traceback completo y, POR CADA FRAME, sus variables
 locales resumidas — los tensores como forma/dtype/dispositivo y un par de estadisticas, las
 listas como largo mas los primeros y ultimos elementos, los textos recortados. Nunca el
 contenido entero: un volcado que no se puede abrir no sirve de nada.
 
-Ademas: las variables GENESIS_*, la memoria de GPU y el rank, que es lo primero que uno
+Ademas: las variables VLLM_* (sin claves), la memoria de GPU y el rank, que es lo primero que uno
 quiere saber cuando el problema aparece en uno solo de los dos workers.
 
 Uso
 ---
 Se instala solo desde ``plugins_arranque`` en todos los procesos. Apagarlo:
-``GENESIS_VOLCADO=0``. A mano, desde cualquier lado::
+siempre activo. A mano, desde cualquier lado::
 
     from vllm.idiotsavant import volcado
     volcado.volcar("bloques-raros", request_id=rid, bloques=len(b), hashes=len(h))
@@ -268,7 +268,7 @@ def instalar() -> None:
             h.set_name("isv_volcado")
             lg.addHandler(h)
 
-    log.info("[idiotsavant] volcado de diagnostico activo -> %s (apagar: GENESIS_VOLCADO=0)", _dir())
+    log.info("[idiotsavant] volcado de diagnostico activo -> %s", _dir())
 
 
 # ───────────────────────── logs a archivo, por proceso ─────────────────────────
@@ -282,7 +282,7 @@ def config_logging(destino: str = "/root/.cache/vllm/idiotsavant/logs") -> str:
     Que resuelve: con TP=2 son tres procesos (servidor y dos workers) escribiendo al MISMO
     stdout, asi que `docker logs` los entrevera y hay que adivinar de quien es cada linea. Con
     esto cada proceso deja ademas su propio archivo — el nombre lleva el pid — y los loggers
-    de Genesis van en DEBUG mientras los de vLLM se quedan en INFO, que es la unica forma de
+    de idiotsavant van en DEBUG mientras los de vLLM se quedan en INFO, que es la unica forma de
     que el detalle propio no se pierda entre miles de lineas ajenas.
 
     Se mantiene la salida a consola: sirve para mirar rapido, y perderla seria un retroceso.

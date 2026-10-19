@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""P50 — cliproxyapi middleware for Genesis response cache (P41).
+"""P50 — cliproxyapi middleware for the response cache (P41).
 
 This module provides a `ResponseCacheMiddleware` ASGI-compatible
 middleware that intercepts `POST /v1/chat/completions` and `POST
@@ -51,7 +51,7 @@ slightly — adapt to its hook):
     from vllm.idiotsavant.cache.response_cache import get_default_cache
 
     app = FastAPI()
-    cache = get_default_cache()  # None if GENESIS_ENABLE_P41_* unset
+    cache = get_default_cache()  # None: P41 is not enabled in this tree
     if cache is not None:
         app.add_middleware(
             ResponseCacheMiddleware,

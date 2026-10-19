@@ -11,7 +11,7 @@ Medido despues (06-10): turno de 100k rescatado de L2 con 95920 tokens, TTFT 55,
 9 grupos en las dos GPUs identicas entre lo guardado y lo cargado. La salida difiere de la del acierto local solo por el
 reparto en chunks del prefill que sigue (igual que local contra desde cero).
 
-Diagnosticos: GENESIS_PN170_DIAG (handoffs, prepare_store), GENESIS_PN170_SUMAS (checksum por bloque al guardar y cargar).
+Diagnosticos (apagados): DIAG (handoffs, prepare_store) y SUMAS (checksum por bloque al guardar y cargar).
 """
 from __future__ import annotations
 

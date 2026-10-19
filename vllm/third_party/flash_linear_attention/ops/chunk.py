@@ -35,7 +35,7 @@ def chunk_gated_delta_rule_fwd(
     core_attn_out: torch.Tensor | None = None,
 ):
     # [PN59 Variant D Phase 2] streaming-GDN dispatch.
-    # When GENESIS_ENABLE_PN59_STREAMING_GDN=1 AND eligible single-seq
+    # With PN59 (always on) AND eligible single-seq
     # long-T prefill, route through window-iterative driver to avoid
     # full (B, NT, H, V, K) materialization (Cliff 2b OOM trigger).
     # Strict no-regression: any failure → vanilla fallback below.

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis middleware subpackage — v7.8+.
+"""Middleware subpackage — v7.8+.
 
 Drop-in middleware modules for the deployment layer (cliproxyapi /
-FastAPI sidecar). They bridge the Genesis internal caches / metrics
+FastAPI sidecar). They bridge the internal caches / metrics
 to external HTTP-facing surfaces without touching the vLLM engine.
 
 Current members:

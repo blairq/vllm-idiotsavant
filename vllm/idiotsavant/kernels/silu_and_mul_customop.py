@@ -70,7 +70,7 @@ OOM. Cliff 1 mech B fires on real workloads while our verify-stress
 25K synthetic happens to hit shapes that DO reach eager forward_cuda
 and pass.
 
-Genesis stack vulnerability
+Stack vulnerability
 ---------------------------
 Same architectural flaw exists in our PN12 — we only patch
 `forward_cuda`. Our 27B PROD configs avoid the inductor path because
@@ -112,7 +112,7 @@ Compat
 ------
 - Requires `torch.library.custom_op` (PyTorch ≥ 2.4, available on
   current vLLM nightly).
-- Enabled via `GENESIS_ENABLE_PN25_SILU_INDUCTOR_SAFE=1`. OFF by
+- Always on in this tree. Was OFF by
   default.
 - Falls back gracefully if torch < 2.4 OR `torch.ops._C.silu_and_mul`
   is missing (CPU-only build).
@@ -120,7 +120,7 @@ Compat
 Author: Sandermage(Sander) Barzov Aleksandr, Ukraine, Odessa
 Cross-engine inspiration:
   - club-3090#16 (noonghunna independent work-in-progress)
-  - Genesis P7b `gdn_dual_stream_customop.py` (custom_op template)
+  - P7b `gdn_dual_stream_customop.py` (custom_op template)
 """
 from __future__ import annotations
 
@@ -161,7 +161,7 @@ def _silu_and_mul_native_fallback(x: torch.Tensor) -> torch.Tensor:
     return F.silu(x[..., :d]) * x[..., d:]
 
 
-# ─── Genesis library (vLLM canonical pattern, v7.66 refactor) ─────────
+# ─── idiotsavant library (vLLM canonical pattern, v7.66 refactor) ─────
 #
 # Module-level `Library("idiotsavant", "FRAGMENT")` — `FRAGMENT` mode
 # permits multiple Library objects with the same name to coexist, which
@@ -171,7 +171,7 @@ def _silu_and_mul_native_fallback(x: torch.Tensor) -> torch.Tensor:
 #
 # Reference: vLLM canonical pattern at vllm/utils/torch_utils.py:896
 # (`vllm_lib = Library("vllm", "FRAGMENT")`) + direct_register_custom_op
-# at L899. By using the same Library/FRAGMENT idiom Genesis aligns with
+# at L899. By using the same Library/FRAGMENT idiom this aligns with
 # vLLM core convention — easier upstream review if this pattern ever
 # gets contributed back, and matches SGLang's approach in
 # python/sglang/srt/utils/custom_op.py.
@@ -324,7 +324,7 @@ def _register_op_once() -> bool:
         )
         return False
 
-    # [Genesis #16 fork-safety guard, retained from v7.65]
+    # [genesis-vllm-patches #16 fork-safety guard, retained from v7.65]
     # Check global torch.library registry FIRST. Survives worker-fork/spawn
     # even though our in-process flag does not. If the op is already
     # globally registered (parent process or earlier import), we just

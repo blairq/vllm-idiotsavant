@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis MTP Quantization Disk Cache Manager.
+"""MTP Quantization Disk Cache Manager.
 
 Provides cryptographic fingerprinting, atomic disk caching, and fast loading
 for Qwen3.8 / Qwen3.5 MTP (Multi-Token Prediction) layers.
 """
 # ═══════════════════════════════════════════════════════════════════════════
-# ⚠️  AUDITORÍA 2026-08-19 — DESACTIVAR ANTES DE USAR (GENESIS_ENABLE_MTP_QUANT_CACHE=0)
+# ⚠️  AUDITORÍA 2026-08-19 — DESACTIVADO (no se usa en este arbol)
 #
 # Auditado sobre genesis-27b-qwen38-fp8 (orcarouter/Qwen3.8-27B-Uncensored-FP8,
 # TP=2, --dtype float16, MTP K=3). En ese engine el parche es NETO NEGATIVO:
@@ -97,7 +97,7 @@ for Qwen3.8 / Qwen3.5 MTP (Multi-Token Prediction) layers.
 #     canal de salida), sin calibración. El origen FP8 tiene escalas por bloque
 #     128x128. O sea que el "cache" reemplaza un esquema fino por uno grueso.
 #     La granularidad debería DERIVARSE del quantization_config del checkpoint,
-#     no salir de la env var fija GENESIS_MTP_QUANT_FORMAT.
+#     no salir de un formato fijo.
 #
 # ── PARA REACTIVARLO, EN ORDEN ─────────────────────────────────────────────
 #   0. Medir el baseline SIN el parche. Deltas de los contadores de /metrics:
@@ -107,17 +107,17 @@ for Qwen3.8 / Qwen3.5 MTP (Multi-Token Prediction) layers.
 #      Sin este número no hay forma de saber si el parche ayuda o estorba.
 #   1. Arreglar B1 (guard) y B3 (filtro por rol). Con eso el parche queda
 #      correcto e inerte acá, y sano en los engines para los que se escribió.
-#   2. Arreglar B4, B5 (fingerprint honesto) y bumpear GENESIS_CACHE_VERSION
+#   2. Arreglar B4, B5 (fingerprint honesto) y bumpear CACHE_VERSION
 #      para invalidar todos los caches escritos con los bugs de arriba.
 #   3. Agregar B7 (canario) y arreglar B6 (logs medidos).
 #   4. Recién ahí decidir qué feature se quiere, porque hoy hay DOS confundidas
 #      bajo un solo nombre y se paga el costo de una sin el beneficio de ninguna:
 #        (a) CACHE DE CARGA — ahorrar el tiempo de cuantización en CPU al
 #            arrancar. Legítimo, pero debe guardar el dtype FINAL, sin
-#            round-trip lossy. Sugerido: GENESIS_MTP_LOAD_CACHE.
+#            round-trip lossy. Sugerido: un parametro propio.
 #        (b) CUANTIZACIÓN REAL — bajar VRAM / usar IMMA. Exige que el peso
 #            QUEDE en INT8 en memoria y que la capa se registre como lineal
-#            cuantizada. Sugerido: GENESIS_MTP_QUANT, off por defecto.
+#            cuantizada. Sugerido: un parametro propio, off por defecto.
 #
 # ── ANTES DE INVERTIR EN (b): HACER LA CUENTA ──────────────────────────────
 #     Para IMMA hace falta W8A8 (peso Y activación en INT8) + SmoothQuant para
@@ -162,7 +162,7 @@ except Exception:
     log = logging.getLogger("idiotsavant.mtp_cache")
 
 CACHE_DIR_DEFAULT = "/root/.cache/vllm/mtp_quant_cache"
-GENESIS_CACHE_VERSION = "v1.0"
+CACHE_VERSION = "v1.0"
 
 
 def compute_file_hash(filepath: str) -> str:
@@ -266,10 +266,10 @@ class MTPQuantDiskCacheManager:
         # Verificado en genesis-27b-qwen38-fp8:
         #   sha256("orcarouter/Qwen3.8-27B-Uncensored-FP8|missing|int8|tp2|v1.0")
         #     = afe2f5a591956d2072608ffa == fingerprint del manifest en disco.
-        # Al arreglarlo, bumpear GENESIS_CACHE_VERSION para invalidar los caches
+        # Al arreglarlo, bumpear CACHE_VERSION para invalidar los caches
         # escritos con los bugs viejos.
         source_hash = compute_file_hash(source_file)
-        raw_key = f"{model_name_or_path}|{source_hash}|{self.quant_format}|tp{tp_size}|{GENESIS_CACHE_VERSION}"
+        raw_key = f"{model_name_or_path}|{source_hash}|{self.quant_format}|tp{tp_size}|{CACHE_VERSION}"
         return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:24]
 
     def process_mtp_weights(
@@ -298,7 +298,7 @@ class MTPQuantDiskCacheManager:
             return
         # Safetensors no disponible en .venv CPU-only (Telperion offline) -> passthrough
         if not _SAFETENSORS_AVAILABLE or safe_open is None or save_file is None:  # type: ignore
-            log.debug("[Genesis MTP Cache] safetensors no disponible, passthrough sin cache (CPU-only)")
+            log.debug("[MTP cache] safetensors no disponible, passthrough sin cache (CPU-only)")
             for name, weight in weights:
                 yield name, weight
             return
@@ -315,7 +315,7 @@ class MTPQuantDiskCacheManager:
                     manifest = json.load(mf)
                 if manifest.get("fingerprint") == cache_key and manifest.get("valid", False):
                     t0 = time.perf_counter()
-                    log.info("[Genesis MTP Cache] ⚡ Cache HIT for MTP key %s. Loading from %s", cache_key, cache_file)
+                    log.info("[MTP cache] ⚡ Cache HIT for MTP key %s. Loading from %s", cache_key, cache_file)
                     with safe_open(cache_file, framework="pt", device="cpu") as sf:
                         keys = list(sf.keys())
                         # Load and yield dequantized or quantized tensors
@@ -334,10 +334,10 @@ class MTPQuantDiskCacheManager:
                             else:
                                 yield k, sf.get_tensor(k).to(target_dtype)
                     dt = time.perf_counter() - t0
-                    log.info("[Genesis MTP Cache] ⚡ Cache HIT load completed in %.3f seconds (0%% CPU quantization overhead).", dt)
+                    log.info("[MTP cache] ⚡ Cache HIT load completed in %.3f seconds (0%% CPU quantization overhead).", dt)
                     return
             except Exception as e:
-                log.warning("[Genesis MTP Cache] Cache read error (%s). Regenerating cache...", e)
+                log.warning("[MTP cache] Cache read error (%s). Regenerating cache...", e)
 
         # ── CACHE MISS ───────────────────────────────────────────────────────
         # [B6] Los tres logs de abajo afirman cosas que no se verificaron:
@@ -348,9 +348,9 @@ class MTPQuantDiskCacheManager:
         #     39 MiB (444 → 405) y es EN DISCO. En VRAM el ahorro es 0 (ver B2).
         # Al arreglar el parche, estos logs deben reportar bytes medidos
         # antes/después (disco y VRAM) y el error del canario numérico (B7).
-        log.info("[Genesis MTP Quant] 🧠 Starting INT8 Quantization for MTP Draft Model (Key: %s)", cache_key)
-        log.info("[Genesis MTP Quant] ℹ️ Context: Backbone model is quantized (W4A16/W8A16) but MTP layers are unquantized (FP16/BF16).")
-        log.info("[Genesis MTP Quant] ℹ️ Action: Compressing draft weights to INT8 to reduce VRAM footprint (~400MB saved) and caching to disk.")
+        log.info("[MTP quant] 🧠 Starting INT8 Quantization for MTP Draft Model (Key: %s)", cache_key)
+        log.info("[MTP quant] ℹ️ Context: Backbone model is quantized (W4A16/W8A16) but MTP layers are unquantized (FP16/BF16).")
+        log.info("[MTP quant] ℹ️ Action: Compressing draft weights to INT8 to reduce VRAM footprint (~400MB saved) and caching to disk.")
         t0 = time.perf_counter()
         os.makedirs(entry_dir, exist_ok=True)
         tmp_cache_file = cache_file + ".tmp"
@@ -394,7 +394,7 @@ class MTPQuantDiskCacheManager:
                 yield_tensors.append((name, weight))
 
         try:
-            log.info("[Genesis MTP Quant] 💾 Persisting %d tensors to disk cache at %s...", len(collected_tensors), cache_file)
+            log.info("[MTP quant] 💾 Persisting %d tensors to disk cache at %s...", len(collected_tensors), cache_file)
             save_file(collected_tensors, tmp_cache_file)
             manifest_data = {
                 "fingerprint": cache_key,
@@ -402,7 +402,7 @@ class MTPQuantDiskCacheManager:
                 "source_file": source_file,
                 "quant_format": self.quant_format,
                 "tp_size": tp_size,
-                "version": GENESIS_CACHE_VERSION,
+                "version": CACHE_VERSION,
                 "tensors_count": len(collected_tensors),
                 "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "valid": True,
@@ -414,9 +414,9 @@ class MTPQuantDiskCacheManager:
             os.replace(tmp_cache_file, cache_file)
             os.replace(tmp_manifest_file, manifest_file)
             dt = time.perf_counter() - t0
-            log.info("[Genesis MTP Quant] ✅ MTP Quant Cache written successfully in %.3f seconds (0%% CPU overhead on future boots).", dt)
+            log.info("[MTP quant] ✅ MTP Quant Cache written successfully in %.3f seconds (0%% CPU overhead on future boots).", dt)
         except Exception as e:
-            log.error("[Genesis MTP Quant] Failed to persist MTP cache: %s", e)
+            log.error("[MTP quant] Failed to persist MTP cache: %s", e)
             if os.path.exists(tmp_cache_file):
                 try:
                     os.remove(tmp_cache_file)

@@ -103,7 +103,7 @@ def informe(
             "            nada de lo que la GPU desaloja entra completo. Toda",
             "            promocion desde disco termina desalojando y el tier no",
             "            puede sostener un prefijo. Subir cpu_bytes_to_use, o",
-            "            subir GENESIS_PN93_GDN_CHECKPOINT_STRIDE para que cada",
+            "            subir el stride de checkpoint de PN93 para que cada",
             "            request ocupe menos.",
         ]
     elif num_blocks < b_ctx:

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Arbol de borrador — hito 6: el cableado en el model runner v2 y en DFlash2.
 
-Apagado por defecto (``GENESIS_ENABLE_ARBOL=1``). Se instala desde ``plugins_arranque`` (tiene
+Se prende con ``tree_drafting`` en --speculative-config. Se instala desde ``opciones.configurar`` (tiene
 que correr en el proceso que sirve), por monkeypatch de clases: no hay anclas de texto.
 
 La idea que ordena todo
@@ -170,7 +170,7 @@ def _init(K: int, max_reqs: int, slots: int, dev, KC: int = 16) -> None:
 #   prosa   cadena 113/361   arbol determinista 126/411 (+12%)   arbol + Rheo 116/389
 #   codigo  cadena 292/914   arbol determinista 282/912          arbol + Rheo 269/858
 # El muestreado entra con prioridad inflada (la proxy) y ocupa 1-4 de los 8 lugares; el paper usa
-# arboles de decenas de nodos. Reintentar solo si el arbol crece. GENESIS_ARBOL_RHEO=1 lo prende.
+# arboles de decenas de nodos. Reintentar solo si el arbol crece (el camino quedo afuera).
 _RHEO = False
 
 _path0 = None

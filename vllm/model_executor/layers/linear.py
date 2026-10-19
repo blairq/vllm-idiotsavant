@@ -1768,7 +1768,7 @@ class RowParallelLinear(LinearBase):
         if self.reduce_results and self.tp_size > 1:
             # [PN120: all-reduce INT8]
             # Con M grande manda los parciales en int8 (la mitad de bytes)
-            # y suma en el dtype original. Debajo de GENESIS_PN120_M_MIN
+            # y suma en el dtype original. Debajo de ar_int8._M_MIN
             # cae al all-reduce exacto: en decode el cuello es LATENCIA,
             # no ancho de banda, y comprimir solo agregaria kernels.
             if _g120.activo():

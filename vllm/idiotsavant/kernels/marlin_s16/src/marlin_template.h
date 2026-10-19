@@ -1388,7 +1388,7 @@ __global__ void Marlin(
       if constexpr (group_blocks != -1) {
         if (group_blocks == 2 || k == 1) {
           if constexpr (a_type == vllm::kS8) {
-            // Genesis PN130: escalas int16 CON signo (upstream las lee uint16_t y los
+            // PN130: escalas int16 CON signo (upstream las lee uint16_t y los
             // grupos con escala negativa de AutoRound salen basura, vllm#48905).
             int2 s_vals[2];
             s_vals[0] = {

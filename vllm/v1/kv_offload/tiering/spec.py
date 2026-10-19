@@ -385,7 +385,6 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                 self.num_blocks,
                 len(secondary_tiers),
             )
-            # _GENESIS_PN98_L2_SIZING_ADVISORY
             # El numero de bloques solo no dice nada. Lo traducimos a
             # tokens y lo comparamos con L1, que es la regla que importa.
             try:

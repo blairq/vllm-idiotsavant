@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis kernel-level drop-in replacements for vLLM weak spots.
+"""Kernel-level drop-in replacements for vLLM weak spots.
 
 Each kernel module provides a professional, platform-aware implementation
 of a vLLM code path that was identified as broken, suboptimal, or crude.

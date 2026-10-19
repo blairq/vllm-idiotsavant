@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis vLLM patches — modular package.
+"""idiotsavant: optimizations integrated into this vLLM tree (from genesis-vllm-patches).
 
 This is the v7.0 architecture replacing monolithic patch_genesis_unified.py.
 All patches migrate to modular kernel-level professional replacements под vendor-safe

@@ -1001,7 +1001,7 @@ torch::stable::Tensor marlin_gemm(
 
 #endif
 
-// Genesis PN130: op propio con escalas int16 con signo (ver marlin_template.h).
+// PN130: op propio con escalas int16 con signo (ver marlin_template.h).
 STABLE_TORCH_LIBRARY(idiotsavant_marlin, m) {
   m.def(
       "marlin_gemm_s16(Tensor a, Tensor? c_or_none, Tensor b_q_weight, "

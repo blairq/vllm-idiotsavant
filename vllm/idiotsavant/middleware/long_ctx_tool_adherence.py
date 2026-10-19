@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Long-context tool-call adherence hook (P68 + P69).
 
-Genesis-original — addresses model-behavior limitation where Qwen3-class
+Original to genesis-vllm-patches — addresses model-behavior limitation where Qwen3-class
 models (and most LLMs) lose tool-call format adherence at long context
 with significant prefix content.
 
 ================================================================
-PROBLEM EMPIRICALLY OBSERVED (Genesis test 2026-04-25)
+PROBLEM EMPIRICALLY OBSERVED (test 2026-04-25)
 
 Ladder test on Qwen3.6-35B-A3B-FP8 with `tool_choice="auto"`:
 
@@ -55,13 +55,13 @@ Reminders at the END have stronger attention impact than instructions
 buried in middle of context (Liu et al. 2023, "Lost in the Middle").
 
 Both hooks are independently togglable via env flags:
-  GENESIS_ENABLE_P68_AUTO_FORCE_TOOL=1
-  GENESIS_ENABLE_P69_LONG_CTX_TOOL_REMINDER=1
+  P68 (auto force tool_choice): off in this tree
+  P69 (long-context tool reminder): on
 
 Threshold (in characters, approx 4 chars/token):
-  GENESIS_P68_P69_LONG_CTX_THRESHOLD_CHARS=50000  # default = ~12.5K tokens
+  threshold: 1000 chars in this tree (code default 50000 = ~12.5K tokens)
                                                   # (was 8000; raised
-                                                  #  per Genesis Issue #9
+                                                  #  per genesis-vllm-patches issue #9
                                                   #  — 8K fired on every
                                                   #  realistic IDE-agent
                                                   #  prompt and silently
@@ -95,7 +95,7 @@ def _env_flag(name: str) -> bool:
 def _get_threshold_chars() -> int:
     """Return the long-context threshold in characters.
 
-    Default raised 8000 → 50000 in response to Genesis Issue #9
+    Default raised 8000 → 50000 in response to genesis-vllm-patches issue #9
     (noonghunna 2026-04-29). At 8000 chars (~2K tokens) the threshold
     fired on every realistic IDE-agent prompt — Cline / Cursor /
     OpenCode / Copilot Gateway typically build 15-50K-char system
@@ -180,7 +180,7 @@ def _extract_tool_names(tools: list[Any]) -> list[str]:
 # BEFORE upgrading tool_choice. If any tool is incompatible, skip the
 # upgrade (and let P69 still fire — only the upgrade step is unsafe).
 # Operators using a non-xgrammar backend (guidance / outlines / llguidance)
-# can override via GENESIS_P68_FORCE=1.
+# could override it (not available in this tree).
 
 _XGRAMMAR_UNSUPPORTED_SCHEMA_KEYS = frozenset({
     # Hit empirically by lexhoefsloot's OpenClaw `exec.env` tool
@@ -269,7 +269,7 @@ def _build_p69_reminder(tool_names: list[str]) -> str:
     # ("json") targets the standard qwen3/hermes JSON-in-tool_call format.
     # "qwen3_coder" targets the XML <function=...><parameter=...> format
     # (validated 2026-07-04 vs OpenCode: baseline 0/8 → 8/8 with this text).
-    # Select via GENESIS_P69_REMINDER_STYLE=qwen3_coder on engines that use
+    # qwen3_coder is the style used in this tree, for engines that use
     # --tool-call-parser qwen3_coder — the JSON text there teaches a format
     # that parser cannot parse and makes adherence WORSE.
     #
@@ -436,7 +436,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
         # propertyNames / $ref / oneOf / etc. then poisons EVERY long-prompt
         # request with `400 ValueError: features not supported by xgrammar`.
         # Operators on a non-xgrammar backend (guidance / outlines /
-        # llguidance) can override via GENESIS_P68_FORCE=1.
+        # llguidance) could override it (not available in this tree).
         force_p68 = False
         incompat = (
             None if force_p68 else _find_xgrammar_incompat_tool(tools)
@@ -447,7 +447,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                 f"P68 skipped: tool {tool_name!r} schema contains "
                 f"xgrammar-unsupported key {key!r} — upgrading tool_choice "
                 "to 'required' would trigger 400 ValueError at "
-                "adjust_request (club-3090#57). Set GENESIS_P68_FORCE=1 to "
+                "adjust_request (club-3090#57). Forcing it "
                 "override on non-xgrammar backends."
             )
             log.warning(
@@ -455,7 +455,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                 "SKIPPING tool_choice upgrade — tool %r has xgrammar-"
                 "unsupported schema key %r. P69 reminder will still apply "
                 "if enabled. To force P68 on a non-xgrammar backend, set "
-                "GENESIS_P68_FORCE=1 (not recommended otherwise — see "
+                "is not available in this tree (not recommended anyway — see "
                 "noonghunna/club-3090#57).",
                 chars, threshold, tool_name, key,
             )
@@ -463,7 +463,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
             try:
                 request.tool_choice = "required"
                 result["applied_p68"] = True
-                # WARN-level (was INFO): per Genesis Issue #9 — operators must
+                # WARN-level (was INFO): per genesis-vllm-patches issue #9 — operators must
                 # see this in default log levels because the rewrite changes
                 # request semantics in a way that can produce
                 # finish_reason=stop on what was a casual user message.
@@ -474,8 +474,8 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                     "[P68] long-ctx prompt (%d chars >= %d "
                     "threshold): upgraded tool_choice 'auto' -> "
                     "'required'%s. To disable this rewrite set "
-                    "GENESIS_ENABLE_P68_AUTO_FORCE_TOOL=0 or raise "
-                    "GENESIS_P68_P69_LONG_CTX_THRESHOLD_CHARS.",
+                    "disabling P68 or raising the threshold "
+                    "in long_ctx_tool_adherence.",
                     chars, threshold, _force_note,
                 )
             except Exception as e:
@@ -491,7 +491,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
     # reminder en el último mensaje user quedó N turnos atrás y el modelo
     # pierde adherencia igual. Inyectar en la cola del tool result cerró las
     # muertes silenciosas mid-session (bench 2026-07-04: 8/10 → objetivo 10/10).
-    # Opt-out: GENESIS_P69_TOOL_TAIL=0 restaura el comportamiento user-only.
+    # El comportamiento user-only quedo afuera.
     if p69_enabled:
         try:
             tail_roles = ("user", "tool")

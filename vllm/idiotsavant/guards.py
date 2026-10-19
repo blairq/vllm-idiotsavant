@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Genesis defensive guards — canonical vendor/chip/model/dependency detection.
+"""Defensive guards — canonical vendor/chip/model/dependency detection.
 
 Philosophy: МЫ ЧИНИМ, НЕ ЛОМАЕМ.
 Every helper is fail-safe: returns a safe default (False/None) on any exception.
@@ -22,12 +22,12 @@ log = logging.getLogger("idiotsavant.guards")
 
 
 # ─── torch.dynamo compatibility ────────────────────────────────────────────
-# Genesis guards are eager-only diagnostic helpers (vendor / SM / version
+# These guards are eager-only diagnostic helpers (vendor / SM / version
 # detection). They are commonly called from kernel paths that vLLM compiles
 # with torch.compile / torch.dynamo (Marlin apply_weights, FP8 scaled MM,
 # CUDA-graph capture, etc.).
 #
-# Two issues seen empirically (2026-04-28, with GENESIS_FORCE_MARLIN_W8A16=1
+# Two issues seen empirically (2026-04-28, forcing Marlin W8A16
 # on Qwen3.6-27B-INT8-AutoRound, Marlin path):
 #   1. torch.dynamo IGNORES `@functools.lru_cache` / `@functools.cache`
 #      wrappers and traces the underlying function instead → crash inside
@@ -210,7 +210,7 @@ def is_ampere_datacenter() -> bool:
 def is_ampere_consumer() -> bool:
     """NVIDIA A5000 / A6000 / RTX 3090 — SM 8.6.
 
-    Genesis prod baseline.
+    Production baseline.
     """
     return is_sm_exactly(8, 6)
 
@@ -443,10 +443,10 @@ def get_vllm_full_version_string() -> Optional[str]:
 
 
 # ───────────────────────────────────────────────────────────────────────
-# vLLM pin allowlist — known-good pins this Genesis revision validated against.
+# vLLM pin allowlist — known-good pins this tree was validated against.
 #
 # When a patcher boot encounters an UNKNOWN pin, two policy modes are
-# possible (controlled by `GENESIS_VLLM_PIN_POLICY`):
+# possible (controlled by the `policy` argument):
 #   - "warn" (default) — log a loud warning, continue
 #   - "strict"          — log + sys.exit(2) — refuse to apply patches that
 #                         were never validated against this pin
@@ -480,7 +480,7 @@ def assert_vllm_pin_allowed(
     Returns ("ok"|"unknown"|"missing", message). On policy="strict" and
     a non-ok status, raises SystemExit(2) — caller does NOT need to handle.
 
-    Policy resolution order: explicit `policy` arg > env `GENESIS_VLLM_PIN_POLICY`
+    Policy resolution order: explicit `policy` arg
     > "warn" (default). Set policy="strict" in production start scripts to
     fail fast on accidental pin drift.
 
@@ -498,22 +498,22 @@ def assert_vllm_pin_allowed(
     if pin is None:
         msg = "vllm not importable — cannot verify pin"
         if policy == "strict":
-            print(f"[Genesis pin-gate] STRICT FAIL: {msg}", flush=True)
+            print(f"[pin-gate] STRICT FAIL: {msg}", flush=True)
             import sys as _sys
             _sys.exit(2)
         return "missing", msg
 
     if pin in allowlist:
-        return "ok", f"vllm pin {pin} is on the Genesis allowlist"
+        return "ok", f"vllm pin {pin} is on the allowlist"
 
     msg = (
-        f"vllm pin {pin!r} is NOT on the Genesis known-good list "
+        f"vllm pin {pin!r} is NOT on the known-good list "
         f"({len(allowlist)} entries). Allowed pins: {list(allowlist)}. "
         f"To accept this pin, add it to KNOWN_GOOD_VLLM_PINS in "
         f"vllm/idiotsavant/guards.py and document the validation in CHANGELOG."
     )
     if policy == "strict":
-        print(f"[Genesis pin-gate] STRICT FAIL: {msg}", flush=True)
+        print(f"[pin-gate] STRICT FAIL: {msg}", flush=True)
         import sys as _sys
         _sys.exit(2)
     return "unknown", msg

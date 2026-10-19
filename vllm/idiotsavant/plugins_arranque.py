@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""El punto por donde Genesis se registra DENTRO de cada proceso de vLLM.
+"""El punto por donde idiotsavant se registra DENTRO de cada proceso de vLLM.
 
 Por que hace falta
 ------------------
@@ -19,7 +19,7 @@ una sola ancla ahi, y todo lo demas se resuelve por herencia y registros nativos
 
 Que se registra aca
 -------------------
-* PN131 con ``GENESIS_PN131_NATIVO=1``: el backend de atencion SK-18 por ``register_backend``.
+* PN131: el backend de atencion SK-18 por ``register_backend``.
 
 Es el lugar para lo que venga: una ``QuantizationConfig`` propia para el camino W4A8, capas
 por ``PluggableLayer.register_oot``, etc. Todo eso tambien necesita correr en el proceso que

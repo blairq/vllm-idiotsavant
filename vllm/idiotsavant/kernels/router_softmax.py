@@ -44,7 +44,7 @@ Platform compatibility
 Credits
 -------
 - DeepSeek-V3 team (vLLM contributors) — original fp32 upcast pattern
-- @jhsmith409 (vllm-project) — endorsed Genesis investigation into Ampere
+- @jhsmith409 (vllm-project) — endorsed the genesis-vllm-patches investigation into Ampere
   numerical issues
 - @JartX — TurboQuant stability discussions revealed similar precision concerns
 

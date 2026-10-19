@@ -18,7 +18,7 @@ En los grupos con ``s < 0``: ``s -> |s|`` y ``q -> 16 - q``, que es exacto
 salvo ``q = 0`` (-8 -> +8, no representable en [-8, 7]). Casi todos los grupos
 negativos usan el nivel -8, asi que recortar a +7 cuesta ~2,6% de error en el
 peso; buscando la escala positiva de minimo error por grupo baja a ~2,5%
-(``GENESIS_PN125_BUSQUEDA=1``, por defecto). Solo corre con activaciones int8
+(siempre). Solo corre con activaciones int8
 y pesos uint4b8; W4A16 no se toca.
 """
 
