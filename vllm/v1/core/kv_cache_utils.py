@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN146: tamano de grupo de KV]]
-# [Genesis wiring marker: _GENESIS_PN83_ANALISIS_ARRANQUE]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """KV-Cache Utilities."""
@@ -1311,7 +1309,7 @@ def _get_kv_cache_groups_uniform_page_size(
     # sw, where the group size should be 10).
     min_num_layers = min([len(layers) for layers in layer_buckets])
     group_size = min_num_layers
-    # [Genesis PN146: tamano de grupo de KV] ver el modulo del parche para la aritmetica.
+    # [PN146: tamano de grupo de KV] ver el modulo del parche para la aritmetica.
     # bytes_per_block lo fija el grupo MAS GRANDE (un max, no una suma), asi que un
     # group_size mas chico da mas bloques totales aunque haya mas grupos por request.
     _g146 = '8'
@@ -1321,7 +1319,7 @@ def _get_kv_cache_groups_uniform_page_size(
         except ValueError:
             _g146_v = 0
         if _g146_v > 0:
-            logger.warning('[Genesis PN146] group_size %d -> %d (buckets %s)',
+            logger.warning('[PN146] group_size %d -> %d (buckets %s)',
                            group_size, _g146_v,
                            [len(x) for x in layer_buckets])
             _g146_forzado = _g146_v
@@ -1339,7 +1337,7 @@ def _get_kv_cache_groups_uniform_page_size(
         # layers while accommodating speculative decoding drafters that add
         # extra layers to one attention type.
         group_size = max_num_layers
-    if _g146_forzado:  # [Genesis PN146: tamano de grupo de KV] la ultima palabra es del operador
+    if _g146_forzado:  # [PN146: tamano de grupo de KV] la ultima palabra es del operador
         group_size = _g146_forzado
     grouped_layers = []
     for layers in layer_buckets:

@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis PN66 multiturn think leak fix vllm#41696]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -814,7 +813,7 @@ class DelegatingParser(Parser):
         self._initialize_history_tool_call_cnt(request)
         state = self._stream_state
 
-        # [Genesis PN66 multiturn think leak fix vllm#41696] Removed
+        # [PN66 multiturn think leak fix vllm#41696] Removed
         # the prompt_token_ids walk that prematurely set reasoning_ended
         # from a PRIOR turn's </think> in the prompt history. The block
         # conflated 'prompt contains </think>' with 'current generation

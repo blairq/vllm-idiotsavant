@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis PN35 inputs_embeds optional for text-only (vllm#35975) v7.69 part2]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import dataclasses
@@ -237,7 +236,7 @@ class SpecDecodeBaseProposer:
                 (self.max_num_tokens,), dtype=torch.bool, device=device
             )
 
-        # [Genesis PN35 v7.69 inputs_embeds_optional] vllm#35975 by
+        # [PN35 v7.69 inputs_embeds_optional] vllm#35975 by
         # AjAnubolu — same pattern for spec-decode proposer's
         # inputs_embeds tensor. Saves ~64 MiB GPU on text-only spec-
         # decode methods (MTP, ngram, draft-model w/o prompt embeds).

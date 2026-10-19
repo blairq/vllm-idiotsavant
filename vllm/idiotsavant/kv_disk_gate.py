@@ -104,7 +104,7 @@ def should_persist_to_secondary_tiers(
 
     Reglas:
       1. `persist_disk` explícito en `kv_transfer_params` manda sobre todo.
-      2. Si no, se compara `genesis_agent` (o `agent`) contra la allowlist
+      2. Si no, se compara `agent` contra la allowlist
          (`GENESIS_KV_DISK_WRITERS`, o `DEFAULT_DISK_WRITERS`).
       3. Sin tag de agente → False (protección estricta: no se escribe).
     """
@@ -113,9 +113,9 @@ def should_persist_to_secondary_tiers(
 
     agent = None
     if kv_transfer_params:
-        agent = kv_transfer_params.get("genesis_agent") or kv_transfer_params.get(
-            "agent"
-        )
+        from vllm.idiotsavant.sesion import agente
+
+        agent = agente(kv_transfer_params)
 
     if not agent:
         return False

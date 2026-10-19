@@ -1,5 +1,3 @@
-# [Genesis wiring marker: _GENESIS_PN100_STAGING_RING]
-# [Genesis wiring marker: _GENESIS_PN95_L2_OCCUPANCY]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from collections import OrderedDict

@@ -194,7 +194,7 @@ def observar_cuda(ids: torch.Tensor, cabeza: torch.Tensor) -> None:
                               d["hq"], d["hs"], d["ids"], d["filas"], cabeza, DIN])
 
 
-@torch.library.custom_op("genesis::pn159_observar", mutates_args=("cabeza",))
+@torch.library.custom_op("idiotsavant::pn159_observar", mutates_args=("cabeza",))
 def _observar_op(ids: torch.Tensor, cabeza: torch.Tensor) -> None:
     observar_cuda(ids, cabeza)
 
@@ -207,7 +207,7 @@ def _observar_fake(ids, cabeza):
 def observar(input_ids: torch.Tensor) -> None:
     """Desde el embedding (PN159 fase 2): los tokens del paso alimentan el anillo dinamico."""
     if "cabeza" in _din and input_ids.is_cuda:
-        torch.ops.genesis.pn159_observar(input_ids, _din["cabeza"])
+        torch.ops.idiotsavant.pn159_observar(input_ids, _din["cabeza"])
 
 
 def _kern(nombre: str, extra=()):
@@ -233,7 +233,7 @@ def anillo_cuda(h: torch.Tensor, vs: torch.Tensor, is_: torch.Tensor):
     return vo.to(vs.dtype), io
 
 
-@torch.library.custom_op("genesis::pn159_anillo", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn159_anillo", mutates_args=())
 def _anillo_op(h: torch.Tensor, vs: torch.Tensor, is_: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return anillo_cuda(h, vs, is_)
 
@@ -312,7 +312,7 @@ def topk_cuda(logits: torch.Tensor, h: torch.Tensor, ids_fijo: torch.Tensor):
     return vo, io
 
 
-@torch.library.custom_op("genesis::pn159_topk", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn159_topk", mutates_args=())
 def _topk_op(logits: torch.Tensor, h: torch.Tensor, ids_fijo: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return topk_cuda(logits, h, ids_fijo)
 
@@ -345,7 +345,7 @@ def top_k(proc, lm_head, hidden_states: torch.Tensor, k: int):
     values, idx = _topk(logits, k)
     ids = lm_head.pn159_ids[idx.to(torch.int64)]
     if getattr(lm_head, "pn159_din", None) is not None:
-        values, ids = torch.ops.genesis.pn159_anillo(hidden_states, values, ids)
+        values, ids = torch.ops.idiotsavant.pn159_anillo(hidden_states, values, ids)
     if lm_head.tp_size > 1:
         values = tensor_model_parallel_all_gather(values, dim=-1)
         ids = tensor_model_parallel_all_gather(ids, dim=-1)

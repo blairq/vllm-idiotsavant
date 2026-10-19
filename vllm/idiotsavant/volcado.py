@@ -207,7 +207,7 @@ def volcar(motivo: str, exc: BaseException | None = None, **datos) -> str | None
         with open(ruta, "w", encoding="utf-8", errors="replace") as f:
             f.write("\n".join(L) + "\n")
         # A stderr tambien, porque lo primero que uno mira es `docker logs`.
-        print("\n[Genesis] VOLCADO escrito en %s  (motivo: %s)\n" % (ruta, motivo),
+        print("\n[idiotsavant] VOLCADO escrito en %s  (motivo: %s)\n" % (ruta, motivo),
               file=sys.stderr, flush=True)
         return ruta
     except Exception:                                        # noqa: BLE001
@@ -263,12 +263,12 @@ def instalar() -> None:
     # propagacion, que son justamente los que loguean los errores que interesan.
     for nombre in ("", "vllm", "idiotsavant"):
         lg = logging.getLogger(nombre)
-        if not any(getattr(x, "name", "") == "genesis_volcado" for x in lg.handlers):
+        if not any(getattr(x, "name", "") == "isv_volcado" for x in lg.handlers):
             h = _HandlerVolcado(level=logging.ERROR)
-            h.set_name("genesis_volcado")
+            h.set_name("isv_volcado")
             lg.addHandler(h)
 
-    log.info("[Genesis] volcado de diagnostico activo -> %s (apagar: GENESIS_VOLCADO=0)", _dir())
+    log.info("[idiotsavant] volcado de diagnostico activo -> %s (apagar: GENESIS_VOLCADO=0)", _dir())
 
 
 # ───────────────────────── logs a archivo, por proceso ─────────────────────────
@@ -298,7 +298,7 @@ def config_logging(destino: str = "/root/.cache/vllm/idiotsavant/logs") -> str:
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "genesis": {
+            "idiotsavant": {
                 "format": "%(asctime)s %(levelname)-7s [pid %(process)d] %(name)s: %(message)s",
                 "datefmt": "%H:%M:%S",
             },
@@ -306,13 +306,13 @@ def config_logging(destino: str = "/root/.cache/vllm/idiotsavant/logs") -> str:
         "handlers": {
             "consola": {
                 "class": "logging.StreamHandler",
-                "formatter": "genesis",
+                "formatter": "idiotsavant",
                 "stream": "ext://sys.stdout",
                 "level": "INFO",
             },
             "archivo": {
                 "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "genesis",
+                "formatter": "idiotsavant",
                 "filename": archivo,
                 "maxBytes": 64 * 1024 * 1024,
                 "backupCount": 3,
@@ -321,7 +321,7 @@ def config_logging(destino: str = "/root/.cache/vllm/idiotsavant/logs") -> str:
         },
         "loggers": {
             "vllm": {"handlers": ["consola", "archivo"], "level": "INFO", "propagate": False},
-            "genesis": {"handlers": ["consola", "archivo"], "level": "DEBUG", "propagate": False},
+            "idiotsavant": {"handlers": ["consola", "archivo"], "level": "DEBUG", "propagate": False},
         },
         "root": {"handlers": ["archivo"], "level": "INFO"},
     }

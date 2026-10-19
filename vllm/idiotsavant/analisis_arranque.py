@@ -35,7 +35,7 @@ import json
 import os
 import sys
 
-ESTADO = "/tmp/genesis_analisis_arranque.json"
+ESTADO = "/tmp/isv_analisis_arranque.json"
 
 ANCHO = 78
 
@@ -598,7 +598,7 @@ def emitir_informe(vllm_config, num_tokens: int) -> None:
         except Exception:
             pass
     except Exception as e:  # nunca puede tumbar el arranque
-        print(f"[Genesis PN83] no pude armar el analisis: {e}", file=sys.stderr)
+        print(f"[PN83] no pude armar el analisis: {e}", file=sys.stderr)
 
 
 def main() -> int:

@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis B5 rejection sampler vectorized early-exit v1.2 (CK-4.3 async triton)]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -433,7 +432,7 @@ def rejection_sample(
         device=device,
     )
     # ═══════════════════════════════════════════════════════════════
-    # [Genesis B5 CK-4.3] Early-exit + vectorized fast-path (opt-in).
+    # [B5 CK-4.3] Early-exit + vectorized fast-path (opt-in).
     # Evita lanzamientos Triton cuando no hay tokens que muestrear.
     # Ahorra ~5-15us por batch trivial y evita alloc de uniform_probs.
     # Cache de estados: bonus ya está muestreado, solo copiar.
@@ -622,7 +621,7 @@ def expand_batch_to_tokens(
     batch_size = x.shape[0]
     assert cu_num_tokens.shape[0] == batch_size
     # ═══════════════════════════════════════════════════════════════
-    # [Genesis B5 CK-4.3 v1.2] Early-exit + pure Triton async kernel.
+    # [B5 CK-4.3 v1.2] Early-exit + pure Triton async kernel.
     # Triton expand_kernel is 267x faster than torch.repeat_interleave
     # (8.9us vs 2378us) and avoids allocating intermediate tensors.
     # ═══════════════════════════════════════════════════════════════

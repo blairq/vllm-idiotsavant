@@ -43,7 +43,7 @@ import torch
 log = logging.getLogger("idiotsavant.pn139")
 
 G = 128                       # group_size, el mismo del checkpoint
-MARCA = "_genesis_pn139_listo"
+MARCA = "_isv_pn139_listo"
 
 
 def activo() -> bool:
@@ -159,7 +159,7 @@ def aplicar(layer, x: torch.Tensor, bias=None) -> torch.Tensor:
         input_dtype=torch.int8 if layer.pn139_igs is not None else None)
 
 
-class Genesis_INT4_LMHead_EmbeddingMethod:
+class INT4LMHeadEmbeddingMethod:
     """``quant_method`` del ``lm_head`` en int4 por grupo. Duck-typed, como el de PN77.
 
     Se apoya en el mismo enganche que PN77 (el walker de ``process_weights_after_loading``), asi
@@ -180,7 +180,7 @@ class Genesis_INT4_LMHead_EmbeddingMethod:
         set_weight_attrs(w, extra)
 
     def process_weights_after_loading(self, layer) -> None:
-        prefijo = getattr(layer, "prefix", "") or getattr(layer, "_genesis_prefijo", "")
+        prefijo = getattr(layer, "prefix", "") or getattr(layer, "_isv_prefijo", "")
         try:
             if not preparar(layer, prefijo):
                 layer.quant_method = _original()
@@ -216,7 +216,7 @@ def maybe_swap(layer, metodo_actual, prefijo: str = ""):
     try:
         if not activo():
             return metodo_actual
-        if isinstance(metodo_actual, Genesis_INT4_LMHead_EmbeddingMethod):
+        if isinstance(metodo_actual, INT4LMHeadEmbeddingMethod):
             return metodo_actual
         if solo_borrador() and not _es_del_borrador(prefijo):
             return metodo_actual
@@ -225,9 +225,9 @@ def maybe_swap(layer, metodo_actual, prefijo: str = ""):
             return metodo_actual
         if w.shape[1] % G:
             return metodo_actual
-        nuevo = Genesis_INT4_LMHead_EmbeddingMethod()
+        nuevo = INT4LMHeadEmbeddingMethod()
         layer.quant_method = nuevo
-        layer._genesis_prefijo = prefijo
+        layer._isv_prefijo = prefijo
         return nuevo
     except Exception as e:
         log.warning("PN139: el swap fallo (%s) — se sigue con el metodo original",

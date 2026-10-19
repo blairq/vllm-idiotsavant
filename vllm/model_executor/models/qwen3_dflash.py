@@ -1,13 +1,9 @@
-# [Genesis wiring marker: [Genesis PN157: borrador en Marlin]]
-# [Genesis wiring marker: [Genesis PN126: rotacion qk]]
-# [Genesis wiring marker: [Genesis PN142: DFlash2 en v0.29.0]]
-# [Genesis wiring marker: [Genesis PN149: borrador sobre target rotado]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import io
 from collections.abc import Iterable
-from vllm.idiotsavant import rot_qk as _g126  # [Genesis PN126: rotacion qk]
+from vllm.idiotsavant import rot_qk as _g126  # [PN126: rotacion qk]
 
 import torch
 from torch import nn
@@ -21,7 +17,7 @@ from vllm.distributed import (
     get_tensor_model_parallel_world_size,
 )
 from vllm.logger import init_logger
-from vllm.idiotsavant import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
+from vllm.idiotsavant import rot_borrador as _g149  # [PN149: borrador sobre target rotado]
 from vllm.model_executor.layers.attention import Attention
 from vllm.model_executor.layers.layernorm import RMSNorm
 from vllm.model_executor.layers.linear import (
@@ -31,7 +27,7 @@ from vllm.model_executor.layers.linear import (
 )
 from vllm.model_executor.layers.logits_processor import LogitsProcessor
 from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
-from vllm.idiotsavant import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
+from vllm.idiotsavant import borrador_marlin as _g157  # [PN157: borrador en Marlin]
 from vllm.model_executor.layers.rotary_embedding import get_rope
 from vllm.model_executor.layers.vocab_parallel_embedding import (
     ParallelLMHead,
@@ -268,7 +264,7 @@ class DFlashQwen3Attention(nn.Module):
         ).view(k_shape)
 
         q, k = self.rotary_emb(positions, q, k)
-        if _g126.activo(self.head_dim):  # [Genesis PN126: rotacion qk]
+        if _g126.activo(self.head_dim):  # [PN126: rotacion qk]
             _g126.rotar(q, k, self.layer_name, self.num_kv_heads, self.head_dim)
         attn_output = self.attn(q, k, v)
         output, _ = self.o_proj(attn_output)
@@ -363,7 +359,7 @@ class DFlashQwen3DecoderLayer(nn.Module):
 
 
 def _dense_kv_rows(attn):
-    """Filas [q_size:] de la proyeccion qkv como matriz densa. [Genesis PN142]
+    """Filas [q_size:] de la proyeccion qkv como matriz densa. [PN142]
 
     Arregla vllm#51581 (ABIERTO): qwen3_dflash.py no sabe de cuantizacion y rebana
     `.weight` directo. Corre desde load_weights, o sea ANTES del repack de Marlin, asi que
@@ -489,11 +485,11 @@ class DFlashQwen3Model(nn.Module):
             self.config.hidden_size,
             eps=self.config.rms_norm_eps,
         )
-        _g149.preparar(self, self.config)  # [Genesis PN149: borrador sobre target rotado]
+        _g149.preparar(self, self.config)  # [PN149: borrador sobre target rotado]
 
     def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
         embeds = self.embed_tokens(input_ids)
-        embeds = _g149.desrotar(self, embeds)  # [Genesis PN149: borrador sobre target rotado]
+        embeds = _g149.desrotar(self, embeds)  # [PN149: borrador sobre target rotado]
         if self.has_separate_mask_embedding and self.mask_token_id is not None:
             # Replace masked slots with the dedicated mask embedding.
             is_mask = (input_ids == self.mask_token_id).unsqueeze(-1)
@@ -508,10 +504,10 @@ class DFlashQwen3Model(nn.Module):
         self._hidden_norm_weight = self.hidden_norm.weight.data
 
         # KV projection weights: [num_layers * 2 * kv_size, hidden_size]
-        # [Genesis PN142: DFlash2 en v0.29.0] vllm#51581: decuantizar antes de rebanar.
+        # [PN142: DFlash2 en v0.29.0] vllm#51581: decuantizar antes de rebanar.
         kv_weights = [_dense_kv_rows(a) for a in layers_attn]
         self._fused_kv_weight = torch.cat(kv_weights, dim=0)
-        _g157.preparar(self, layers_attn)  # [Genesis PN157: borrador en Marlin]
+        _g157.preparar(self, layers_attn)  # [PN157: borrador en Marlin]
         if has_bias:
             kv_biases = [a.qkv_proj.bias[a.q_size :] for a in layers_attn]
             self._fused_kv_bias: torch.Tensor | None = torch.cat(kv_biases, dim=0)
@@ -583,7 +579,7 @@ class DFlashQwen3Model(nn.Module):
             self._hidden_norm_weight,
             self._rms_norm_eps,
         )
-        all_kv_flat = _g157.kv_contexto(  # [Genesis PN157: borrador en Marlin]
+        all_kv_flat = _g157.kv_contexto(  # [PN157: borrador en Marlin]
             self, normed_context_states, self._fused_kv_weight, self._fused_kv_bias
         )
         # Single contiguous copy that separates K/V and transposes to
@@ -666,7 +662,7 @@ class DFlashQwen3Model(nn.Module):
 
         # --- Per-layer cache insert ---
         all_k_final = all_k_flat.view(L, num_ctx, nkv, hd)
-        if _g126.activo(hd):  # [Genesis PN126: rotacion qk]
+        if _g126.activo(hd):  # [PN126: rotacion qk]
             _g126.rotar_tensor(all_k_final, hd)
         per_layer = isinstance(context_slot_mapping, (list, tuple))
         for i in range(L):
@@ -792,7 +788,7 @@ class DFlashQwen3ForCausalLM(Qwen3ForCausalLM):
         self,
         hidden_states: torch.Tensor,
     ) -> torch.Tensor | None:
-        logits = self.logits_processor(self.lm_head, _g149.rotar(self.model, hidden_states))  # [Genesis PN149: borrador sobre target rotado]
+        logits = self.logits_processor(self.lm_head, _g149.rotar(self.model, hidden_states))  # [PN149: borrador sobre target rotado]
         if self.draft_id_to_target_id is None:
             return logits
 

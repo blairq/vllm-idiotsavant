@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN88 kv tier metrics]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from collections.abc import Iterable
@@ -193,7 +192,7 @@ class OffloadingConnector(KVConnectorBase_V1, SupportsHMA):
         self.connector_scheduler.reset_cache()
         return True
 
-    # [Genesis PN88 kv tier metrics]
+    # [PN88 kv tier metrics]
     # El tier de disco vive en el proceso scheduler. Se drena el sink de
     # PN88 y se manda por el mismo canal de stats que ya viaja a /metrics,
     # dentro del formato tipado que 0.27 espera (TYPES/DATA).
@@ -208,8 +207,8 @@ class OffloadingConnector(KVConnectorBase_V1, SupportsHMA):
             _payload = _g88.sink().drain()
             if _payload is not None:
                 _bucket = OffloadingConnectorStats(data={
-                    'types': {_g88.GENESIS_BUCKET: 'genesis'},
-                    'data': {_g88.GENESIS_BUCKET: {'': _payload}},
+                    'types': {_g88.TIERS_BUCKET: 'idiotsavant'},
+                    'data': {_g88.TIERS_BUCKET: {'': _payload}},
                 })
                 if _g88_stats is None:
                     _g88_stats = _bucket

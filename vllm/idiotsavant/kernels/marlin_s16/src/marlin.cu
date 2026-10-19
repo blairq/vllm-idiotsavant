@@ -166,10 +166,10 @@ typedef struct {
 //
 // De 21 casos, bps=1 gana 10 y empata 10; el unico donde bps=2 sale adelante (7168, M=256,
 // +3,2%) tiene 7,2% de dispersion, o sea es ruido. Se parametriza con -D para poder repetirlo.
-#ifndef GENESIS_MAX_BLOQUES_POR_SM
-  #define GENESIS_MAX_BLOQUES_POR_SM 1
+#ifndef MARLIN_MAX_BLOQUES_POR_SM
+  #define MARLIN_MAX_BLOQUES_POR_SM 1
 #endif
-constexpr int MAX_BLOQUES_POR_SM = GENESIS_MAX_BLOQUES_POR_SM;
+constexpr int MAX_BLOQUES_POR_SM = MARLIN_MAX_BLOQUES_POR_SM;
 
 thread_config_t small_batch_thread_configs[] = {
     // Ordered by priority
@@ -509,14 +509,14 @@ void marlin_mm(const void* A, const void* B, void* C, void* C_tmp, void* b_bias,
   //
   // O sea: tmb=5 derrama poco y todavia conviene hasta M=80; de ahi en mas hay que partir en
   // dos pasadas antes que derramar. El tramo va hasta 80, no hasta 112.
-#ifndef GENESIS_TOPE_M
-  #define GENESIS_TOPE_M 5
+#ifndef MARLIN_TOPE_M
+  #define MARLIN_TOPE_M 5
 #endif
-#ifndef GENESIS_TOPE_M_HASTA
-  #define GENESIS_TOPE_M_HASTA 80
+#ifndef MARLIN_TOPE_M_HASTA
+  #define MARLIN_TOPE_M_HASTA 80
 #endif
   int max_thread_m_blocks =
-      (prob_m > 64 && prob_m <= GENESIS_TOPE_M_HASTA) ? GENESIS_TOPE_M : 4;
+      (prob_m > 64 && prob_m <= MARLIN_TOPE_M_HASTA) ? MARLIN_TOPE_M : 4;
   while (rest_m) {
     int par_count = rest_m / (max_thread_m_blocks * 16);
     if (par_count > max_par) par_count = max_par;
@@ -1002,7 +1002,7 @@ torch::stable::Tensor marlin_gemm(
 #endif
 
 // Genesis PN130: op propio con escalas int16 con signo (ver marlin_template.h).
-STABLE_TORCH_LIBRARY(genesis_marlin, m) {
+STABLE_TORCH_LIBRARY(idiotsavant_marlin, m) {
   m.def(
       "marlin_gemm_s16(Tensor a, Tensor? c_or_none, Tensor b_q_weight, "
       "Tensor? b_bias_or_none,Tensor b_scales, "
@@ -1014,6 +1014,6 @@ STABLE_TORCH_LIBRARY(genesis_marlin, m) {
       "bool use_atomic_add, bool use_fp32_reduce, bool is_zp_float) -> Tensor");
 }
 
-STABLE_TORCH_LIBRARY_IMPL(genesis_marlin, CUDA, m) {
+STABLE_TORCH_LIBRARY_IMPL(idiotsavant_marlin, CUDA, m) {
   m.impl("marlin_gemm_s16", TORCH_BOX(&marlin_gemm));
 }

@@ -225,14 +225,14 @@ _registrado = False
 
 
 def registrar() -> bool:
-    """Registra `vllm::genesis_ar_int8`. Idempotente."""
+    """Registra `vllm::idiotsavant_ar_int8`. Idempotente."""
     global _registrado
     if _registrado:
         return True
     from vllm.utils.torch_utils import direct_register_custom_op
 
     direct_register_custom_op(
-        op_name="genesis_ar_int8",
+        op_name="idiotsavant_ar_int8",
         op_func=_impl,
         mutates_args=[],
         fake_impl=_fake,
@@ -246,7 +246,7 @@ def all_reduce_int8(x: torch.Tensor) -> torch.Tensor:
 
     Va por el custom op para que el gate por talla se evalue en RUNTIME.
     """
-    return torch.ops.vllm.genesis_ar_int8(x)
+    return torch.ops.vllm.idiotsavant_ar_int8(x)
 
 
 def _impl_exacto(x: torch.Tensor) -> torch.Tensor:
@@ -262,12 +262,12 @@ def _impl_exacto(x: torch.Tensor) -> torch.Tensor:
 
 
 def all_reduce_exacto(x: torch.Tensor) -> torch.Tensor:
-    return torch.ops.vllm.genesis_ar_exacto(x)
+    return torch.ops.vllm.idiotsavant_ar_exacto(x)
 
 
 try:
     from vllm.utils.torch_utils import direct_register_custom_op as _reg
-    _reg(op_name="genesis_ar_exacto", op_func=_impl_exacto, mutates_args=[], fake_impl=_fake)
+    _reg(op_name="idiotsavant_ar_exacto", op_func=_impl_exacto, mutates_args=[], fake_impl=_fake)
 except Exception as _e:   # pragma: no cover
     log.error("[PN158] no se pudo registrar el custom op: %s", _e)
 

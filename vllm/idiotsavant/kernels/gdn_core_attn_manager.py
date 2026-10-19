@@ -24,15 +24,15 @@ Solution
      hint)` at the end. The init path runs eagerly (before any compile
      trace), so we can do whatever we want there: device probes,
      env reads, dict lookups, logging.
-  2. `attach_buffer` sets `self._genesis_gdn_core_attn_buf` to EITHER a
+  2. `attach_buffer` sets `self._isv_gdn_core_attn_buf` to EITHER a
      pre-allocated tensor of shape `(max_num_tokens, Hv, Hv_dim)` OR
      `None` on incompatible platforms.
   3. The `forward_cuda` text-patch (see wiring/patch_28_gdn_core_attn.py)
      reads the attribute and slices:
 
          core_attn_out = (
-             self._genesis_gdn_core_attn_buf[:num_tokens].zero_()
-             if self._genesis_gdn_core_attn_buf is not None
+             self._isv_gdn_core_attn_buf[:num_tokens].zero_()
+             if self._isv_gdn_core_attn_buf is not None
              else torch.zeros(
                  (num_tokens, self.num_v_heads // self.tp_size,
                   self.head_v_dim),
@@ -70,7 +70,7 @@ _DEFAULT_MAX_BT: int = 4096
 def resolve_max_batched_tokens(hint: Optional[int] = None) -> int:
     """Choose max_num_tokens for prealloc. Called at __init__ time only.
 
-    [Genesis P73 fix v7.42] Now delegates to central `prealloc_budget.resolve_token_budget`
+    [P73 fix v7.42] Now delegates to central `prealloc_budget.resolve_token_budget`
     which consults vllm scheduler_config IF env not set. Back-compat: still
     honors GENESIS_GDN_MAX_BATCHED_TOKENS as a domain-specific override.
     Resolves the chunk-overflow root cause (5664-token chunk vs hardcoded 4096).
@@ -84,7 +84,7 @@ def resolve_max_batched_tokens(hint: Optional[int] = None) -> int:
         return resolve_token_budget()
     except Exception as e:
         log.warning(
-            "[Genesis P28] prealloc_budget resolver failed (%s); "
+            "[P28] prealloc_budget resolver failed (%s); "
             "falling back to legacy default %d", e, _DEFAULT_MAX_BT,
         )
         return _DEFAULT_MAX_BT
@@ -104,7 +104,7 @@ def should_apply() -> bool:
                 is_nvidia_cuda() and is_sm_at_least(8, 0)
             )
         except Exception as e:
-            log.info("[Genesis P28] should_apply probe failed: %s", e)
+            log.info("[P28] should_apply probe failed: %s", e)
             _SHOULD_APPLY_CACHED = False
     return _SHOULD_APPLY_CACHED
 
@@ -146,7 +146,7 @@ class _BufferRegistry:
             )
             cls._cache[key] = buf
             log.info(
-                "[Genesis P28] GDN core_attn_out prealloc: "
+                "[P28] GDN core_attn_out prealloc: "
                 "max_num_tokens=%d Hv=%d Hv_dim=%d device=%s dtype=%s "
                 "bytes=%d",
                 max_num_tokens, num_v_heads, head_v_dim, device, dtype,
@@ -177,11 +177,11 @@ class _BufferRegistry:
 
 # ─── Init-time attacher ─────────────────────────────────────────────────────
 
-_ATTR_NAME = "_genesis_gdn_core_attn_buf"
+_ATTR_NAME = "_isv_gdn_core_attn_buf"
 
 
 def attach_buffer(module: Any, hint: Optional[int] = None) -> None:
-    """Attach `_genesis_gdn_core_attn_buf` to a GatedDeltaNet instance.
+    """Attach `_isv_gdn_core_attn_buf` to a GatedDeltaNet instance.
 
     Called ONCE per module from a monkey-patched `__init__`. All work
     here is eager — no compile trace, so device probes + logging + dict
@@ -204,7 +204,7 @@ def attach_buffer(module: Any, hint: Optional[int] = None) -> None:
         # Module not fully initialized (edge case): skip, forward will fallback.
         setattr(module, _ATTR_NAME, None)
         log.warning(
-            "[Genesis P28] attach_buffer: module missing num_v_heads/head_v_dim; "
+            "[P28] attach_buffer: module missing num_v_heads/head_v_dim; "
             "forward will fall back to eager allocation"
         )
         return
@@ -232,7 +232,7 @@ def attach_buffer(module: Any, hint: Optional[int] = None) -> None:
             dtype=dtype,
         )
     except Exception as e:
-        log.warning("[Genesis P28] attach_buffer alloc failed: %s — fallback", e)
+        log.warning("[P28] attach_buffer alloc failed: %s — fallback", e)
         setattr(module, _ATTR_NAME, None)
         return
 
@@ -308,7 +308,7 @@ class GdnCoreAttnManager:
         num_tokens_max: Optional[int] = None,
     ) -> torch.Tensor:
         """EAGER-only API for tests / fallback code. NOT called from
-        forward path anymore (forward uses `self._genesis_gdn_core_attn_buf`
+        forward path anymore (forward uses `self._isv_gdn_core_attn_buf`
         directly).
         """
         max_n = resolve_max_batched_tokens(num_tokens_max)

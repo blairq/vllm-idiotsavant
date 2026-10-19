@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis P66 cudagraph_capture_sizes spec-decode divisibility filter v7.14]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -2156,7 +2155,7 @@ class VllmConfig:
                     cudagraph_capture_sizes
                 )
 
-            # [Genesis P66] Filter cudagraph_capture_sizes for spec-decode
+            # [P66] Filter cudagraph_capture_sizes for spec-decode
             # uniform_decode_query_len divisibility. Without this filter,
             # capture phase produces mixed-q_len batches (e.g. [4,4,2]) where
             # the tail request gets misclassified as prefill, baking a prefill
@@ -2179,7 +2178,7 @@ class VllmConfig:
                         if _p66_uniform_q_len * _i <= max_num_tokens
                     ]
                     logger.info(
-                        '[Genesis P66] cudagraph_capture_sizes GENERADAS para '
+                        '[P66] cudagraph_capture_sizes GENERADAS para '
                         'uniform_query_len=%d, hasta %d pedidos: %s (se ignora la lista '
                         'del usuario %s)', _p66_uniform_q_len, _p66_n,
                         cudagraph_capture_sizes, _p66_orig,
@@ -2200,7 +2199,7 @@ class VllmConfig:
                     )
                     if _p66_removed:
                         logger.info(
-                            '[Genesis P66] Filtered cudagraph_capture_sizes for '
+                            '[P66] Filtered cudagraph_capture_sizes for '
                             'spec-decode uniform_query_len=%d: removed %d '
                             'non-divisible sizes %s; kept %s. Prevents mixed-q_len '
                             'capture (vllm#28015 mechanism).',

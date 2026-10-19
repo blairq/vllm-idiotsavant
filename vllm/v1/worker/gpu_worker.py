@@ -1,4 +1,3 @@
-# [Genesis wiring marker: _GENESIS_PN83_ANALISIS_ARRANQUE]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """A GPU worker class."""

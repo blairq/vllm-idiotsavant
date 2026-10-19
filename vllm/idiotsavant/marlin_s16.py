@@ -10,7 +10,7 @@ s->|s|), a costa de ~2,6% de error en el peso por el nivel -8 que no tiene par.
 Aca se arregla en el kernel: el mismo Marlin de vLLM v0.27.1
 (``kernels/marlin_s16/src``, instanciacion solo s8 x uint4b8 x fp16, grupos 128 y
 por canal) con ``int16_t``, compilado como extension propia y registrado como
-``genesis_marlin::marlin_gemm_s16``. Las escalas se normalizan por ``|s|.max()``
+``idiotsavant_marlin::marlin_gemm_s16``. Las escalas se normalizan por ``|s|.max()``
 para que las negativas entren en el int16. Medido en k_proj real de noon: error
 0,87% (el de cuantizar x a int8) contra 2,82% con PN125 y 0,03% en W4A16.
 
@@ -46,7 +46,7 @@ def activo() -> bool:
 
 
 def _so() -> str | None:
-    c = glob.glob(os.path.join(BUILD, "genesis_marlin_s16*.so"))
+    c = glob.glob(os.path.join(BUILD, "idiotsavant_marlin_s16*.so"))
     return c[0] if c else None
 
 
@@ -94,7 +94,7 @@ def construir() -> str:
                        capture_output=True, text=True)
     so = _so()
     if r.returncode != 0 or not so:
-        raise RuntimeError("compilacion de genesis_marlin_s16 fallo:\n" + (r.stdout + r.stderr)[-3000:])
+        raise RuntimeError("compilacion de idiotsavant_marlin_s16 fallo:\n" + (r.stdout + r.stderr)[-3000:])
     try:
         with open(os.path.join(BUILD, "huella.txt"), "w") as f:
             f.write(_huella())
@@ -118,7 +118,7 @@ def cargar() -> bool:
 
     log.info("[PN130] .so cargada desde %s", so)
 
-    @register_fake("genesis_marlin::marlin_gemm_s16")
+    @register_fake("idiotsavant_marlin::marlin_gemm_s16")
     def _fake(a, c, b_q_weight, b_bias, b_scales, a_scales, global_scale, b_zeros, g_idx, perm,
               *resto):
         # `resto` es (a_sums?, workspace, b_type_id, size_m, size_n, size_k, ...): el a_sums
@@ -153,7 +153,7 @@ def marlin_gemm(a, c, b_q_weight, b_bias, b_scales, a_scales, global_scale, b_ze
     falla con "missing tp_iter"). Que la .so coincida con el fuente lo garantiza `construir()`,
     que la recompila cuando cambia el hash de las fuentes.
     """
-    return torch.ops.genesis_marlin.marlin_gemm_s16(
+    return torch.ops.idiotsavant_marlin.marlin_gemm_s16(
         a, c, b_q_weight, b_bias, b_scales, a_scales, global_scale, b_zeros, g_idx, perm,
         a_sums, workspace, b_q_type.id, size_m, size_n, size_k, is_k_full, use_atomic_add,
         use_fp32_reduce, is_zp_float)

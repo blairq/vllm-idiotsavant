@@ -313,7 +313,7 @@ class ResponseCacheMiddleware:
             "status": 200,
             "headers": [
                 (b"content-type", b"application/json"),
-                (b"x-genesis-cache", b"HIT"),
+                (b"x-response-cache", b"HIT"),
                 (b"content-length", str(len(body)).encode()),
             ],
         })
@@ -355,7 +355,7 @@ class ResponseCacheMiddleware:
                 )
                 # Inject a HIT/MISS marker for diagnostics.
                 response_headers_out.append(
-                    (b"x-genesis-cache", b"MISS"),
+                    (b"x-response-cache", b"MISS"),
                 )
                 message = {
                     **message,

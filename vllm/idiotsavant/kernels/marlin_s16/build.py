@@ -11,7 +11,8 @@ t0 = time.time()
 gen = os.path.join(BUILD, "gen"); os.makedirs(gen, exist_ok=True)
 # el generador escribe al lado de si mismo: copiar las fuentes a gen/
 for f in glob.glob(os.path.join(SRC, "*")):
-    subprocess.check_call(["cp", f, gen])
+    if os.path.isfile(f):
+        subprocess.check_call(["cp", f, gen])
 subprocess.check_call([sys.executable, os.path.join(gen, "generate_kernels.py"), "8.6"])
 # Una sola unidad de traduccion: las instanciaciones explicitas de Marlin<...>
 # salen con enlace local en el .o del kernel y el link de la .so no las ve.
@@ -22,13 +23,13 @@ with open(os.path.join(gen, "marlin.cu"), "a") as f:
 fuentes = [os.path.join(gen, "marlin.cu")]
 print("fuentes:", [os.path.basename(f) for f in fuentes], flush=True)
 mod = cpp_extension.load(
-    name="genesis_marlin_s16", sources=fuentes, build_directory=BUILD,
+    name="idiotsavant_marlin_s16", sources=fuentes, build_directory=BUILD,
     extra_include_paths=[gen, os.path.join(AQUI, "inc")],
     extra_cflags=["-O3", "-std=c++17", "-DTORCH_TARGET_VERSION=0x020c000000000000", "-DUSE_CUDA"],
     extra_cuda_cflags=["-O3", "-std=c++17", "-DTORCH_TARGET_VERSION=0x020c000000000000", "-DUSE_CUDA",
                        "-DMARLIN_NAMESPACE_NAME=marlin", "-Xcompiler", "-fvisibility=default"]
-    + (["-DGENESIS_QSERVE_CRUDO"] if False else [])
-    + ['-DGENESIS_MAX_BLOQUES_POR_SM=1']
-    + ['-DGENESIS_TOPE_M=8'],
+    + (["-DMARLIN_QSERVE_CRUDO"] if False else [])
+    + ['-DMARLIN_MAX_BLOQUES_POR_SM=1']
+    + ['-DMARLIN_TOPE_M=8'],
     is_python_module=False, verbose=True)
-print(f"listo en {time.time()-t0:.0f}s:", hasattr(torch.ops.genesis_marlin, "marlin_gemm_s16"))
+print(f"listo en {time.time()-t0:.0f}s:", hasattr(torch.ops.idiotsavant_marlin, "marlin_gemm_s16"))

@@ -81,7 +81,7 @@ class BuilderSK18(TritonAttentionMetadataBuilder):
     def build(self, common_prefix_len, common_attn_metadata, fast_build=False):
         m = super().build(common_prefix_len, common_attn_metadata, fast_build)
         # Ya esta calculado y en CPU: tomarlo de aca ahorra una sincronizacion con la GPU.
-        m.genesis_qsl_cpu = common_attn_metadata.query_start_loc_cpu
+        m.isv_qsl_cpu = common_attn_metadata.query_start_loc_cpu
         return m
 
 

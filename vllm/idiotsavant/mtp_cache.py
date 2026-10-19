@@ -157,7 +157,7 @@ except ImportError:  # pragma: no cover - CPU-only env sin safetensors (Telperio
 
 try:
     from vllm.logger import init_logger
-    log = init_logger("vllm.genesis.mtp_cache")
+    log = init_logger("vllm.idiotsavant.mtp_cache")
 except Exception:
     log = logging.getLogger("idiotsavant.mtp_cache")
 

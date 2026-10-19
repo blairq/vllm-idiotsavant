@@ -1,5 +1,3 @@
-# [Genesis wiring marker: Genesis PN25 SiluAndMul.forward_native import-time-cached opaque-op pool v7.68]
-# [Genesis wiring marker: Genesis PN12 FFN intermediate scratch pool (Cliff 1 fix) v7.62.x]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Custom activation functions."""
@@ -18,7 +16,7 @@ from vllm.utils.collection_utils import LazyDict
 
 logger = init_logger(__name__)
 
-# [Genesis PN25 v7.68] Register/cache the opaque silu_and_mul op
+# [PN25 v7.68] Register/cache the opaque silu_and_mul op
 # while activation.py is imported in each spawned worker, BEFORE
 # vLLM enters profile_run's aot_compile_fullgraph trace context.
 # The patched SiluAndMul.forward_native body below reads only this
@@ -26,9 +24,9 @@ logger = init_logger(__name__)
 # was the v7.66 failure mode on TP=1 spawn workers.
 try:
     from vllm.idiotsavant.kernels.silu_and_mul_customop import (
-        get_op_callable as _genesis_pn25_get_op_callable,
+        get_op_callable as _isv_pn25_get_op_callable,
     )
-    _GENESIS_PN25_SILU_AND_MUL_OP = _genesis_pn25_get_op_callable()
+    _GENESIS_PN25_SILU_AND_MUL_OP = _isv_pn25_get_op_callable()
 except Exception:
     _GENESIS_PN25_SILU_AND_MUL_OP = None
 
@@ -153,14 +151,14 @@ class SiluAndMul(CustomOp):
         vLLM's aot_compile_fullgraph trace. Do not register custom
         ops here (would trigger Dynamo-Unsupported on spawn workers).
         """
-        _genesis_pn25_op = _GENESIS_PN25_SILU_AND_MUL_OP
-        if _genesis_pn25_op is not None:
-            return _genesis_pn25_op(x)
+        _isv_pn25_op = _GENESIS_PN25_SILU_AND_MUL_OP
+        if _isv_pn25_op is not None:
+            return _isv_pn25_op(x)
         d = x.shape[-1] // 2
         return F.silu(x[..., :d]) * x[..., d:]
 
     def forward_cuda(self, x: torch.Tensor) -> torch.Tensor:
-        # [Genesis PN12 FFN intermediate pool — Cliff 1 fix on TQ3]
+        # [PN12 FFN intermediate pool — Cliff 1 fix on TQ3]
         # Pool the [M, d] BF16 transient across layers instead of
         # torch.empty() per call. Single shared buffer per
         # (intermediate_size, dtype, device); pointer-stable; safe

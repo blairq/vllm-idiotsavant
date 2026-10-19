@@ -97,7 +97,7 @@ def cabeza_q8_cuda(x: torch.Tensor, a: torch.Tensor, w: torch.Tensor, gscale: to
     return q, esc
 
 
-@torch.library.custom_op("genesis::pn154_cabeza_q8", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn154_cabeza_q8", mutates_args=())
 def cabeza_q8(x: torch.Tensor, a: torch.Tensor, w: torch.Tensor, gscale: torch.Tensor,
               modo: int, d: int, eps: float) -> tuple[torch.Tensor, torch.Tensor]:
     """(int8 [T, N], escala fp32 [T, 1] ya por gscale) de Hadamard_d(op(x, a)) por cabeza."""
@@ -128,7 +128,7 @@ def salida_gdn(gdn, core_attn_out: torch.Tensor, z: torch.Tensor) -> torch.Tenso
             and gdn.norm.group_size is None:
         from vllm.idiotsavant import rot_down as _g148
         T = core_attn_out.shape[0]
-        q, esc = torch.ops.genesis.pn154_cabeza_q8(core_attn_out.reshape(T, -1), z.reshape(T, -1), gdn.norm.weight,
+        q, esc = torch.ops.idiotsavant.pn154_cabeza_q8(core_attn_out.reshape(T, -1), z.reshape(T, -1), gdn.norm.weight,
                                                    lin.input_global_scale, 0, lin._g154_b,
                                                    float(gdn.norm.eps))
         out = _g148._gemm_int8(lin, k, q, esc)
@@ -147,7 +147,7 @@ def salida_atencion(attn, attn_output: torch.Tensor, gate) -> torch.Tensor:
     if k is not None and gate is not None:
         from vllm.idiotsavant import rot_down as _g148
         T = attn_output.shape[0]
-        q, esc = torch.ops.genesis.pn154_cabeza_q8(attn_output.reshape(T, -1), gate.reshape(T, -1),
+        q, esc = torch.ops.idiotsavant.pn154_cabeza_q8(attn_output.reshape(T, -1), gate.reshape(T, -1),
                                                    lin.input_global_scale, lin.input_global_scale, 1,
                                                    lin._g154_b, 0.0)
         out = _g148._gemm_int8(lin, k, q, esc)

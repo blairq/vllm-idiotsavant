@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN147: saneo para spec decode]]
-# [Genesis wiring marker: [Genesis PN85 thinking budget message]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -257,7 +255,7 @@ class ChatCompletionRequest(OpenAIBaseModel):
         ),
     )
     thinking_token_budget: ThinkingTokenBudget = None
-    # [Genesis PN85 thinking budget message]
+    # [PN85 thinking budget message]
     thinking_budget_message: str | None = None
     include_reasoning: bool = True
     parallel_tool_calls: bool | None = True
@@ -746,8 +744,8 @@ class ChatCompletionRequest(OpenAIBaseModel):
             logit_bias=self.logit_bias,
             bad_words=self.bad_words,
             thinking_token_budget=self.thinking_token_budget,
-            # [Genesis PN85 thinking budget message]
-            # [Genesis PN147: saneo para spec decode] con spec decode el mensaje forzado cicla; se descarta.
+            # [PN85 thinking budget message]
+            # [PN147: saneo para spec decode] con spec decode el mensaje forzado cicla; se descarta.
             thinking_budget_message=None,
             allowed_token_ids=self.allowed_token_ids,
             extra_args=extra_args or None,

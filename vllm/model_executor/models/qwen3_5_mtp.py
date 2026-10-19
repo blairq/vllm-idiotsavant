@@ -1,6 +1,3 @@
-# [Genesis wiring marker: Genesis PN348 vendor of vllm#44644 (Qwen3.5/3.6 MTP backbone dedup) v1]
-# [Genesis wiring marker: Genesis P112 MTP Quant Disk Cache v1.1]
-# [Genesis wiring marker: Genesis P110 Qwen3 MTP GPTQ/AWQ fix v7.63.x guard-v4]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Inference-only Qwen3_5 MTP model."""
@@ -83,7 +80,7 @@ class Qwen3_5MultiTokenPredictor(nn.Module):
 
         self.mtp_start_layer_idx = config.num_hidden_layers
         self.num_mtp_layers = getattr(config, "mtp_num_hidden_layers", 1)
-        # [Genesis PN348 vendor of vllm#44644] share embed+lm_head
+        # [PN348 vendor of vllm#44644] share embed+lm_head
         # with target model when checkpoint opts in (Qwen3.5/3.6 set
         # text_config.mtp_use_dedicated_embeddings=False). Saves
         # vocab*hidden*2 B = ~1 GiB/worker on Qwen3.6-35B-A3B-FP8.
@@ -100,7 +97,7 @@ class Qwen3_5MultiTokenPredictor(nn.Module):
                 config.hidden_size,
             )
 
-        # [Genesis P110 Qwen3 MTP GPTQ/AWQ fix v7.63.x guard-v4]
+        # [P110 Qwen3 MTP GPTQ/AWQ fix v7.63.x guard-v4]
         # GPTQ/AWQ checkpoints store the WHOLE MTP predictor block (fc +
         # attention + MoE experts) as plain unquantized BF16 tensors, not
         # just `fc` (which upstream already special-cases for modelopt_fp4
@@ -115,23 +112,23 @@ class Qwen3_5MultiTokenPredictor(nn.Module):
         # for checkpoints shipping unquantized MTP WITHOUT dynamic entries,
         # and also reach fc_quant. Only MTP predictor layers are affected —
         # the main model keeps full quantization untouched.
-        _genesis_p110_bypass_mtp_quant = False
+        _isv_p110_bypass_mtp_quant = False
         if quant_config and quant_config.get_name() not in ("modelopt_fp4",):
-            _genesis_p110_hf_qc = getattr(
+            _isv_p110_hf_qc = getattr(
                 model_config.hf_config, "quantization_config", None
             )
-            if isinstance(_genesis_p110_hf_qc, dict):
-                _genesis_p110_dynamic = _genesis_p110_hf_qc.get("dynamic", {})
+            if isinstance(_isv_p110_hf_qc, dict):
+                _isv_p110_dynamic = _isv_p110_hf_qc.get("dynamic", {})
                 if any(
                     k.startswith("-:") and "mtp" in k
-                    for k in _genesis_p110_dynamic
+                    for k in _isv_p110_dynamic
                 ):
-                    _genesis_p110_bypass_mtp_quant = True
-            if not _genesis_p110_bypass_mtp_quant and quant_config.get_name() in (
+                    _isv_p110_bypass_mtp_quant = True
+            if not _isv_p110_bypass_mtp_quant and quant_config.get_name() in (
                 "gptq", "auto_gptq", "gptq_marlin", "awq", "awq_marlin",
                 "compressed-tensors", "compressed_tensors", "marlin", "compressed_tensors_wNa16",
             ):
-                _genesis_p110_bypass_mtp_quant = True
+                _isv_p110_bypass_mtp_quant = True
 
         # Workaround: mtp.fc is stored as BF16 in NVFP4 checkpoints but is
         # missing from hf_quant_config.json exclude_modules. Force unquantized.
@@ -141,7 +138,7 @@ class Qwen3_5MultiTokenPredictor(nn.Module):
             None
             if (
                 (quant_config and quant_config.get_name() == "modelopt_fp4")
-                or _genesis_p110_bypass_mtp_quant
+                or _isv_p110_bypass_mtp_quant
             )
             else quant_config
         )
@@ -159,7 +156,7 @@ class Qwen3_5MultiTokenPredictor(nn.Module):
         # quantization_config.dynamic with "-:pattern" entries. When detected,
         # disable quantization for MTP layers so they use unquantized params.
         original_quant = vllm_config.quant_config
-        if _genesis_p110_bypass_mtp_quant:
+        if _isv_p110_bypass_mtp_quant:
             vllm_config.quant_config = None
         self.layers = torch.nn.ModuleList(
             Qwen3_5DecoderLayer(
@@ -278,7 +275,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                 "please use '--mamba-cache-mode=align' instead"
             )
 
-        # [Genesis P110 Qwen3 MTP GPTQ/AWQ fix v7.63.x guard-v4]
+        # [P110 Qwen3 MTP GPTQ/AWQ fix v7.63.x guard-v4]
         # GPTQ/AWQ: MTP decoder layers use unquantized bf16 weights.
         bypass_mtp_quant = False
         if vllm_config.quant_config and vllm_config.quant_config.get_name() not in ("modelopt_fp4",):
@@ -301,7 +298,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
         )
 
         if get_pp_group().is_last_rank and self.model.share_backbone_input_output:
-            # [Genesis PN348] target owns lm_head — skip allocation.
+            # [PN348] target owns lm_head — skip allocation.
             self.lm_head = PPMissingLayer()
         elif get_pp_group().is_last_rank:
             self.lm_head = ParallelLMHead(
@@ -370,7 +367,7 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                 if name.startswith("mtp."):
                     name = name.replace("mtp.", "model.")
                 elif any(key in name for key in ["embed_tokens", "lm_head"]):
-                    # [Genesis PN348] target owns the weight — skip duplicate load.
+                    # [PN348] target owns the weight — skip duplicate load.
                     if self.model.share_backbone_input_output:
                         continue
                     if "embed_tokens" in name:
@@ -379,37 +376,37 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                     continue
                 yield name, weight
 
-        # [Genesis P112 MTP Quant Disk Cache v1.1]
-        _genesis_p112_cache_enabled = (
+        # [P112 MTP Quant Disk Cache v1.1]
+        _isv_p112_cache_enabled = (
             False
         )
-        _genesis_p112_remapped = remap_weight_names(weights)
-        if _genesis_p112_cache_enabled:
+        _isv_p112_remapped = remap_weight_names(weights)
+        if _isv_p112_cache_enabled:
             try:
                 from vllm.idiotsavant.mtp_cache import MTPQuantDiskCacheManager
-                _genesis_p112_model_name = "qwen3_mtp"
+                _isv_p112_model_name = "qwen3_mtp"
                 if hasattr(self, "vllm_config") and hasattr(self.vllm_config, "model_config"):
-                    _genesis_p112_model_name = getattr(self.vllm_config.model_config, "model", "qwen3_mtp")
-                _genesis_p112_tp_size = 1
+                    _isv_p112_model_name = getattr(self.vllm_config.model_config, "model", "qwen3_mtp")
+                _isv_p112_tp_size = 1
                 if hasattr(self, "vllm_config") and hasattr(self.vllm_config, "parallel_config"):
-                    _genesis_p112_tp_size = getattr(self.vllm_config.parallel_config, "tensor_parallel_size", 1)
-                _genesis_p112_quant_fmt = "int8"
-                _genesis_p112_cache_mgr = MTPQuantDiskCacheManager(
-                    enabled=True, quant_format=_genesis_p112_quant_fmt
+                    _isv_p112_tp_size = getattr(self.vllm_config.parallel_config, "tensor_parallel_size", 1)
+                _isv_p112_quant_fmt = "int8"
+                _isv_p112_cache_mgr = MTPQuantDiskCacheManager(
+                    enabled=True, quant_format=_isv_p112_quant_fmt
                 )
-                _genesis_p112_remapped = _genesis_p112_cache_mgr.process_mtp_weights(
-                    model_name=str(_genesis_p112_model_name),
-                    source_file=str(_genesis_p112_model_name),
-                    tp_size=_genesis_p112_tp_size,
-                    weights=_genesis_p112_remapped,
+                _isv_p112_remapped = _isv_p112_cache_mgr.process_mtp_weights(
+                    model_name=str(_isv_p112_model_name),
+                    source_file=str(_isv_p112_model_name),
+                    tp_size=_isv_p112_tp_size,
+                    weights=_isv_p112_remapped,
                 )
             except Exception as _p112_exc:
-                import logging as _genesis_logging
-                _genesis_logging.getLogger("idiotsavant.p112").warning("[Genesis P112] MTP cache hook fallback: %s", _p112_exc)
-                _genesis_p112_remapped = remap_weight_names(weights)
+                import logging as _isv_logging
+                _isv_logging.getLogger("idiotsavant.p112").warning("[P112] MTP cache hook fallback: %s", _p112_exc)
+                _isv_p112_remapped = remap_weight_names(weights)
 
         loader = AutoWeightsLoader(self)
-        return loader.load_weights(_genesis_p112_remapped)
+        return loader.load_weights(_isv_p112_remapped)
 
 
 class Qwen3_5MoeMTP(Qwen3_5MTP, QwenNextMixtureOfExperts):

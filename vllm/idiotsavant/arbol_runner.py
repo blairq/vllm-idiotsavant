@@ -192,7 +192,7 @@ def _sample_path(self, candidate_ids, scores, num_reqs):
 def _envolver_borrador() -> None:
     from vllm.v1.worker.gpu.spec_decode.dflash2 import speculator as m
     cls = m.DFlash2Speculator
-    if getattr(cls, "_genesis_arbol", False):
+    if getattr(cls, "_isv_arbol", False):
         return
     global _path0
     init0, propose0, _path0 = cls.__init__, cls.propose, cls._sample_path
@@ -216,7 +216,7 @@ def _envolver_borrador() -> None:
         return out
 
     cls.__init__, cls.propose, cls._sample_path = __init__, propose, _sample_path
-    cls._genesis_arbol = True
+    cls._isv_arbol = True
 
 
 # ───────────────────────────── 3: antes del forward ─────────────────────────────
@@ -409,7 +409,7 @@ def _envolver_runner() -> None:
     from vllm.v1.worker.gpu import model_runner as mr
     from vllm.v1.worker.gpu.spec_decode import rejection_sampler as rs
     cls = mr.GPUModelRunner
-    if getattr(cls, "_genesis_arbol", False):
+    if getattr(cls, "_isv_arbol", False):
         return
     global _rejection0
     sample0, tokens0, exec0 = cls.sample, cls.sample_tokens, cls.execute_model
@@ -419,7 +419,7 @@ def _envolver_runner() -> None:
     def execute_model(self, *a, **kw):
         ms = getattr(self, "model_state", None)
         if ms is not None:
-            ms._genesis_runner = self
+            ms._isv_runner = self
         return exec0(self, *a, **kw)
 
     def sample_tokens(self, grammar_output):
@@ -446,19 +446,19 @@ def _envolver_runner() -> None:
         return out
 
     cls.sample, cls.sample_tokens, cls.execute_model = sample, sample_tokens, execute_model
-    cls._genesis_arbol = True
+    cls._isv_arbol = True
     from vllm.idiotsavant import logits_rango
     logits_rango.instalar(cls)        # PN153, por encima: necesita el estado del arbol (E)
 
     # model_state se crea mas tarde (load_model): se envuelve la clase la primera vez que se ve
     from vllm.v1.worker.gpu.model_states import mamba_hybrid as mh
     msc = mh.MambaHybridModelState
-    if not getattr(msc, "_genesis_arbol", False):
+    if not getattr(msc, "_isv_arbol", False):
         prep0 = msc.prepare_inputs
 
         def prepare_inputs(self, input_batch, req_states):
             out = prep0(self, input_batch, req_states)
-            runner = getattr(self, "_genesis_runner", None)
+            runner = getattr(self, "_isv_runner", None)
             _antes_del_forward(runner, self, input_batch)
             return out
 
@@ -477,14 +477,14 @@ def _envolver_runner() -> None:
             return post0(self, idx_mapping, num_sampled, num_computed_tokens)
 
         msc.prepare_inputs, msc.postprocess_state = prepare_inputs, postprocess_state
-        msc._genesis_arbol = True
+        msc._isv_arbol = True
 
 
 # ───────────────────────────── conv: forward y compactacion ─────────────────────────────
 
 def _envolver_conv() -> None:
     from vllm.model_executor.layers.mamba.gdn import qwen_gdn_linear_attn as m
-    if getattr(m, "_genesis_arbol", False):
+    if getattr(m, "_isv_arbol", False):
         return
     from vllm.idiotsavant import arbol_conv, gdn_cinta
     conv0 = m.causal_conv1d_update
@@ -501,7 +501,7 @@ def _envolver_conv() -> None:
                                   nacc, qsl, anc3, escribir_estado=True)
 
     m.causal_conv1d_update = causal_conv1d_update
-    m._genesis_arbol = True
+    m._isv_arbol = True
 
 
 def instalar() -> None:

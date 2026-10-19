@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN122: rollback GDN con cinta]]
-# [Genesis wiring marker: Genesis PN114 mamba align copy bounds guard (vllm#35288)]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import dataclasses
@@ -30,7 +28,7 @@ from vllm.v1.kv_cache_interface import (
 from vllm.v1.utils import CpuGpuBuffer
 from vllm.v1.worker.gpu_input_batch import CachedRequestState
 from vllm.v1.worker.lora_model_runner_mixin import GPUInputBatch
-from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 # Constexpr global: con la cinta, las copias temporales con bias > 0 las hace
 # _g122.materializar_* (la columna especulativa ya no existe).
 _G122_CINTA = tl.constexpr(_g122.activo())
@@ -252,7 +250,7 @@ def _copy_mamba_state_block(
     block_table_typed = group_base_addr.to(tl.pointer_type(tl.int32))
     block_table_base = block_table_typed + bt_row_idx * block_table_stride_req
 
-    # [Genesis PN114 vllm#35288] Bounds guard for mamba align copy:
+    # [PN114 vllm#35288] Bounds guard for mamba align copy:
     # Under MTP / spec decode with concurrency >= 4, unallocated blocks (-1) or
     # invalid column offsets trigger CUDA illegal memory access and corrupt state.
     if src_col < 0 or dst_col < 0:
@@ -361,7 +359,7 @@ def _copy_mamba_state_block(
             )
         return
 
-    if _G122_CINTA:  # [Genesis PN122: rollback GDN con cinta]
+    if _G122_CINTA:  # [PN122: rollback GDN con cinta]
         if token_bias > 0:
             return
     # Temporal state: copy state[bt[src_col + token_bias]] -> state[bt[dst_col]]
@@ -495,7 +493,7 @@ def postprocess_mamba_fused_kernel(
     if src_block_idx == dest_block_idx and accept_token_bias == 0:
         return
 
-    # [Genesis PN114 vllm#35288] Bounds guard: skip uninitialized or invalid block indices
+    # [PN114 vllm#35288] Bounds guard: skip uninitialized or invalid block indices
     if src_block_idx < 0 or dest_block_idx < 0:
         return
 
@@ -1475,7 +1473,7 @@ def preprocess_mamba(
     assert cache_config.enable_prefix_caching
     block_size = mamba_spec.block_size
     cleanup_mamba_state_idx(scheduler_output, mamba_state_idx)
-    if _g122.activo():  # [Genesis PN122: rollback GDN con cinta]
+    if _g122.activo():  # [PN122: rollback GDN con cinta]
         assert fused is not None, 'PN122 requiere el precopy fusionado'
         _g122.actualizar_slots(
             scheduler_output, list(input_batch.req_ids),
@@ -1553,7 +1551,7 @@ def preprocess_mamba(
         fused.state_idx.copy_to_gpu(num_reqs)
         fused.src_col.copy_to_gpu(num_reqs)
         fused.token_bias.copy_to_gpu(num_reqs)
-        if _g122.activo():  # [Genesis PN122: rollback GDN con cinta]
+        if _g122.activo():  # [PN122: rollback GDN con cinta]
             _g122.materializar_pre(
                 fused.ctx, kv_cache_config, forward_context, num_reqs,
                 fused.state_idx, fused.src_col, fused.token_bias,
@@ -1654,7 +1652,7 @@ def postprocess_mamba_align_gpu(
             ],
         )
 
-    if _g122.activo():  # [Genesis PN122: rollback GDN con cinta]
+    if _g122.activo():  # [PN122: rollback GDN con cinta]
         _g122.materializar_post(
             ctx, kv_cache_config, forward_context, num_reqs,
             num_accepted_tokens_gpu, ctx.mamba_state_idx_buf,

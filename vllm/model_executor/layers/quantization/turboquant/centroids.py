@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis PN57 TQ centroids disk cache (vllm#41418 inspiration)]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Lloyd-Max optimal scalar quantizer for TurboQuant.
@@ -80,7 +79,7 @@ def solve_lloyd_max(
     )
 
 
-# [Genesis PN57 vllm#41418-inspired] disk-persistent cache for centroids.
+# [PN57 vllm#41418-inspired] disk-persistent cache for centroids.
 # Lloyd-Max solver is fully deterministic given (d, bits) — same input
 # always gives bit-identical output. Pre-baked tables in upstream PR
 # #41418 are equivalent to disk cache populated lazily.
@@ -90,7 +89,7 @@ def solve_lloyd_max(
 _GENESIS_PN57_CACHE_PATH = None  # lazily resolved on first use
 _GENESIS_PN57_DISK = None  # lazily loaded
 
-def _genesis_pn57_path():
+def _isv_pn57_path():
     import os as _os  # LOCAL — no top-level dependency
     global _GENESIS_PN57_CACHE_PATH
     if _GENESIS_PN57_CACHE_PATH is None:
@@ -99,14 +98,14 @@ def _genesis_pn57_path():
         )
     return _GENESIS_PN57_CACHE_PATH
 
-def _genesis_pn57_load_disk():
+def _isv_pn57_load_disk():
     import os as _os  # LOCAL
     global _GENESIS_PN57_DISK
     if _GENESIS_PN57_DISK is not None:
         return _GENESIS_PN57_DISK
     try:
         import pickle
-        _path = _genesis_pn57_path()
+        _path = _isv_pn57_path()
         if _os.path.isfile(_path):
             with open(_path, "rb") as _f:
                 _GENESIS_PN57_DISK = pickle.load(_f)
@@ -116,11 +115,11 @@ def _genesis_pn57_load_disk():
         _GENESIS_PN57_DISK = {}
     return _GENESIS_PN57_DISK
 
-def _genesis_pn57_save_disk():
+def _isv_pn57_save_disk():
     try:
         import os as _os  # LOCAL
         import pickle, tempfile
-        _path = _genesis_pn57_path()
+        _path = _isv_pn57_path()
         _os.makedirs(_os.path.dirname(_path), exist_ok=True)
         _dirn = _os.path.dirname(_path)
         with tempfile.NamedTemporaryFile("wb", dir=_dirn, delete=False) as _tf:
@@ -133,7 +132,7 @@ def _genesis_pn57_save_disk():
 @lru_cache(maxsize=32)
 def get_centroids(d: int, bits: int) -> torch.Tensor:
     """Get precomputed Lloyd-Max centroids (in-memory + disk cached)."""
-    _disk = _genesis_pn57_load_disk()
+    _disk = _isv_pn57_load_disk()
     _key = (int(d), int(bits))
     if _key in _disk:
         try:
@@ -143,7 +142,7 @@ def get_centroids(d: int, bits: int) -> torch.Tensor:
     centroids, _ = solve_lloyd_max(d, bits)
     try:
         _disk[_key] = tuple(centroids.cpu().tolist())
-        _genesis_pn57_save_disk()
+        _isv_pn57_save_disk()
     except Exception:
         pass
     return centroids

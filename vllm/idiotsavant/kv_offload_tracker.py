@@ -118,7 +118,9 @@ def create_tracker(req: Any) -> RequestTrackerContext:
                 prompt_chars = sum(len(str(p)) for p in req.prompt)
 
         if hasattr(req, "kv_transfer_params") and isinstance(req.kv_transfer_params, dict):
-            agent = req.kv_transfer_params.get("genesis_agent") or req.kv_transfer_params.get("agent")
+            from vllm.idiotsavant.sesion import agente
+
+            agent = agente(req.kv_transfer_params)
             if not priority and "priority" in req.kv_transfer_params:
                 try:
                     priority = int(req.kv_transfer_params["priority"])
@@ -492,7 +494,7 @@ async def reset_kv_cache_and_metrics(
     )
 
 
-# Claves que acepta POST /v1/genesis/pid, con su tipo y rango. Es la misma lista que lee
+# Claves que acepta POST /v1/kv-offload/pid, con su tipo y rango. Es la misma lista que lee
 # dynamic_pid_gating.check_control_updates(): si se agrega una alla, va tambien aca.
 _PID_CAMPOS: dict[str, tuple[type, float | None, float | None]] = {
     "enabled": (bool, None, None),
@@ -540,10 +542,9 @@ def _validar_pid(datos: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     return limpio, errores
 
 
-@router.get("/v1/genesis/pid")
 @router.get("/v1/kv-offload/pid")
 async def get_pid_status_endpoint():
-    """Returns current Genesis PN115 PID admission tuner status and metrics."""
+    """Returns the current PN115 admission controller status and metrics."""
     try:
         from vllm.idiotsavant import dynamic_pid_gating as _g115
         return JSONResponse(content=_g115.get_pid_status())
@@ -551,7 +552,6 @@ async def get_pid_status_endpoint():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@router.post("/v1/genesis/pid", dependencies=_ADMIN)
 @router.post("/v1/kv-offload/pid", dependencies=_ADMIN)
 async def update_pid_config_endpoint(
     raw_request: Request,

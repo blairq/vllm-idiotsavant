@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN147: saneo para spec decode]]
-# [Genesis wiring marker: [Genesis PN85 thinking budget message]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Sampling parameters for text generation."""
@@ -358,7 +356,7 @@ class SamplingParams(
     skip_reading_prefix_cache: bool | None = None
     thinking_token_budget: int | None = None
     """Maximum number of tokens allowed for thinking operations."""
-    # [Genesis PN85 thinking budget message]
+    # [PN85 thinking budget message]
     thinking_budget_message: str | None = None
     """Texto a inyectar dentro del bloque de razonamiento cuando se agota
     thinking_token_budget, justo antes de los tokens de cierre. Sin esto el
@@ -405,7 +403,7 @@ class SamplingParams(
         stop_token_ids: list[int] | None = None,
         bad_words: list[str] | None = None,
         thinking_token_budget: int | None = None,
-        # [Genesis PN85 thinking budget message]
+        # [PN85 thinking budget message]
         thinking_budget_message: str | None = None,
         include_stop_str_in_output: bool = False,
         ignore_eos: bool = False,
@@ -472,7 +470,7 @@ class SamplingParams(
             stop_token_ids=stop_token_ids,
             bad_words=bad_words,
             thinking_token_budget=thinking_token_budget,
-            # [Genesis PN85 thinking budget message]
+            # [PN85 thinking budget message]
             thinking_budget_message=thinking_budget_message,
             include_stop_str_in_output=include_stop_str_in_output,
             ignore_eos=ignore_eos,
@@ -1033,7 +1031,7 @@ class SamplingParams(
             return
 
         # Some sampling parameters are not yet compatible with spec decoding.
-        # [Genesis PN147: saneo para spec decode] anularlos en vez de rechazar el pedido entero (lo que hacia
+        # [PN147: saneo para spec decode] anularlos en vez de rechazar el pedido entero (lo que hacia
         # el proxy j-space). En streaming el rechazo llegaba con HTTP 200 y cuerpo vacio.
         if self.min_p > _SAMPLING_EPS or self.logit_bias:
             global _GENESIS_PN147_AVISADO
@@ -1042,7 +1040,7 @@ class SamplingParams(
             except NameError:
                 _GENESIS_PN147_AVISADO = False
             if not _GENESIS_PN147_AVISADO:
-                logger.warning('[Genesis PN147] min_p=%s / logit_bias no van con '
+                logger.warning('[PN147] min_p=%s / logit_bias no van con '
                                'decodificacion especulativa: se anulan (aviso unico)',
                                self.min_p)
                 _GENESIS_PN147_AVISADO = True

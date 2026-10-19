@@ -6,7 +6,7 @@ Replaces the broken Phase E.2-3 design (load_weights post-hook + raw
 canonical vllm extension point:
 
   1. Duck-typed protocol matching `UnquantizedEmbeddingMethod` interface →
-     `Genesis_FP8_LMHead_EmbeddingMethod` (no `class X(UnquantizedEmbeddingMethod):`
+     `FP8LMHeadEmbeddingMethod` (no `class X(UnquantizedEmbeddingMethod):`
      literal inheritance — see line 187+ explanation. Audit A-13 honesty fix
      2026-05-06: docstring corrected from "Subclass" since current vllm pin
      has zero `isinstance(quant_method, UnquantizedEmbeddingMethod)` checks
@@ -41,7 +41,7 @@ HARDWARE TIER DISPATCH
 ======================
 
 Decision is made ONCE at `process_weights_after_loading` time, cached on
-the layer as `_genesis_pn77_path = "marlin" | "scaled_mm" | "cast_back"`.
+the layer as `_isv_pn77_path = "marlin" | "scaled_mm" | "cast_back"`.
 Per-forward dispatch is a single attribute read.
 
   Tier A (Ampere sm86 — A5000/3090): `apply_fp8_marlin_linear` requires a
@@ -82,7 +82,7 @@ log = logging.getLogger("idiotsavant.kernels.lm_head_fp8_method")
 
 # Marker attribute: set on layer once compression is done.
 PN77_APPLIED_MARKER = "_already_called_process_weights_after_loading"
-PN77_PATH_ATTR = "_genesis_pn77_path"  # "marlin" | "scaled_mm" | "cast_back"
+PN77_PATH_ATTR = "_isv_pn77_path"  # "marlin" | "scaled_mm" | "cast_back"
 
 def _is_enabled() -> bool:
     return True
@@ -125,13 +125,13 @@ def _is_lm_head(layer) -> bool:
 
 def _nombre_de(layer) -> str:
     """El walker no pasa el nombre del modulo, asi que se busca donde vLLM lo deja si existe."""
-    return (getattr(layer, "prefix", "") or getattr(layer, "_genesis_prefijo", "") or "")
+    return (getattr(layer, "prefix", "") or getattr(layer, "_isv_prefijo", "") or "")
 
 
 def maybe_swap_pn77_quant_method(layer, current_method):
     """Hook invoked from text-patched `process_weights_after_loading` walker.
 
-    Swaps `layer.quant_method` to `Genesis_FP8_LMHead_EmbeddingMethod` if:
+    Swaps `layer.quant_method` to `FP8LMHeadEmbeddingMethod` if:
       - env GENESIS_ENABLE_PN77_FP8_LM_HEAD=1
       - `layer` is a ParallelLMHead (not regular embed_tokens)
       - hardware supports a useful FP8 path (not 'cast_back' fallback only)
@@ -164,7 +164,7 @@ def maybe_swap_pn77_quant_method(layer, current_method):
         if not isinstance(current_method, UnquantizedEmbeddingMethod):
             return current_method
         # Idempotency
-        if isinstance(current_method, Genesis_FP8_LMHead_EmbeddingMethod):
+        if isinstance(current_method, FP8LMHeadEmbeddingMethod):
             return current_method
         # Skip if weight already FP8 (native checkpoint)
         weight = getattr(layer, "weight", None)
@@ -172,11 +172,11 @@ def maybe_swap_pn77_quant_method(layer, current_method):
             return current_method
         # Skip on cast_back-only hardware (no real win beyond fallback path)
         # Actually — cast-back still SAVES VRAM, so include it. Just slower per call.
-        new_method = Genesis_FP8_LMHead_EmbeddingMethod()
+        new_method = FP8LMHeadEmbeddingMethod()
         layer.quant_method = new_method
         log.info(
             "[PN77] swapped lm_head.quant_method UnquantizedEmbeddingMethod → "
-            "Genesis_FP8_LMHead_EmbeddingMethod (tier=%s, weight=%s)",
+            "FP8LMHeadEmbeddingMethod (tier=%s, weight=%s)",
             _detect_hardware_tier(),
             tuple(weight.shape) if weight is not None else "?",
         )
@@ -189,7 +189,7 @@ def maybe_swap_pn77_quant_method(layer, current_method):
         return current_method
 
 
-class Genesis_FP8_LMHead_EmbeddingMethod:
+class FP8LMHeadEmbeddingMethod:
     """FP8 lm_head method — drop-in replacement for `UnquantizedEmbeddingMethod`.
 
     Pattern mirrors `Fp8LinearMethod.process_weights_after_loading` from
@@ -431,7 +431,7 @@ class Genesis_FP8_LMHead_EmbeddingMethod:
         x_amax = x.abs().amax().clamp(min=1e-12)
         x_scale = (x_amax / 448.0).to(torch.float32)
         x_fp8 = (x / x_scale).clamp(-448.0, 448.0).to(torch.float8_e4m3fn)
-        # [Genesis PN77 0-D scale-rank fix, vendor of vllm#44912] Both scales
+        # [PN77 0-D scale-rank fix, vendor of vllm#44912] Both scales
         # above are produced by an unkeyed reduction (`amax()` with no `dim`),
         # which collapses to a 0-D (scalar) tensor. torch._scaled_mm under
         # torch.compile / future Inductor lowering asserts

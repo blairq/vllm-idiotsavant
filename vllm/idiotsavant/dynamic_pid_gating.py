@@ -42,8 +42,8 @@ import os
 import time
 from typing import TYPE_CHECKING, Any, Optional
 
-PID_CONTROL_FILE = "/dev/shm/genesis_pid_control.json"
-PID_STATUS_FILE = "/dev/shm/genesis_pid_status.json"
+PID_CONTROL_FILE = "/dev/shm/isv_pid_control.json"
+PID_STATUS_FILE = "/dev/shm/isv_pid_status.json"
 
 if TYPE_CHECKING:  # pragma: no cover
     from vllm.v1.core.sched.scheduler import Scheduler  # noqa: F401
@@ -239,7 +239,7 @@ class PIDAdmissionController:
         # 50k); contra un pedido de 300 tokens es pura espera — medido 2026-09-20: 26 s detras
         # de un prefill de 59k, contra 108 ms con el motor libre. Exime SOLO de la
         # serializacion: no saltea el headroom de KV ni desaloja a nadie, que eso sigue siendo
-        # de la prioridad forzada (`priority` / `genesis_agent`).
+        # de la prioridad forzada (`priority` / `agent`).
         # Rinde junto con --long-prefill-token-threshold < max-num-batched-tokens: si el largo
         # se lleva el paso entero, el corto admitido igual espera un chunk completo.
         # 0 = desactivado (comportamiento anterior).
@@ -469,7 +469,7 @@ class PIDAdmissionController:
         """Prioridad efectiva. La explícita gana; el mapa de agentes es fallback.
 
         Se mira `kv_transfer_params` porque es el canal que el cliente YA usa
-        para etiquetar agentes (PN88/PN90 leen `genesis_agent` de ahi). Sin
+        para etiquetar agentes (PN88/PN90 leen `agent` de ahi). Sin
         esto el bypass era inerte en la practica: con ids autogenerados
         (`chatcmpl-<uuid>`) y `priority` sin setear, nunca disparaba.
         """
@@ -484,7 +484,9 @@ class PIDAdmissionController:
                     return int(params["priority"])
                 except (TypeError, ValueError):
                     pass
-            tagged = params.get("genesis_agent") or params.get("agent")
+            from vllm.idiotsavant.sesion import agente
+
+            tagged = agente(params)
             if tagged and str(tagged).strip().lower() in AGENT_PRIORITY_MAP:
                 return AGENT_PRIORITY_MAP[str(tagged).strip().lower()]
 

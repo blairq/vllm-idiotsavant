@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN90 kv disk write gating & tiered demotion]]
-# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """
@@ -288,7 +286,7 @@ class FileSystemTierManager(SecondaryTierManager):
 
         self._pool.enqueue_load(job_id, 1, [load_task])
 
-    # [Genesis PN90 kv disk write gating & tiered demotion]
+    # [PN90 kv disk write gating & tiered demotion]
     def submit_demote(
         self,
         key: OffloadKey,
@@ -378,7 +376,7 @@ class FileSystemTierManager(SecondaryTierManager):
     def on_request_finished(self, req_context: ReqContext) -> None:
         self._lookup_manager.cleanup(req_context.req_id)
 
-    # [Genesis PN81 kv disk tier quota]
+    # [PN81 kv disk tier quota]
     # Extiende el on_schedule_end de upstream (que solo hace flush del
     # lookup manager) con la cuota de disco. Sin esto root_dir crece sin
     # techo: el tier fs no tiene poda propia.
@@ -398,10 +396,10 @@ class FileSystemTierManager(SecondaryTierManager):
             import time as _g81_time
             _secs = self._quota_check_secs
             _now = _g81_time.monotonic()
-            _last = getattr(self, '_genesis_pn81_last', 0.0)
+            _last = getattr(self, '_isv_pn81_last', 0.0)
             if _now - _last < _secs:
                 return
-            self._genesis_pn81_last = _now
+            self._isv_pn81_last = _now
 
             def _do_pn81_quota():
                 try:
@@ -425,7 +423,7 @@ class FileSystemTierManager(SecondaryTierManager):
                     # existe el tier de disco.
                     #
                     # PERIODICA, NO UNA SOLA VEZ (2026-08-21). El gate viejo era un
-                    # booleano `_genesis_pn81_orphans` que se prendia en la primera
+                    # booleano `_isv_pn81_orphans` que se prendia en la primera
                     # pasada y no se apagaba nunca: la purga corria al arrancar y
                     # listo. Un directorio que queda huerfano DESPUES del arranque no
                     # se revisaba jamas mientras el engine siguiera vivo.
@@ -443,9 +441,9 @@ class FileSystemTierManager(SecondaryTierManager):
                     # La primera pasada sigue siendo al arranque (_olast is None).
                     _dias = self._orphan_max_age_days
                     _osecs = self._orphan_check_secs
-                    _olast = getattr(self, '_genesis_pn81_orphan_last', None)
+                    _olast = getattr(self, '_isv_pn81_orphan_last', None)
                     if _dias > 0 and (_olast is None or _now - _olast >= _osecs):
-                        self._genesis_pn81_orphan_last = _now
+                        self._isv_pn81_orphan_last = _now
                         import sys as _g81_s3
                         _padre = _g81_os.path.dirname(_root.rstrip('/'))
                         _mio = _g81_os.path.basename(_root.rstrip('/'))
@@ -498,8 +496,8 @@ class FileSystemTierManager(SecondaryTierManager):
                                 continue
                             _files.append((_st.st_mtime, _st.st_size, _p))
                             _total += _st.st_size
-                    if not getattr(self, '_genesis_pn81_visto', False):
-                        self._genesis_pn81_visto = True
+                    if not getattr(self, '_isv_pn81_visto', False):
+                        self._isv_pn81_visto = True
                         import sys as _g81_s0
                         print('[PN81] cuota activa sobre %s: %.2f GiB de %.2f GiB '
                               '(chequeo cada %.0fs)'
@@ -542,23 +540,23 @@ class FileSystemTierManager(SecondaryTierManager):
                              (_total - _freed) / (1 << 30)),
                           file=_g81_sys.stderr, flush=True)
                 finally:
-                    self._genesis_pn81_running = False
+                    self._isv_pn81_running = False
 
-            if getattr(self, '_genesis_pn81_running', False):
+            if getattr(self, '_isv_pn81_running', False):
                 return
-            self._genesis_pn81_running = True
+            self._isv_pn81_running = True
             import threading as _g81_th
             _t = _g81_th.Thread(
                 target=_do_pn81_quota,
                 name='pn81_quota',
                 daemon=True,
             )
-            self._genesis_pn81_worker = _t
+            self._isv_pn81_worker = _t
             _t.start()
         except Exception as _g81_err:
             # la poda NUNCA debe tumbar el scheduler; se avisa una sola vez
-            if not getattr(self, '_genesis_pn81_failed', False):
-                self._genesis_pn81_failed = True
+            if not getattr(self, '_isv_pn81_failed', False):
+                self._isv_pn81_failed = True
                 import sys as _g81_s2
                 print('[PN81] la poda fallo y se desactiva (el engine sigue '
                       'normal): %r' % (_g81_err,), file=_g81_s2.stderr, flush=True)

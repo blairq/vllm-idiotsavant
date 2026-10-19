@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis B3 custom AR TP=2 fast path v1 // gpu_model_runner:6546]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -118,7 +117,7 @@ class CustomAllreduce:
     _DEFAULT_REDUCE_SCATTER_MAX_SIZE = 16 * 1024 * 1024
     _DEFAULT_MNNVL_REDUCE_SCATTER_MAX_SIZE = 16 * 1024 * 1024
 
-    # [Genesis B3] max_size: 32 MiB buffer for TP=2 P2P custom all-reduce
+    # [B3] max_size: 32 MiB buffer for TP=2 P2P custom all-reduce
     def __init__(
         self,
         group: ProcessGroup,
@@ -386,7 +385,7 @@ class CustomAllreduce:
 
     def register_graph_buffers(self):
         handle, offset = ops.get_graph_buffer_ipc_meta(self._ptr)
-        # [Genesis B3] If no graph buffers registered (bypassed for CUDA graphs), skip C++ call
+        # [B3] If no graph buffers registered (bypassed for CUDA graphs), skip C++ call
         if not offset:
             return
         logger.debug("Registering %d cuda graph addresses", len(offset))
@@ -409,7 +408,7 @@ class CustomAllreduce:
     def should_custom_ar(self, inp: torch.Tensor):
         if self.disabled or self.world_size > 8:
             return False
-        # [Genesis B3] Bypass custom AR during CUDA graph capture to prevent CuMem IPC crash.
+        # [B3] Bypass custom AR during CUDA graph capture to prevent CuMem IPC crash.
         # Con GENESIS_B3_CAPTURA=1 (y sin --enable-cumem-allocator) se permite capturarlo:
         # en decode TODAS las all-reduce van dentro del grafo, asi que con el bypass NCCL
         # se queda con el 100% (141 lanzamientos, 4,0 ms por paso, 25,6 us cada uno).

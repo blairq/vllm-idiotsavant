@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN124: triton ampere]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Sub-byte packed (INT4) per-token-head KV cache mode.
@@ -18,7 +17,7 @@ from typing import Any
 import torch
 
 from vllm.platforms import current_platform
-from vllm.idiotsavant import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
+from vllm.idiotsavant import triton_attn_ampere as _g124  # [PN124: triton ampere]
 from vllm.triton_utils import tl, triton
 from vllm.v1.attention.ops.triton_attention_helpers import (
     apply_alibi_to_score,
@@ -726,7 +725,7 @@ def _launch_packed_attn(
         16 if num_queries_per_kv <= 16 else triton.next_power_of_2(num_queries_per_kv)
     )
     BLOCK_Q = BLOCK_M // num_queries_per_kv
-    # [Genesis PN124: triton ampere] mismos parametros de Ampere en el kernel INT4 empaquetado
+    # [PN124: triton ampere] mismos parametros de Ampere en el kernel INT4 empaquetado
     _g124_amp = (
         max_seqlen_q > 1
         and num_queries_per_kv <= 16
@@ -745,9 +744,9 @@ def _launch_packed_attn(
     TILE_SIZE_DECODE = _get_tile_size(
         head_size, sliding_window_val, q.element_size(), is_prefill=False
     )
-    if _g124_amp:  # [Genesis PN124: triton ampere]
+    if _g124_amp:  # [PN124: triton ampere]
         TILE_SIZE_PREFILL = _g124_tile
-    if _g124.ampere_head256(head_size):  # [Genesis PN124: triton ampere] decode 3D: 32 > 16
+    if _g124.ampere_head256(head_size):  # [PN124: triton ampere] decode 3D: 32 > 16
         TILE_SIZE_DECODE = _g124.tile_decode_int4()
 
     use_3d = not (
@@ -839,7 +838,7 @@ def _launch_packed_attn(
         USE_FP8=output_scale is not None,
         IS_3D=use_3d,
         PACKING_FACTOR=packing_factor,
-        **_g124_launch,  # [Genesis PN124: triton ampere]
+        **_g124_launch,  # [PN124: triton ampere]
     )
 
     if use_3d:

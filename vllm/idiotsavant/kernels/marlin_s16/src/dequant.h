@@ -493,7 +493,7 @@ __device__ inline void dequant<__nv_fp8x4_e4m3, vllm::kFE2M1f.id(), true>(
 template <>
 __device__ inline void dequant<int32_t, vllm::kU4B8.id(), true>(
     int q, int32_t* frag_b) {
-#ifdef GENESIS_QSERVE_CRUDO
+#ifdef MARLIN_QSERVE_CRUDO
   // PN140 (metodo de QServe, arXiv 2405.04532): el nibble va CRUDO al tensor core, en [0,15], y
   // el offset de 8 se corrige DESPUES sobre el acumulador:
   //

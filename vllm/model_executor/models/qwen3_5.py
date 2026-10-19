@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -229,7 +228,7 @@ class Qwen3_5Model(Qwen3NextModel):
 
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
         super(Qwen3NextModel, self).__init__()
-        from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+        from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [PN155: in_proj_ba dentro de in_proj_qkvz]
 
         if _g155.activo():
             self.hf_to_vllm_mapper = type(self).hf_to_vllm_mapper | WeightsMapper(

@@ -686,7 +686,7 @@ def platform_summary() -> dict[str, Any]:
     """Return full platform diagnostic dict for logging/debugging.
 
     Useful during patch application to log context:
-        log.info("[Genesis] Platform: %s", json.dumps(platform_summary()))
+        log.info("[idiotsavant] Platform: %s", json.dumps(platform_summary()))
     """
     return {
         "vendor": {

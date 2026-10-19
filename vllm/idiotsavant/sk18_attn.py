@@ -571,7 +571,7 @@ def forward(impl, layer, query, kv_cache, md, output):
     # Un aviso por camino, la primera vez. Sirve para no tener que deducir de la velocidad si
     # SK-18 esta corriendo de verdad: con el enganche por anclas o por subclase registrada, lo
     # que importa es que ESTA linea aparezca.
-    qsl = getattr(md, "genesis_qsl_cpu", None)
+    qsl = getattr(md, "isv_qsl_cpu", None)
     if not _aviso_decode[0]:
         _aviso_decode[0] = True
         log.warning("[PN131] decode entero ACTIVO (qsl_cpu %s)",
@@ -625,8 +625,8 @@ def _mixto(impl, layer, query, kv_cache, md, output, qsl, qlen, nreq) -> bool:
     qp = qsl[nd:nreq + 1] - q0
     mdp = _Sub(md, seq_lens=md.seq_lens[nd:nreq], block_table=md.block_table[nd:nreq],
                query_start_loc=md.query_start_loc[nd:nreq + 1] - q0,
-               genesis_qsl_cpu=torch.from_numpy(np.ascontiguousarray(qp)),
-               num_actual_tokens=nact - nt, genesis_clave=(id(md), "mixto", nd))
+               isv_qsl_cpu=torch.from_numpy(np.ascontiguousarray(qp)),
+               num_actual_tokens=nact - nt, isv_clave=(id(md), "mixto", nd))
     _decode_uniforme(impl, query, kv_cache, mdd, output, nd, L, False)
     _prefill_decuant(impl, layer, query[nt:], kv_cache, mdp, output[nt:])
     if not _mixto_n["aviso"]:
@@ -821,10 +821,10 @@ def _prefill_flashinfer(impl, layer, query, kv_cache, md, output):
     if est is None:
         ws = torch.empty(256 * 1024 * 1024, dtype=torch.uint8, device=dev)
         est = _fi[dev.index] = dict(w=flashinfer.BatchPrefillWithPagedKVCacheWrapper(ws, "NHD"), clave=None)
-    clave = (getattr(md, "genesis_clave", None) or id(md), md.num_actual_tokens, md.max_seq_len)
+    clave = (getattr(md, "isv_clave", None) or id(md), md.num_actual_tokens, md.max_seq_len)
     if est["clave"] != clave:
         seq = md.seq_lens[:B].cpu().to(torch.int64)
-        qsl = getattr(md, "genesis_qsl_cpu", None)
+        qsl = getattr(md, "isv_qsl_cpu", None)
         qsl = (qsl if qsl is not None else md.query_start_loc.cpu()).to(torch.int32)
         npag = (seq + bs - 1) // bs
         maxp = int(npag.max())

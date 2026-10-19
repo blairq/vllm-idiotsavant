@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN90 kv disk write gating & tiered demotion]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """
@@ -118,7 +117,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
 
         self._kv_memoryview = mmap_region.create_kv_memoryview()
 
-    # [Genesis PN90 kv disk write gating & tiered demotion]
+    # [PN90 kv disk write gating & tiered demotion]
     @override
     def touch(self, keys: Collection[OffloadKey], req_context: ReqContext) -> None:
         """Taguea por USO, no por primer escritor.
@@ -141,7 +140,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
             )
         self._policy.touch(keys, req_context)
 
-    # [Genesis PN90 kv disk write gating & tiered demotion]
+    # [PN90 kv disk write gating & tiered demotion]
     @override
     def prepare_store(
         self,
@@ -183,7 +182,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
                     _g90.record_demotion(key, bytes(_mm[_off : _off + _stride]))
                 self._free_block(block)
                 to_evict.append(key)
-            # [Genesis PN95: desalojos de L2]
+            # [PN95: desalojos de L2]
             # Va ACA y no en CPUOffloadingManager.prepare_store porque
             # este override lo reemplaza: el hook de la clase base nunca
             # se ejecuta con el tiering manager activo. El desalojo de L2
@@ -415,7 +414,7 @@ class TieringOffloadingManager(OffloadingManager):
            to make blocks available
         """
         for i, tier in enumerate(self.secondary_tiers):
-            # [Genesis PN90 kv disk write gating & tiered demotion]
+            # [PN90 kv disk write gating & tiered demotion]
             # Los jobs de democion usan ids NEGATIVOS y no tienen JobMetadata
             # (no tomaron ref_cnt: el bloque ya no esta en primary). Se filtran
             # por signo para no perder el assert de los jobs reales.
@@ -695,7 +694,7 @@ class TieringOffloadingManager(OffloadingManager):
         # completes.
         primary_result = self.primary_tier.prepare_store(keys, req_context)
 
-        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # [PN90 kv disk write gating & tiered demotion]
         # Se drena SIEMPRE, incluso si primary_result es None: los snapshots
         # ya fueron tomados y el slot de L2 ya se reutilizo.
         from vllm.idiotsavant import kv_disk_gate as _g90
@@ -742,7 +741,7 @@ class TieringOffloadingManager(OffloadingManager):
         what makes parking HIT_PENDING safe, so it is rejected rather than
         guessed at.
         """
-        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # [PN90 kv disk write gating & tiered demotion]
         # Este camino tambien escribe a un tier secundario, asi que pasa por
         # el mismo gate. Esta dormido para el tier fs (politica BLOCK_LEVEL),
         # pero dejarlo sin gatear era una via de escritura sin control.
@@ -816,7 +815,7 @@ class TieringOffloadingManager(OffloadingManager):
         self.primary_tier.complete_store(keys, req_context, success)
 
         if success:
-            # [Genesis PN90 kv disk write gating & tiered demotion]
+            # [PN90 kv disk write gating & tiered demotion]
             # Democion por desalojo: NO hay cascada al guardar. El bloque baja
             # a L3 SSD unicamente cuando lo desalojan de L2 RAM (ver el override
             # de CPUPrimaryTierOffloadingManager.prepare_store). El cuerpo de la
@@ -948,7 +947,7 @@ class TieringOffloadingManager(OffloadingManager):
 
         # Reset the per-step gate AFTER serve_external_requests so that
         # lookup() calls within it skip redundant _process_finished_jobs().
-        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # [PN90 kv disk write gating & tiered demotion]
         # Red de seguridad: _initiate_promotion llama a
         # primary_tier.prepare_write() directamente, sin pasar por
         # TieringOffloadingManager.prepare_store. Las evicciones de ese camino

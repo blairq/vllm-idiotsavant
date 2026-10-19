@@ -1,13 +1,3 @@
-# [Genesis wiring marker: [Genesis PN164: vistas del GDN]]
-# [Genesis wiring marker: [Genesis PN163: salida del GDN]]
-# [Genesis wiring marker: [Genesis PN156: norma que escribe int8]]
-# [Genesis wiring marker: Genesis P28 GDN core_attn_out prealloc v7.0]
-# [Genesis wiring marker: Genesis P46 GDN gating buffer pool v7.7]
-# [Genesis wiring marker: [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]]
-# [Genesis wiring marker: [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]]
-# [Genesis wiring marker: [Genesis PN122: rollback GDN con cinta]]
-# [Genesis wiring marker: Genesis PN50 GDN fused proj v7.66 (SGLang#21019 backport)]
-# [Genesis wiring marker: Genesis PN54 GDN contiguous dedup v7.66 (P0.7 Cliff 2b)]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Inference-only Qwen3-Next/Qwen3.5 model."""
@@ -21,9 +11,9 @@ from torch import nn
 
 from vllm import _custom_ops as ops
 from vllm import envs
-from vllm.idiotsavant import gdn_vistas as _g164  # [Genesis PN164: vistas del GDN]
-from vllm.idiotsavant import gdn_salida as _g163  # [Genesis PN163: salida del GDN]
-from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_vistas as _g164  # [PN164: vistas del GDN]
+from vllm.idiotsavant import gdn_salida as _g163  # [PN163: salida del GDN]
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 from vllm._aiter_ops import rocm_aiter_ops
 from vllm.config import (
     VllmConfig,
@@ -36,9 +26,9 @@ from vllm.forward_context import ForwardContext, get_forward_context
 from vllm.logger import init_logger
 from vllm.model_executor.custom_op import CustomOp, PluggableLayer
 from vllm.model_executor.layers.layernorm import RMSNormGated
-from vllm.idiotsavant import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
-from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
-from vllm.idiotsavant import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
+from vllm.idiotsavant import norma_q8 as _g156  # [PN156: norma que escribe int8]
+from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [PN155: in_proj_ba dentro de in_proj_qkvz]
+from vllm.idiotsavant import had_salidas as _g154  # [PN154: Hadamard en la entrada de o_proj/out_proj]
 from vllm.model_executor.layers.linear import (
     ColumnParallelLinear,
     MergedColumnParallelLinear,
@@ -446,14 +436,14 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         # ba_proj doesn't support blockwise fp8 quantization.
         # Qwen3-Next and Qwen3.5 have different in_proj_ba checkpoint
         # layouts, so we use a factory method to create the projection.
-        self.in_proj_ba = None if _g155.activo() else self.create_ba_proj(  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+        self.in_proj_ba = None if _g155.activo() else self.create_ba_proj(  # [PN155: in_proj_ba dentro de in_proj_qkvz]
             hidden_size=self.hidden_size,
             num_v_heads=self.num_v_heads,
             quant_config=self.quant_config,
             prefix=f"{prefix}.in_proj_ba",
         )
         self.disable_tp_for_ba_proj = self.maybe_disable_tp(self.quant_config)
-        _g155.preparar(self)  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+        _g155.preparar(self)  # [PN155: in_proj_ba dentro de in_proj_qkvz]
 
         query_key_settings = (self.key_dim, 0, False)
         value_settings = (self.value_dim, 0, False)
@@ -510,7 +500,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             quant_config=self.quant_config,
             prefix=f"{prefix}.out_proj",
         )
-        _g154.marcar(self.out_proj, "out_proj")  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
+        _g154.marcar(self.out_proj, "out_proj")  # [PN154: Hadamard en la entrada de o_proj/out_proj]
 
         self.chunk_gated_delta_rule = ChunkGatedDeltaRule()
         self.gdn_prefill_backend = self.chunk_gated_delta_rule.gdn_prefill_backend
@@ -581,7 +571,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         output_sizes = (
             [sum((key_dim, key_dim, value_dim, value_dim))]
             if self.gqa_interleaved_layout
-            else _g155.tamanos_qkvz(key_dim, value_dim, self.tp_size)  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+            else _g155.tamanos_qkvz(key_dim, value_dim, self.tp_size)  # [PN155: in_proj_ba dentro de in_proj_qkvz]
         )
         return MergedColumnParallelLinear(
             input_size=hidden_size,
@@ -824,13 +814,13 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         k_dim = self.key_dim // self.tp_size
         v_dim = self.value_dim // self.tp_size
 
-        # [Genesis PN54 P0.8] Direct contiguous views instead of torch.cat flattening.
+        # [PN54 P0.8] Direct contiguous views instead of torch.cat flattening.
         # Eliminates 1D cat allocation + slicing, avoids VRAM allocator fragmentation.
         query, key, value = torch.split(mixed_qkv, [q_dim, k_dim, v_dim], dim=-1)
-        # [Genesis PN122] con la recurrencia del arbol en PTX (gdn_arbol.cu), q/k/v van como VISTAS con
+        # [PN122] con la recurrencia del arbol en PTX (gdn_arbol.cu), q/k/v van como VISTAS con
         # stride de token: el kernel las lee asi y las tres copias de abajo (6,6 us por capa) sobran.
-        from vllm.idiotsavant.gdn_cinta import qkv_con_stride as _genesis_qkv_stride
-        if _genesis_qkv_stride():
+        from vllm.idiotsavant.gdn_cinta import qkv_con_stride as _isv_qkv_stride
+        if _isv_qkv_stride():
             return (query.view(1, seq_len, -1, self.head_k_dim), key.view(1, seq_len, -1, self.head_k_dim),
                     value.view(1, seq_len, -1, self.head_v_dim))
         query = query.contiguous().view(1, seq_len, -1, self.head_k_dim)
@@ -841,7 +831,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
     def forward(
         self,
         hidden_states: torch.Tensor,
-        _q156=None,  # [Genesis PN156: norma que escribe int8]
+        _q156=None,  # [PN156: norma que escribe int8]
     ) -> torch.Tensor:
         if _q156 is not None:
             return self.forward_cuda(hidden_states, _q156=_q156)
@@ -857,7 +847,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         The RMSNormGated + quant sequence is eligible for fusion
         by the compilation pass when fuse_norm_quant is enabled.
         """
-        return _g154.salida_gdn(self, core_attn_out, z)  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
+        return _g154.salida_gdn(self, core_attn_out, z)  # [PN154: Hadamard en la entrada de o_proj/out_proj]
 
     def forward_hip(
         self,
@@ -898,7 +888,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
     def forward_cuda(
         self,
         hidden_states: torch.Tensor,
-        _q156=None,  # [Genesis PN156: norma que escribe int8]
+        _q156=None,  # [PN156: norma que escribe int8]
     ) -> torch.Tensor:
         """
         Forward pass with three parts:
@@ -910,9 +900,9 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         # ============================================================
         # Part 1: Input Projection
         # ============================================================
-        mixed_qkvz = _g156.lineal(self.in_proj_qkvz, hidden_states, _q156)  # [Genesis PN156: norma que escribe int8]
-        if self.in_proj_ba is None:  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
-            if _g164.ACTIVO:  # [Genesis PN164: vistas del GDN]
+        mixed_qkvz = _g156.lineal(self.in_proj_qkvz, hidden_states, _q156)  # [PN156: norma que escribe int8]
+        if self.in_proj_ba is None:  # [PN155: in_proj_ba dentro de in_proj_qkvz]
+            if _g164.ACTIVO:  # [PN164: vistas del GDN]
                 mixed_qkv, z, b, a = _g164.vistas(self, mixed_qkvz)
                 ba = None
             else:
@@ -940,7 +930,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             output, _ = self.out_proj(core_attn_out.flatten(-2))
             return output
 
-        if _g164.ACTIVO and self.in_proj_ba is None:  # [Genesis PN164: vistas del GDN] ya estan armadas
+        if _g164.ACTIVO and self.in_proj_ba is None:  # [PN164: vistas del GDN] ya estan armadas
             pass
         elif self.gqa_interleaved_layout:
             # Qwen3-Next: unpack the interleaved GQA layout
@@ -957,7 +947,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             z_size = self.value_dim // self.tp_size
             mixed_qkv, z = mixed_qkvz.split([qkv_size, z_size], dim=-1)
             z = z.reshape(z.size(0), -1, self.head_v_dim)
-            # [Genesis PN50 SGLang#21019] fused Triton kernel for
+            # [PN50 SGLang#21019] fused Triton kernel for
             # split/reshape/cat/.contiguous(); replaces 5-6 launches +
             # 2 explicit copies. Wrapper falls through to original
             # PyTorch chain on any constraint violation (non-contig,
@@ -988,13 +978,13 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         # ============================================================
         # Note: we should not use torch.empty here like other attention backends,
         # see discussions in https://github.com/vllm-project/vllm/pull/28182
-        # [Genesis P28] Pre-allocated buffer attached by attach_buffer()
+        # [P28] Pre-allocated buffer attached by attach_buffer()
         # at module __init__ (see vllm.idiotsavant.kernels.gdn_core_attn_manager).
         # Both branches are pure tensor ops — fully torch.dynamo-safe.
         core_attn_out = (
-            (self._genesis_gdn_core_attn_buf[:num_tokens] if _g163.ACTIVO  # [Genesis PN163: salida del GDN]
-             else self._genesis_gdn_core_attn_buf[:num_tokens].zero_())
-            if getattr(self, '_genesis_gdn_core_attn_buf', None) is not None
+            (self._isv_gdn_core_attn_buf[:num_tokens] if _g163.ACTIVO  # [PN163: salida del GDN]
+             else self._isv_gdn_core_attn_buf[:num_tokens].zero_())
+            if getattr(self, '_isv_gdn_core_attn_buf', None) is not None
             else torch.zeros(
                 (num_tokens, self.num_v_heads // self.tp_size, self.head_v_dim),
                 dtype=hidden_states.dtype,
@@ -1004,7 +994,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
 
         torch.ops.vllm.qwen_gdn_attention_core(
             mixed_qkv,
-            b if _g164.ACTIVO else b.contiguous(),  # [Genesis PN164: vistas del GDN]
+            b if _g164.ACTIVO else b.contiguous(),  # [PN164: vistas del GDN]
             a if _g164.ACTIVO else a.contiguous(),
             core_attn_out,
             layer_name=_encode_layer_name(self.prefix),
@@ -1333,7 +1323,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             return
 
         assert isinstance(attn_metadata, GDNAttentionMetadata)
-        _g163_directo = _g163.preparar_salida(attn_metadata, core_attn_out)  # [Genesis PN163: salida del GDN]
+        _g163_directo = _g163.preparar_salida(attn_metadata, core_attn_out)  # [PN163: salida del GDN]
 
         if (
             self.enable_packed_recurrent_decode
@@ -1372,7 +1362,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         mixed_qkv = mixed_qkv[:num_actual_tokens]
         b = b[:num_actual_tokens]
         a = a[:num_actual_tokens]
-        mixed_qkv, b, a = _g164.en_op(attn_metadata, mixed_qkv, b, a)  # [Genesis PN164: vistas del GDN]
+        mixed_qkv, b, a = _g164.en_op(attn_metadata, mixed_qkv, b, a)  # [PN164: vistas del GDN]
 
         # 1. Convolution sequence transformation
         conv_weights = self.conv1d.weight.view(
@@ -1512,14 +1502,14 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         if spec_sequence_masks is not None and _g122.activo() and not (
             _g122.sync_bits() & 512
         ):
-            # [Genesis PN122: rollback GDN con cinta]
+            # [PN122: rollback GDN con cinta]
             core_attn_out_spec, last_recurrent_state = _g122.spec_update(
                 self, self.A_log, a, b, self.dt_bias, query_spec, key_spec,
                 value_spec, ssm_state,
                 spec_query_start_loc[: attn_metadata.num_spec_decodes + 1],
                 spec_state_indices_tensor, num_accepted_tokens,
                 attn_metadata.g122_slots,
-                o_dest=(core_attn_out[:num_actual_tokens].unsqueeze(0)  # [Genesis PN163: salida del GDN]
+                o_dest=(core_attn_out[:num_actual_tokens].unsqueeze(0)  # [PN163: salida del GDN]
                         if _g163_directo else None),
             )
         elif spec_sequence_masks is not None:
@@ -1641,7 +1631,7 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
             merged_out.index_copy_(1, non_spec_token_indx, core_attn_out_non_spec)
             core_attn_out[:num_actual_tokens] = merged_out.squeeze(0)
         elif spec_sequence_masks is not None:
-            if core_attn_out_spec.data_ptr() != core_attn_out.data_ptr():  # [Genesis PN163: salida del GDN]
+            if core_attn_out_spec.data_ptr() != core_attn_out.data_ptr():  # [PN163: salida del GDN]
                 core_attn_out[:num_actual_tokens] = core_attn_out_spec.squeeze(0)
         else:
             core_attn_out[:num_actual_tokens] = core_attn_out_non_spec.squeeze(0)
@@ -2122,7 +2112,7 @@ def fused_gdn_gating(
     batch, num_heads = a.shape
     seq_len = 1
     grid = (batch, seq_len, triton.cdiv(num_heads, 8))
-    # [Genesis P46] persistent `g` buffer (one-per-shape-key pool)
+    # [P46] persistent `g` buffer (one-per-shape-key pool)
     from vllm.idiotsavant.kernels.gdn_gating_buffer import (
         GdnGatingBufferManager as _GenesisGdnGatingBuf,
     )
@@ -2130,7 +2120,7 @@ def fused_gdn_gating(
         batch=batch, num_heads=num_heads,
         device=a.device, dtype=torch.float32,
     )
-    # [Genesis P46] persistent `beta_output` buffer
+    # [P46] persistent `beta_output` buffer
     beta_output = _GenesisGdnGatingBuf.acquire_beta(
         batch=batch, num_heads=num_heads,
         device=b.device, dtype=b.dtype,

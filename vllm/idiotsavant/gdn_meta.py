@@ -152,7 +152,7 @@ def build(builder, original, common_prefix_len, m, num_accepted_tokens=None, num
 
 def instalar(cls) -> None:
     """Envuelve ``cls.build`` (lo llama la linea que PN151 agrega al final de gdn_attn.py, en cada proceso)."""
-    if getattr(cls, "_genesis_pn151", False):
+    if getattr(cls, "_isv_pn151", False):
         return
     original = cls.build
 
@@ -162,5 +162,5 @@ def instalar(cls) -> None:
                      num_decode_draft_tokens_cpu, fast_build)
 
     cls.build = build_pn151
-    cls._genesis_pn151 = True
+    cls._isv_pn151 = True
     log.info("[PN151] metadata del GDN en un kernel para el decode en arbol (verificar=%d)", _VERIFICAR)

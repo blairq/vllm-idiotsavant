@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -75,7 +74,7 @@ class FileMapper:
         # identity participates in the storage namespace.
         if canonical_format is not None:
             self.fields["canonical_format"] = canonical_format
-        # [Genesis PN81 kv disk tier quota] un directorio por FORMATO de KV
+        # [PN81 kv disk tier quota] un directorio por FORMATO de KV
         # Sin esto, cambiar --kv-cache-dtype, la rotacion de k, PN131 o PN122 dejaba el
         # mismo directorio y los bloques viejos se restauraban con el significado nuevo.
         from vllm.idiotsavant import kv_formato as _g81fmt

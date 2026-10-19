@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN88 kv tier metrics]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from dataclasses import dataclass
@@ -19,10 +18,10 @@ from vllm.v1.kv_offload.base import (
 )
 from vllm.v1.kv_offload.factory import OffloadingSpecFactory
 
-# [Genesis PN88 kv tier metrics]
+# [PN88 kv tier metrics]
 # Clave del bucket de telemetria de tiers dentro de OffloadingConnectorStats.
 # Empieza con guion bajo para no chocar con una metrica real.
-_G88_BUCKET = "_genesis_tiers"
+_G88_BUCKET = "_isv_tiers"
 
 
 class _TransferMetricName:
@@ -221,14 +220,14 @@ class OffloadingConnectorStats(KVConnectorStats):
         other_types = other._types
         other_values = other._values
         if _G88_BUCKET in other_values:
-            # [Genesis PN88 kv tier metrics]
+            # [PN88 kv tier metrics]
             # El payload Genesis no es {labelvalues: valor} tipado: es el
             # dict crudo de drain() ({counters,hist,gauges}). Se fusiona con
             # merge() y se registra su tipo para que reduce()/observe()
             # lo ruteen sin chocar con los asserts.
             from vllm.idiotsavant import kv_tier_metrics as _g88m
 
-            self._types.setdefault(_G88_BUCKET, 'genesis')
+            self._types.setdefault(_G88_BUCKET, 'idiotsavant')
             _g88_dst = self._values.setdefault(_G88_BUCKET, {})
             for _lv, _payload in other_values[_G88_BUCKET].items():
                 _g88_dst[_lv] = _g88m.merge(_g88_dst.get(_lv) or {}, _payload)
@@ -272,7 +271,7 @@ class OffloadingConnectorStats(KVConnectorStats):
         return_dict: dict[str, int | float] = {}
         for key, label_value_map in self._values.items():
             if key == _G88_BUCKET:
-                # [Genesis PN88 kv tier metrics]
+                # [PN88 kv tier metrics]
                 from vllm.idiotsavant import kv_tier_metrics as _g88m
 
                 for _payload in label_value_map.values():
@@ -511,7 +510,7 @@ class OffloadPromMetrics(KVConnectorPromMetrics):
         metric_data = transfer_stats_data.get(_StatsKey.DATA, {})
         for key, label_value_map in metric_data.items():
             if key == _G88_BUCKET:
-                # [Genesis PN88 kv tier metrics]
+                # [PN88 kv tier metrics]
                 from vllm.idiotsavant import kv_tier_metrics as _g88m
 
                 for _payload in label_value_map.values():

@@ -30,7 +30,7 @@ Usage
 -----
 From any Genesis kernel module:
 
-    from vllm.idiotsavant.prealloc import GenesisPreallocBuffer as GPB
+    from vllm.idiotsavant.prealloc import PreallocBuffer as GPB
 
     # In Attention.__init__ or _ensure_on_device:
     self._dequant_buf = GPB.get_or_create(
@@ -56,7 +56,7 @@ import torch
 log = logging.getLogger("idiotsavant.prealloc")
 
 
-class GenesisPreallocBuffer:
+class PreallocBuffer:
     """Class-level registry of pre-allocated tensors, keyed by namespace+shape+dtype+device.
 
     Thread-safety: each worker process has its own _REGISTRY — not shared
@@ -157,7 +157,7 @@ class GenesisPreallocBuffer:
 
         Useful for monitoring and debug:
             import json
-            print(json.dumps(GenesisPreallocBuffer.get_registry_info(),
+            print(json.dumps(PreallocBuffer.get_registry_info(),
                              indent=2, default=str))
         """
         total_bytes = 0

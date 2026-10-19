@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import errno
@@ -96,7 +95,7 @@ class SharedOffloadRegion:
         self._row_stride = kv_bytes_per_block
         self.total_size_bytes = self.num_blocks * self._row_stride
 
-        # [Genesis PN81 kv disk tier quota] (purga de huerfanos)
+        # [PN81 kv disk tier quota] (purga de huerfanos)
         # Borra mmaps de corridas anteriores que quedaron por un cierre
         # abrupto. Es CONSERVADOR: saltea los que algun proceso visible
         # tiene mapeados y los muy recientes, para no pisar a un engine

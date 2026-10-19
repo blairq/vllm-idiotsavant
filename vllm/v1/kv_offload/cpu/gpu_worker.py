@@ -1,5 +1,3 @@
-# [Genesis wiring marker: _GENESIS_PN94_PER_RANK_HOST_REGISTER]
-# [Genesis wiring marker: _GENESIS_PN82_HOST_REGISTER_STICKY_V2]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import functools

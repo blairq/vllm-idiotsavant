@@ -1,9 +1,3 @@
-# [Genesis wiring marker: [Genesis PN170: L2 con estado GDN]]
-# [Genesis wiring marker: [Genesis PN165: diagnostico de prefijo]]
-# [Genesis wiring marker: _GENESIS_PN103_AUTO_PREFIX_LIMIT]
-# [Genesis wiring marker: _GENESIS_PN101_SHARED_PREFIX_PROBE]
-# [Genesis wiring marker: [Genesis PN91: bounded promotion deferral]]
-# [Genesis wiring marker: [Genesis PN87 offloading hybrid alloc boundary]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import time
@@ -33,11 +27,11 @@ from vllm.distributed.kv_transfer.kv_connector.v1.offloading.metrics import (
     _TransferMetricName,
 )
 from vllm.logger import init_logger
-from vllm.idiotsavant import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
+from vllm.idiotsavant import diag_prefijo as _g165  # [PN165: diagnostico de prefijo]
 from vllm.utils.math_utils import cdiv, round_down
 from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.output import SchedulerOutput
-from vllm.idiotsavant import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+from vllm.idiotsavant import l2_gdn as _g170  # [PN170: L2 con estado GDN]
 from vllm.v1.kv_cache_interface import (
     ChunkedLocalAttentionSpec,
     FullAttentionSpec,
@@ -237,7 +231,7 @@ class SchedulerOffloadConfig(NamedTuple):
         )
         if use_eagle and not eagle_groups:
             eagle_groups = set(range(len(kv_cache_config.kv_cache_groups)))
-        if _g170.ACTIVO:  # [Genesis PN170: L2 con estado GDN]
+        if _g170.ACTIVO:  # [PN170: L2 con estado GDN]
             eagle_groups = _g170.sin_eagle_en_mamba(eagle_groups, kv_cache_config)
 
         if eagle_groups:
@@ -372,7 +366,9 @@ class RequestOffloadState:
             try:
                 from vllm.idiotsavant import kv_prefix_auto as _g103
 
-                _g103_a = (params or {}).get('genesis_agent')
+                from vllm.idiotsavant.sesion import agente as _g103_agente
+
+                _g103_a = _g103_agente(params or {})
                 _g103_v = _g103.limite_para(
                     _g103_a,
                     self.config.kv_group_configs[0].offloaded_block_size,
@@ -649,7 +645,7 @@ class OffloadingConnectorScheduler:
                     )
                     hit_count += 1
                 case LookupResult.HIT_PENDING:
-                    # [Genesis PN91: bounded promotion deferral]
+                    # [PN91: bounded promotion deferral]
                     # En modo estricto un bloque en vuelo corta el prefijo: lo que
                     # se devuelve contiene SOLO bloques listos, que es lo que
                     # prepare_load exige (assert block.is_ready).
@@ -682,7 +678,7 @@ class OffloadingConnectorScheduler:
                 case LookupResult.HIT:
                     consecutive_hits += 1
                 case LookupResult.HIT_PENDING:
-                    # [Genesis PN91: bounded promotion deferral]
+                    # [PN91: bounded promotion deferral]
                     from vllm.idiotsavant import kv_lazy_streaming as _g91
                     if _g91.is_strict(req_context.req_id):
                         consecutive_hits = 0
@@ -827,7 +823,7 @@ class OffloadingConnectorScheduler:
                         required_window,
                         req_status.req_context,
                     )
-                _g165.offload_grupo(req_status.req.request_id, group_idx, sliding_window_size_in_chunks,  # [Genesis PN165: diagnostico de prefijo]
+                _g165.offload_grupo(req_status.req.request_id, group_idx, sliding_window_size_in_chunks,  # [PN165: diagnostico de prefijo]
                                     start_chunk_idx, len(offload_keys), num_hit_chunks, num_computed_tokens,
                                     max_hit_size_tokens)
                 if num_hit_chunks == 0:
@@ -867,7 +863,7 @@ class OffloadingConnectorScheduler:
                 num_hit_tokens = new_num_hit_tokens
 
         if defer_lookup:
-            # [Genesis PN91: bounded promotion deferral]
+            # [PN91: bounded promotion deferral]
             from vllm.idiotsavant import kv_lazy_streaming as _g91
             _g91.note_deferral(req_status.req.request_id)
             logger.debug(
@@ -1022,7 +1018,9 @@ class OffloadingConnectorScheduler:
             _g101_p = (
                 getattr(req_status.req_context, 'kv_transfer_params', None) or {}
             )
-            _g101_a = _g101_p.get('genesis_agent')
+            from vllm.idiotsavant.sesion import agente as _g101_agente
+
+            _g101_a = _g101_agente(_g101_p)
             if _g101_a and req_status.group_states:
                 _g101_n = _g101.observar(
                     _g101_a, req_status.group_states[0].offload_keys
@@ -1099,7 +1097,7 @@ class OffloadingConnectorScheduler:
                     num_locally_computed_gpu_blocks = i
                     break
 
-            # [Genesis PN87 offloading hybrid alloc boundary]
+            # [PN87 offloading hybrid alloc boundary]
             # En modelos hibridos (GDN/Mamba) o con padding/placeholders nulos,
             # la busqueda lineal de block_hash is None puede dar un indice menor
             # al prefijo local global (num_locally_computed_tokens), o saltar un
@@ -1252,7 +1250,7 @@ class OffloadingConnectorScheduler:
                 ):
                     continue
 
-                _g170.handoff(req, group_idx, block_id, boundary)  # [Genesis PN170: L2 con estado GDN]
+                _g170.handoff(req, group_idx, block_id, boundary)  # [PN170: L2 con estado GDN]
                 key = self._make_boundary_key(req, group_idx, boundary)
                 store_output = self.manager.prepare_store([key], req_status.req_context)
                 if store_output is None:
@@ -1473,7 +1471,7 @@ class OffloadingConnectorScheduler:
                         group_config.is_eagle_group,
                     ):
                         continue
-                    if _g170.saltear_ventana(req, group_config, abs_chunk_idx):  # [Genesis PN170: L2 con estado GDN]
+                    if _g170.saltear_ventana(req, group_config, abs_chunk_idx):  # [PN170: L2 con estado GDN]
                         continue
                     new_offload_keys.append(offload_key)
 
@@ -1484,7 +1482,7 @@ class OffloadingConnectorScheduler:
             store_output = self.manager.prepare_store(
                 new_offload_keys, req_status.req_context
             )
-            _g170.tras_prepare(req, new_offload_keys, store_output)  # [Genesis PN170: L2 con estado GDN]
+            _g170.tras_prepare(req, new_offload_keys, store_output)  # [PN170: L2 con estado GDN]
             if store_output is None:
                 self._connector_stats.increase_counter(
                     _ConnectorMetricName.ALLOCATION_FAILURE
@@ -1772,7 +1770,7 @@ class OffloadingConnectorScheduler:
             Optional KVTransferParams to be included in the request outputs
             returned by the engine.
         """
-        # [Genesis PN91: bounded promotion deferral]
+        # [PN91: bounded promotion deferral]
         from vllm.idiotsavant import kv_lazy_streaming as _g91
         _g91.clear_request(request.request_id)
         req_status = self._req_status.get(request.request_id)

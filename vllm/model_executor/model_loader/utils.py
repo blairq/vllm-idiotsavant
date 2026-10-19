@@ -1,4 +1,3 @@
-# [Genesis wiring marker: Genesis PN77 FP8 lm_head — process_weights_after_loading swap (E.5) v7.71]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Utilities for selecting and loading models."""
@@ -105,7 +104,7 @@ def process_weights_after_loading(
     for _, module in model.named_modules():
         quant_method = getattr(module, "quant_method", None)
         if isinstance(quant_method, QuantizeMethodBase):
-            # [Genesis PN77] swap UnquantizedEmbeddingMethod → FP8 method on lm_head
+            # [PN77] swap UnquantizedEmbeddingMethod → FP8 method on lm_head
             try:
                 from vllm.idiotsavant.kernels_legacy.lm_head_fp8_method import (
                     maybe_swap_pn77_quant_method as _pn77_swap,

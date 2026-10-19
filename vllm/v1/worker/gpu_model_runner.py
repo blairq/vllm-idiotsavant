@@ -1,6 +1,3 @@
-# [Genesis wiring marker: Genesis PN33 spec-decode warmup K-aware (vllm#37521 backport extended to MTP/ngram, v7.65)]
-# [Genesis wiring marker: Genesis PN35 inputs_embeds optional for text-only (vllm#35975) v7.69 part1]
-# [Genesis wiring marker: [Genesis PN128: orden async del spec decode GDN/MTP]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -853,7 +850,7 @@ class GPUModelRunner(
         # Because inputs_embeds may be bfloat16 and we don't need a numpy
         # version of this tensor, avoid a RuntimeError by not creating a
         # numpy buffer.
-        # [Genesis PN35 v7.69 inputs_embeds_optional] vllm#35975 by
+        # [PN35 v7.69 inputs_embeds_optional] vllm#35975 by
         # AjAnubolu — skip inputs_embeds buffer (~64 MiB GPU + 64 MiB
         # pinned CPU) on text-only models. Allocation only fires when
         # the model needs it (multimodal or prompt embeds enabled).
@@ -3919,7 +3916,7 @@ class GPUModelRunner(
         # This is required in the async scheduling case because
         # the CPU->GPU transfer happens async.
         self.prepare_inputs_event.synchronize()
-        # [Genesis PN128: orden async del spec decode GDN/MTP] prepare_inputs_event se graba ANTES del forward y
+        # [PN128: orden async del spec decode GDN/MTP] prepare_inputs_event se graba ANTES del forward y
         # del postproceso del spec decode: esperar tambien a ese postproceso
         # para que _update_states no mute buffers que todavia se leen.
         if self.num_accepted_tokens_event is not None:
@@ -6392,22 +6389,22 @@ class GPUModelRunner(
             else:
                 raise e
         if self.speculative_config:
-            # [Genesis PN33 vllm#37521-extended]
+            # [PN33 vllm#37521-extended]
             # Use real num_speculative_tokens for warmup so the
             # KV-cache profile and TQ workspace lock account for
             # peak rejection-sampler footprint. Covers EAGLE, MTP,
             # ngram, draft-model methods uniformly.
             # Fallback to [0] if env disabled or attribute missing.
-            _genesis_pn33_disabled = False
-            _genesis_pn33_K = getattr(
+            _isv_pn33_disabled = False
+            _isv_pn33_K = getattr(
                 self.speculative_config, 'num_speculative_tokens', 0
             ) or 0
-            if (not _genesis_pn33_disabled) and _genesis_pn33_K > 1:
-                _genesis_pn33_dummy_tokens = list(range(_genesis_pn33_K))
+            if (not _isv_pn33_disabled) and _isv_pn33_K > 1:
+                _isv_pn33_dummy_tokens = list(range(_isv_pn33_K))
             else:
-                _genesis_pn33_dummy_tokens = [0]
+                _isv_pn33_dummy_tokens = [0]
             draft_token_ids = [
-                _genesis_pn33_dummy_tokens for _ in range(num_reqs)
+                _isv_pn33_dummy_tokens for _ in range(num_reqs)
             ]
             dummy_spec_decode_metadata = SpecDecodeMetadata.make_dummy(
                 draft_token_ids, self.device

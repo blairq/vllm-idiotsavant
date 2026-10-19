@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN142: DFlash2 en v0.29.0]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -1864,7 +1863,7 @@ class SpeculativeConfig:
         return self.method in ("eagle", "eagle3", "mtp", "dflash", "dspark")
 
     def use_eagle_preserves_target_kv_cache(self) -> bool:
-        # [Genesis PN142: DFlash2 en v0.29.0] port de fa5017a5 (no esta en v0.29.0).
+        # [PN142: DFlash2 en v0.29.0] port de fa5017a5 (no esta en v0.29.0).
         # Solo los borradores de la familia eagle comparten —y miran hacia adelante en—
         # los grupos de atencion completa del target. DFlash y DSpark dibujan de su
         # PROPIA KV y nunca escriben bloques del target (vllm#53505).

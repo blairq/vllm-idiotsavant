@@ -23,7 +23,7 @@ FUSIONADO = B == 512
 # SK-23: ademas sale int8 por token y down_proj (Marlin W4A8) lo toma sin volver a cuantizar.
 INT8 = FUSIONADO and True
 if FUSIONADO:
-    from vllm.idiotsavant import silu_had  # noqa: F401  (registra las ops genesis::pn148_*)
+    from vllm.idiotsavant import silu_had  # noqa: F401  (registra las ops idiotsavant::pn148_*)
 
 
 def activo() -> bool:
@@ -48,7 +48,7 @@ def hadamard() -> torch.Tensor:
 def act_had(mlp, gate_up: torch.Tensor) -> torch.Tensor:
     """Lo que va entre gate_up y down_proj: silu(g)*u y la Hadamard por bloques."""
     if FUSIONADO:
-        return torch.ops.genesis.pn148_silu_had(gate_up)
+        return torch.ops.idiotsavant.pn148_silu_had(gate_up)
     return aplicar(mlp.act_fn(gate_up), mlp._g148_h)
 
 
@@ -129,7 +129,7 @@ def act_had_down(mlp, gate_up: torch.Tensor) -> torch.Tensor:
     d = mlp.down_proj
     k = _marlin_int8(d) if INT8 else None
     if k is not None and d.bias is None:
-        q, esc = torch.ops.genesis.pn148_silu_had_q8(gate_up, d.input_global_scale)
+        q, esc = torch.ops.idiotsavant.pn148_silu_had_q8(gate_up, d.input_global_scale)
         out = _gemm_int8(d, k, q, esc)
         return _reducir(d, out.reshape(*gate_up.shape[:-1], out.shape[-1]))
     out, _ = d(act_had(mlp, gate_up))

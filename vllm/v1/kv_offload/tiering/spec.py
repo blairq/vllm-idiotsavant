@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN174: unlink de la region L2]]
-# [Genesis wiring marker: _GENESIS_PN98_L2_SIZING_ADVISORY]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """
@@ -308,7 +306,7 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                     cpu_page_size=self.cpu_page_size_per_worker,
                 )
                 self._scheduler_mmap = scheduler_mmap
-                # [Genesis PN174: unlink de la region L2] el scheduler abre la region ultimo (despues de todos los
+                # [PN174: unlink de la region L2] el scheduler abre la region ultimo (despues de todos los
                 # workers): sin nombre, ninguna muerte del motor deja los GB en /dev/shm.
                 if scheduler_mmap._creator:
                     raise RuntimeError(

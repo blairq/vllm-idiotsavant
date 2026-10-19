@@ -1,9 +1,3 @@
-# [Genesis wiring marker: [Genesis PN173: chunk de prefill dinamico]]
-# [Genesis wiring marker: [Genesis PN168: borde de reuso con EAGLE]]
-# [Genesis wiring marker: [Genesis PN165: diagnostico de prefijo]]
-# [Genesis wiring marker: [Genesis PN115: KV headroom gating & priority bypass v2]]
-# [Genesis wiring marker: [Genesis PN121: guard de cascada de preempcion]]
-# [Genesis wiring marker: [Genesis PN142: DFlash2 en v0.29.0]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import itertools
@@ -31,7 +25,7 @@ from vllm.distributed.kv_transfer.kv_connector.v1 import (
 from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorMetadata
 from vllm.distributed.kv_transfer.kv_connector.v1.metrics import KVConnectorStats
 from vllm.logger import init_logger
-from vllm.idiotsavant import diag_prefijo as _g165  # [Genesis PN165: diagnostico de prefijo]
+from vllm.idiotsavant import diag_prefijo as _g165  # [PN165: diagnostico de prefijo]
 from vllm.model_executor.layers.fused_moe.routed_experts_capturer import (
     RoutedExpertsManager,
 )
@@ -262,7 +256,7 @@ class Scheduler(SchedulerInterface):
         )
         speculative_config = vllm_config.speculative_config
         self.use_eagle = False
-        # [Genesis PN142: DFlash2 en v0.29.0] acota el retroceso de la ultima pagina de mamba.
+        # [PN142: DFlash2 en v0.29.0] acota el retroceso de la ultima pagina de mamba.
         self.use_eagle_preserves_target_kv_cache = False
         self.num_spec_tokens = vllm_config.num_speculative_tokens
         self.num_lookahead_tokens = vllm_config.num_lookahead_tokens
@@ -282,7 +276,7 @@ class Scheduler(SchedulerInterface):
                     vllm_num_speculative_tokens=self.num_spec_tokens,
                 )
             self.use_eagle = speculative_config.use_eagle()
-            # [Genesis PN142: DFlash2 en v0.29.0]
+            # [PN142: DFlash2 en v0.29.0]
             self.use_eagle_preserves_target_kv_cache = (
                 speculative_config.use_eagle_preserves_target_kv_cache()
             )
@@ -427,7 +421,7 @@ class Scheduler(SchedulerInterface):
         # Eagle, FullAttn prunes the last matching block, so back off one
         # block to avoid a Mamba cache miss.
         last_cache_position = request.num_tokens - request.num_tokens % block_size
-        # [Genesis PN142: DFlash2 en v0.29.0] solo la familia eagle poda el ultimo bloque que matchea;
+        # [PN142: DFlash2 en v0.29.0] solo la familia eagle poda el ultimo bloque que matchea;
         # DFlash/DSpark no, y retroceder les mata todo hit de prefix-cache y de offload.
         if self.use_eagle_preserves_target_kv_cache:
             last_cache_position = max(last_cache_position - block_size, 0)
@@ -459,7 +453,7 @@ class Scheduler(SchedulerInterface):
             else 0
         )
         stops = (
-            (request.num_prompt_tokens // block_size - 2) * block_size if self.use_eagle else 0,  # [Genesis PN168: borde de reuso con EAGLE]
+            (request.num_prompt_tokens // block_size - 2) * block_size if self.use_eagle else 0,  # [PN168: borde de reuso con EAGLE]
             (request.shared_prefix_boundary // block_size - 2) * block_size
             if self.use_eagle and request.shared_prefix_boundary else 0,
             # Same invariant: a chunk starting mid-block stops at the boundary
@@ -518,7 +512,7 @@ class Scheduler(SchedulerInterface):
 
     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
         self.current_step += 1
-        __import__('vllm.idiotsavant.chunk_dinamico', fromlist=['x']).ajustar(self)  # [Genesis PN173: chunk de prefill dinamico]
+        __import__('vllm.idiotsavant.chunk_dinamico', fromlist=['x']).ajustar(self)  # [PN173: chunk de prefill dinamico]
         # NOTE(woosuk) on the scheduling algorithm:
         # There's no "decoding phase" nor "prefill phase" in the scheduler.
         # Each request just has the num_computed_tokens and
@@ -557,7 +551,7 @@ class Scheduler(SchedulerInterface):
 
         # For logging.
         scheduled_timestamp = time.monotonic()
-        # [Genesis PN115: KV headroom gating & priority bypass v2]
+        # [PN115: KV headroom gating & priority bypass v2]
         from vllm.idiotsavant import dynamic_pid_gating as _g115
         _g115.update_step_with_scheduler(
             scheduler=self,
@@ -730,7 +724,7 @@ class Scheduler(SchedulerInterface):
                     else:
                         preempted_req = self.running.pop()
 
-                    # [Genesis PN121: guard de cascada de preempcion]
+                    # [PN121: guard de cascada de preempcion]
                     _g121_def = len(self.deferred_frees)
                     self._preempt_request(
                         preempted_req,
@@ -808,7 +802,7 @@ class Scheduler(SchedulerInterface):
         # Next, schedule the WAITING requests.
         if not preempted_reqs and self._pause_state == PauseState.UNPAUSED:
             step_skipped_waiting = create_request_queue(self.policy)
-            # [Genesis PN115: KV headroom gating & priority bypass v2] — import izado: una vez por
+            # [PN115: KV headroom gating & priority bypass v2] — import izado: una vez por
             # schedule(), no una vez por request en el bucle caliente.
             from vllm.idiotsavant import dynamic_pid_gating as _g115
 
@@ -819,7 +813,7 @@ class Scheduler(SchedulerInterface):
                 # in `running` but still hold a model-runner request slot.
                 num_running = len(self.running) + self.num_waiting_for_streaming_input
                 if num_running >= self.max_num_running_reqs:
-                    # [Genesis PN115: KV headroom gating & priority bypass v2] Bypass de prioridad:
+                    # [PN115: KV headroom gating & priority bypass v2] Bypass de prioridad:
                     # libera UN slot para el head de la cola si es de
                     # prioridad alta, deshaciendo el estado que la victima
                     # ya tenia agendado en este paso (mismo rollback que el
@@ -849,7 +843,7 @@ class Scheduler(SchedulerInterface):
                 request = request_queue.peek_request()
                 request_id = request.request_id
 
-                # [Genesis PN115: KV headroom gating & priority bypass v2] Admision por headroom de KV.
+                # [PN115: KV headroom gating & priority bypass v2] Admision por headroom de KV.
                 if _g115.should_gate_waiting(request, self):
                     request_queue.pop_request()
                     step_skipped_waiting.prepend_request(request)
@@ -908,7 +902,7 @@ class Scheduler(SchedulerInterface):
                         request.shared_prefix_boundary,
                         hit_diverged,
                     ) = self._get_local_prefix_cache_hit(request)
-                    _g165.registrar(request, num_new_local_computed_tokens)  # [Genesis PN165: diagnostico de prefijo]
+                    _g165.registrar(request, num_new_local_computed_tokens)  # [PN165: diagnostico de prefijo]
 
                     # Get externally-cached tokens if using a KVConnector.
                     if self.connector is not None:

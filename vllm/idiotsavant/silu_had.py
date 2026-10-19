@@ -76,7 +76,7 @@ def silu_had_triton(x: torch.Tensor) -> torch.Tensor:
     return o.reshape(*shp[:-1], N)
 
 
-@torch.library.custom_op("genesis::pn148_silu_had", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn148_silu_had", mutates_args=())
 def silu_had(x: torch.Tensor) -> torch.Tensor:
     """Op propia: torch.compile no la abre y queda grabada tal cual en el CUDA graph."""
     return silu_had_triton(x)
@@ -125,7 +125,7 @@ def silu_had_q8_cuda(x: torch.Tensor, gscale: torch.Tensor) -> tuple[torch.Tenso
     return q, esc
 
 
-@torch.library.custom_op("genesis::pn148_silu_had_q8", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn148_silu_had_q8", mutates_args=())
 def silu_had_q8(x: torch.Tensor, gscale: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """(int8 [T, N], escala fp32 [T, 1] ya multiplicada por gscale) de Hadamard_512(silu(g)*u)."""
     return silu_had_q8_cuda(x, gscale)

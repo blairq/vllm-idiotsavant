@@ -52,7 +52,7 @@ def norma_q8_cuda(x: torch.Tensor, res: torch.Tensor, w: torch.Tensor, gscale: t
     return ro.view(res.shape), q, esc
 
 
-@torch.library.custom_op("genesis::pn156_norma_q8", mutates_args=())
+@torch.library.custom_op("idiotsavant::pn156_norma_q8", mutates_args=())
 def norma_q8_op(x: torch.Tensor, res: torch.Tensor, w: torch.Tensor, gscale: torch.Tensor,
                 eps: float) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """(x + res, int8 [T, H], escala fp32 [T, 1] ya por gscale) de GemmaRMSNorm(x + res)."""
@@ -93,7 +93,7 @@ def norma(capa, cual: int, h: torch.Tensor, r: torch.Tensor):
             or h.dtype != torch.float16 or h.shape[-1] % 256):
         hh, rr = n(h, r)
         return hh, rr, None
-    rr, q, esc = torch.ops.genesis.pn156_norma_q8(h, r, n.weight, lin.input_global_scale,
+    rr, q, esc = torch.ops.idiotsavant.pn156_norma_q8(h, r, n.weight, lin.input_global_scale,
                                                   float(n.variance_epsilon))
     return h, rr, (q, esc)
 

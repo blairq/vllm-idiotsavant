@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN158: embedding por P2P]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -29,7 +28,7 @@ from vllm.model_executor.layers.quantization.base_config import (
 from vllm.model_executor.layers.utils import dispatch_unquantized_gemm
 from vllm.model_executor.parameter import BasevLLMParameter
 from vllm.model_executor.utils import set_weight_attrs
-from vllm.idiotsavant import ar_int8 as _g158  # [Genesis PN158: embedding por P2P] (registra el op al importar)
+from vllm.idiotsavant import ar_int8 as _g158  # [PN158: embedding por P2P] (registra el op al importar)
 from vllm.platforms import current_platform
 
 DEFAULT_VOCAB_PADDING_SIZE = 64
@@ -536,7 +535,7 @@ class VocabParallelEmbedding(PluggableLayer):
                 output = tensor_model_parallel_all_reduce(comm_output)
                 return output.view(output_parallel.dtype)
             output_parallel.masked_fill_(input_mask.unsqueeze(-1), 0)
-        # Reduce across all the model parallel GPUs.  [Genesis PN158: embedding por P2P]
+        # Reduce across all the model parallel GPUs.  [PN158: embedding por P2P]
         return _g158.all_reduce_exacto(output_parallel)
 
     def extra_repr(self) -> str:

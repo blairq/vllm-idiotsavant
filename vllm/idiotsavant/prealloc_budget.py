@@ -116,7 +116,7 @@ def resolve_token_budget(
     if env.isdigit() and int(env) > 0:
         _CACHED = int(env)
         log.info(
-            "[Genesis P73] token budget resolved → %d "
+            "[P73] token budget resolved → %d "
             "(via GENESIS_PREALLOC_TOKEN_BUDGET)", _CACHED,
         )
         return _CACHED
@@ -128,7 +128,7 @@ def resolve_token_budget(
         if de.isdigit() and int(de) > 0:
             _CACHED = int(de)
             log.info(
-                "[Genesis P73] token budget resolved → %d (via %s)",
+                "[P73] token budget resolved → %d (via %s)",
                 _CACHED, domain_env,
             )
             return _CACHED
@@ -138,7 +138,7 @@ def resolve_token_budget(
     if cfg_v is not None and cfg_v > 0:
         _CACHED = cfg_v
         log.info(
-            "[Genesis P73] token budget resolved → %d "
+            "[P73] token budget resolved → %d "
             "(via vllm scheduler_config.max_num_batched_tokens)", _CACHED,
         )
         return _CACHED
@@ -146,7 +146,7 @@ def resolve_token_budget(
     # Priority 4: conservative default
     _CACHED = _DEFAULT_FALLBACK
     log.info(
-        "[Genesis P73] token budget resolved → %d (default fallback). "
+        "[P73] token budget resolved → %d (default fallback). "
         "Set GENESIS_PREALLOC_TOKEN_BUDGET to override.", _CACHED,
     )
     return _CACHED
@@ -165,7 +165,7 @@ def assert_fits(num_tokens: int, where: str) -> None:
     budget = resolve_token_budget()
     if num_tokens > budget:
         raise RuntimeError(
-            f"[Genesis P73 prealloc overflow] {where}: chunk={num_tokens} > "
+            f"[P73 prealloc overflow] {where}: chunk={num_tokens} > "
             f"budget={budget}. Either:\n"
             f"  (1) set GENESIS_PREALLOC_TOKEN_BUDGET={num_tokens} (or higher) "
             f"and restart, OR\n"

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """GDN window-scratch pool — config/env gate + future pool primitive.
 
-⚠ AUDIT P2.5 honesty 2026-05-05 (genesis_deep_cross_audit):
+⚠ AUDIT P2.5 honesty 2026-05-05 (isv_deep_cross_audit):
 This module DEFINES `acquire_h_window`, `acquire_v_new_window`,
 `acquire_state` registries — but the production `streaming_gdn_driver.py`
 runtime does NOT call them. The `_streaming_path` lets the inner
@@ -409,7 +409,7 @@ class GdnScratchPool:
 
     @classmethod
     def stats(cls) -> dict:
-        """Detailed introspection — used by genesis doctor."""
+        """Detailed introspection — used for diagnostics."""
         return {
             "enabled": cls.should_apply(),
             "window_nt": cls.get_window_nt(),

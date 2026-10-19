@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN89 kv offload requests endpoint]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -60,7 +59,7 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     if handler is None:
         raise NotImplementedError("The model does not support Chat Completions API")
 
-    # [Genesis PN89 kv offload requests endpoint]
+    # [PN89 kv offload requests endpoint]
     from vllm.idiotsavant import kv_offload_tracker as _g89
     _tracker = _g89.create_tracker(request)
     generator = await handler.create_chat_completion(request, raw_request)
@@ -118,7 +117,7 @@ async def create_batch_chat_completion(
 
 
 def attach_router(app: FastAPI):
-    # [Genesis PN89 kv offload requests endpoint]
+    # [PN89 kv offload requests endpoint]
     from vllm.idiotsavant import kv_offload_tracker as _g89
     app.include_router(_g89.router)
     app.include_router(router)

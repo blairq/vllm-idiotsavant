@@ -1,8 +1,3 @@
-# [Genesis wiring marker: [Genesis PN175: cierre forzado]]
-# [Genesis wiring marker: [Genesis PN176: recorte mm]]
-# [Genesis wiring marker: [Genesis PN169: sesion por pedido]]
-# [Genesis wiring marker: Genesis P68/P69 long-context tool-call adherence v7.13]
-# [Genesis wiring marker: Genesis P107 MTP truncation detector (vllm#41467) v2]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -244,7 +239,7 @@ class OpenAIServingChat(GenerateBaseServing):
 
         self._preflight(request.n or 1)
 
-        from vllm.idiotsavant import recorte_mm as _g176  # [Genesis PN176: recorte mm]
+        from vllm.idiotsavant import recorte_mm as _g176  # [PN176: recorte mm]
         _g176.recortar(request, self.model_config)
         return await self.online_renderer.render_chat(request)
 
@@ -269,23 +264,23 @@ class OpenAIServingChat(GenerateBaseServing):
         request: ChatCompletionRequest,
         raw_request: Request | None = None,
     ) -> AsyncGenerator[str, None] | ChatCompletionResponse | ErrorResponse:
-        try:  # [Genesis PN169: sesion por pedido]
+        try:  # [PN169: sesion por pedido]
             from vllm.idiotsavant import sesion as _g169
             _g169.etiquetar(request, raw_request)
         except Exception:
             pass
-        # [Genesis P68/P69 long-ctx tool-call adherence] Mutate request
+        # [P68/P69 long-ctx tool-call adherence] Mutate request
         # in-place if conditions met (env-gated). No-op when env flags
         # off, when no tools, or when prompt below threshold.
         try:
             from vllm.idiotsavant.middleware.long_ctx_tool_adherence import (
-                apply_hook as _genesis_p6869_apply_hook,
+                apply_hook as _isv_p6869_apply_hook,
             )
-            _genesis_p6869_apply_hook(self, request)
+            _isv_p6869_apply_hook(self, request)
         except Exception:
             # Hook failure is non-fatal — fall through to standard path.
-            import logging as _genesis_p6869_logging
-            _genesis_p6869_logging.getLogger(
+            import logging as _isv_p6869_logging
+            _isv_p6869_logging.getLogger(
                 'idiotsavant.middleware.long_ctx_tool_adherence'
             ).debug('Genesis P68/P69 hook raised; ignored', exc_info=True)
         # Streaming response
@@ -416,7 +411,7 @@ class OpenAIServingChat(GenerateBaseServing):
 
         assert len(generators) == 1
         (result_generator,) = generators
-        from vllm.idiotsavant import cierre_forzado as _g175  # [Genesis PN175: cierre forzado]
+        from vllm.idiotsavant import cierre_forzado as _g175  # [PN175: cierre forzado]
         if self.reasoning_force_close and not isinstance(sampling_params, BeamSearchParams):
             result_generator = _g175.envolver(
                 result_generator, engine_client=self.engine_client, engine_input=engine_input,
@@ -799,7 +794,7 @@ class OpenAIServingChat(GenerateBaseServing):
                                 output.finish_reason if output.finish_reason else "stop"
                             )
 
-                        # [Genesis P107 vllm#41467] MTP truncation detector.
+                        # [P107 vllm#41467] MTP truncation detector.
                         # ~0.25% rate on Qwen3.6 27B-FP8 + MTP K=3 (per upstream
                         # author): EOS at reasoning→tool_call boundary leaves
                         # finish_reason=stop with no content/tool_calls. Raise
@@ -817,7 +812,7 @@ class OpenAIServingChat(GenerateBaseServing):
                             and not delta_message.tool_calls
                         ):
                             logger.warning(
-                                "[Genesis P107] MTP truncation detected for request %s: "
+                                "[P107] MTP truncation detected for request %s: "
                                 "finished with 'stop' but tools configured and only "
                                 "reasoning produced.",
                                 request_id,

@@ -451,7 +451,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                 "override on non-xgrammar backends."
             )
             log.warning(
-                "[Genesis P68] long-ctx prompt (%d chars >= %d threshold): "
+                "[P68] long-ctx prompt (%d chars >= %d threshold): "
                 "SKIPPING tool_choice upgrade — tool %r has xgrammar-"
                 "unsupported schema key %r. P69 reminder will still apply "
                 "if enabled. To force P68 on a non-xgrammar backend, set "
@@ -471,7 +471,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                     " (FORCE-OVERRIDE active)" if force_p68 else ""
                 )
                 log.warning(
-                    "[Genesis P68] long-ctx prompt (%d chars >= %d "
+                    "[P68] long-ctx prompt (%d chars >= %d "
                     "threshold): upgraded tool_choice 'auto' -> "
                     "'required'%s. To disable this rewrite set "
                     "GENESIS_ENABLE_P68_AUTO_FORCE_TOOL=0 or raise "
@@ -480,7 +480,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                 )
             except Exception as e:
                 log.warning(
-                    "[Genesis P68] failed to upgrade tool_choice: %s", e
+                    "[P68] failed to upgrade tool_choice: %s", e
                 )
 
     # P69 — append reminder to the LAST message (user O tool result).
@@ -531,7 +531,7 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
                     )
                 if result.get("applied_p69"):
                     log.info(
-                        "[Genesis P69] long-ctx prompt (%d chars >= %d): "
+                        "[P69] long-ctx prompt (%d chars >= %d): "
                         "appended tool-format reminder (+%d chars) to last "
                         "%s message",
                         chars, threshold, len(reminder), role,
@@ -539,6 +539,6 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
             else:
                 result["reason"] = "last message not a dict; P69 skipped"
         except Exception as e:
-            log.warning("[Genesis P69] failed to append reminder: %s", e)
+            log.warning("[P69] failed to append reminder: %s", e)
 
     return result

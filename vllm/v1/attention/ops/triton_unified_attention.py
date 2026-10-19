@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN124: triton ampere]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -15,7 +14,7 @@ import torch
 import vllm.envs as envs
 from vllm.logger import init_logger
 from vllm.platforms import current_platform
-from vllm.idiotsavant import triton_attn_ampere as _g124  # [Genesis PN124: triton ampere]
+from vllm.idiotsavant import triton_attn_ampere as _g124  # [PN124: triton ampere]
 from vllm.triton_utils import tl, triton
 from vllm.v1.attention.ops.triton_attention_helpers import (
     apply_alibi_to_score,
@@ -321,7 +320,7 @@ def kernel_unified_attention(
     if q_block_local_idx * BLOCK_Q >= cur_batch_query_len:
         return
 
-    g124_base = 0  # [Genesis PN124: triton ampere] primer tile de la ventana (segmentos sobre la ventana)
+    g124_base = 0  # [PN124: triton ampere] primer tile de la ventana (segmentos sobre la ventana)
     if IS_3D:
         if SLIDING_WINDOW > 0 and not (USE_MM_PREFIX or USE_R_SWA) and CHUNK_LOOKBACK < 0:
             g124_base = tl.maximum(seq_len - cur_batch_query_len - SLIDING_WINDOW + 1, 0) // TILE_SIZE
@@ -421,7 +420,7 @@ def kernel_unified_attention(
         CHUNK_SIZE,
     )
 
-    if IS_3D:  # [Genesis PN124: triton ampere]
+    if IS_3D:  # [PN124: triton ampere]
         if SLIDING_WINDOW > 0 and not (USE_MM_PREFIX or USE_R_SWA) and CHUNK_LOOKBACK < 0:
             loop_lo, loop_hi, max_seq_prefix_len = compute_tile_loop_bounds(
                 context_len, seq_len, cur_batch_query_len, q_block_local_idx, segm_idx, tiles_per_segment,
@@ -716,7 +715,7 @@ def reduce_segments(
     BLOCK_Q: tl.constexpr,  # int
     NUM_SEGMENTS_PER_SEQ: tl.constexpr,  # int
     USE_FP8: tl.constexpr,  # bool
-    G124_VENTANA: tl.constexpr = 0,  # [Genesis PN124: triton ampere] SLIDING_WINDOW si los segmentos van sobre la ventana
+    G124_VENTANA: tl.constexpr = 0,  # [PN124: triton ampere] SLIDING_WINDOW si los segmentos van sobre la ventana
     FP8_MIN: tl.constexpr = float8_info.min,
     FP8_MAX: tl.constexpr = float8_info.max,
 ):
@@ -732,7 +731,7 @@ def reduce_segments(
 
     # number of segments for this particular sequence
     num_segments = NUM_SEGMENTS_PER_SEQ
-    if G124_VENTANA > 0:  # [Genesis PN124: triton ampere] misma particion que el kernel 3D
+    if G124_VENTANA > 0:  # [PN124: triton ampere] misma particion que el kernel 3D
         g124_ql = tl.load(query_start_len_ptr + seq_idx + 1) - tl.load(query_start_len_ptr + seq_idx)
         seq_len = seq_len - tl.maximum(seq_len - g124_ql - G124_VENTANA + 1, 0) // TILE_SIZE * TILE_SIZE
     tiles_per_segment = cdiv_fn(seq_len, num_segments * TILE_SIZE)
@@ -971,7 +970,7 @@ def unified_attention(
         BLOCK_Q = BLOCK_M // num_queries_per_kv
         launch_num_warps = 8
         launch_num_stages = 2
-    # [Genesis PN124: triton ampere] el afinado de upstream es solo Blackwell y no entra
+    # [PN124: triton ampere] el afinado de upstream es solo Blackwell y no entra
     # en la SRAM de Ampere; estos parametros si (medido 2,84x en prefill).
     _g124_amp = (
         max_seqlen_q > 1
@@ -1014,7 +1013,7 @@ def unified_attention(
     # path (used when max_seqlen_q > 1) reads TILE_SIZE_PREFILL.
     if tuned_large_head:
         TILE_SIZE_PREFILL = 128
-    if _g124_amp:  # [Genesis PN124: triton ampere]
+    if _g124_amp:  # [PN124: triton ampere]
         TILE_SIZE_PREFILL = _g124_tile
 
     # USE_TD requires BLOCK_SIZE % TILE_SIZE == 0 (enforced by a
@@ -1074,7 +1073,7 @@ def unified_attention(
         or softmax_segm_output is None
         or softmax_segm_max is None
         or softmax_segm_expsum is None
-        # [Genesis PN124: triton ampere] el 3D (KV partida en segmentos) tambien con varias queries por secuencia
+        # [PN124: triton ampere] el 3D (KV partida en segmentos) tambien con varias queries por secuencia
         # (el borrador DFlash verifica bloques de 9, no causal y con ventana: aplanar no es exacto).
         # Los buffers de segmentos son por TOKEN: el tope es sobre tokens, no sobre secuencias.
         or max_seqlen_q > _g124.q_max_3d()
@@ -1219,5 +1218,5 @@ def unified_attention(
             BLOCK_Q=BLOCK_Q,
             NUM_SEGMENTS_PER_SEQ=num_par_softmax_segments,
             USE_FP8=output_scale is not None,
-            G124_VENTANA=sliding_window_val if not (use_mm_prefix or use_rswa) and chunk_lookback < 0 else 0,  # [Genesis PN124: triton ampere]
+            G124_VENTANA=sliding_window_val if not (use_mm_prefix or use_rswa) and chunk_lookback < 0 else 0,  # [PN124: triton ampere]
         )

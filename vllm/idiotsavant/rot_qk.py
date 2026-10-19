@@ -252,7 +252,7 @@ def _fake(q, k, nombre, hkv, D) -> None:
 def registrar() -> None:
     from vllm.utils.torch_utils import direct_register_custom_op
     try:
-        direct_register_custom_op(op_name="genesis_rot_qk", op_func=_impl,
+        direct_register_custom_op(op_name="idiotsavant_rot_qk", op_func=_impl,
                                   mutates_args=["q", "k"], fake_impl=_fake)
     except Exception:
         # Ya registrado en este proceso
@@ -262,8 +262,8 @@ def registrar() -> None:
 def rotar(q: torch.Tensor, k: torch.Tensor, nombre: str, hkv: int, D: int) -> None:
     if not activo(D):
         return
-    if hasattr(torch.ops.vllm, "genesis_rot_qk"):
-        torch.ops.vllm.genesis_rot_qk(q, k, nombre, hkv, D)
+    if hasattr(torch.ops.vllm, "idiotsavant_rot_qk"):
+        torch.ops.vllm.idiotsavant_rot_qk(q, k, nombre, hkv, D)
     else:
         _impl(q, k, nombre, hkv, D)
 

@@ -154,7 +154,7 @@ def decompress(
     return (weight_f32 * scale_f32).to(output_dtype)
 
 
-_PN77_MARKER = "_genesis_pn77_fp8"  # set on layer when compression is active
+_PN77_MARKER = "_isv_pn77_fp8"  # set on layer when compression is active
 _PN77_SCALE_ATTR = "weight_scale"  # standard vllm-conventional scale buffer name
 
 
@@ -176,7 +176,7 @@ def maybe_compress_lm_head_to_fp8(model) -> tuple[str, str]:
     Compression contract:
     - Model's `lm_head.weight` Parameter is REPLACED with FP8 tensor
     - `lm_head.weight_scale` is REGISTERED as a buffer (per-channel float32)
-    - `lm_head._genesis_pn77_fp8` marker set to True (dispatch hook reads this)
+    - `lm_head._isv_pn77_fp8` marker set to True (dispatch hook reads this)
     - Tied-embedding case: detected via `weight.data_ptr()` equality with
       `embed_tokens.weight.data_ptr()`. Compression NOT applied (would
       poison embed_tokens too).

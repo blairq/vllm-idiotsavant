@@ -32,7 +32,7 @@ lo sirve el proceso de la API. El único canal que los une es
 `KVConnectorStats`, que ya viaja scheduler -> logger en cada step.
 
 PN88 mete lo de acá dentro de `OffloadingConnectorStats.data` bajo la clave
-`GENESIS_BUCKET`, y parchea los tres puntos que asumen que todo valor de
+`TIERS_BUCKET`, y parchea los tres puntos que asumen que todo valor de
 ese dict es una lista de operaciones (`aggregate`, `reduce` y
 `OffloadPromMetrics.observe`) para que la reconozcan y la ruteen.
 
@@ -60,10 +60,10 @@ import threading
 # Clave bajo la que PN88 cuelga este bucket dentro de
 # OffloadingConnectorStats.data. Empieza con guion bajo para no chocar nunca
 # con un transfer_type real, que siempre tiene la forma "<SRC>_to_<DST>".
-GENESIS_BUCKET = "_genesis_tiers"
+TIERS_BUCKET = "_isv_tiers"
 
 # Etiqueta usada cuando no se pudo determinar el agente: el request no traía
-# `genesis_agent`, o traía uno que no está en la allowlist.
+# `agent`, o traía uno que no está en la allowlist.
 AGENT_UNKNOWN = "unknown"
 AGENT_OTHER = "other"
 
@@ -207,13 +207,15 @@ def agent_label(kv_transfer_params) -> str:
     """Extrae el agente de `kv_transfer_params`, acotado a la allowlist.
 
     El nombre lo manda el cliente (opencode lo pone en el `extraBody` de cada
-    canal, como `kv_transfer_params.genesis_agent`). Cualquier valor que no
+    canal, como `kv_transfer_params.agent`). Cualquier valor que no
     esté en la lista cerrada cae en `other`, y su ausencia en `unknown`, para
     que la cardinalidad de las labels quede acotada pase lo que pase.
     """
     if not isinstance(kv_transfer_params, dict):
         return AGENT_UNKNOWN
-    raw = kv_transfer_params.get("genesis_agent")
+    from vllm.idiotsavant.sesion import agente
+
+    raw = agente(kv_transfer_params)
     if raw is None:
         return AGENT_UNKNOWN
     name = str(raw).strip().lower()
@@ -262,9 +264,9 @@ def note_job(mgr, job_metadata, direction: str) -> None:
     try:
         import time as _t
 
-        jobs = getattr(mgr, "_genesis_pn88_jobs", None)
+        jobs = getattr(mgr, "_isv_pn88_jobs", None)
         if jobs is None:
-            jobs = mgr._genesis_pn88_jobs = {}
+            jobs = mgr._isv_pn88_jobs = {}
         # Cota superior: `store_block` saltea el archivo si ya existe, así que
         # los bytes REALMENTE escritos pueden ser menos. Se documenta en la
         # métrica; medir el valor exacto exigiría instrumentar cada callback.
@@ -289,7 +291,7 @@ def finish_job(mgr, result):
     try:
         import time as _t
 
-        jobs = getattr(mgr, "_genesis_pn88_jobs", None)
+        jobs = getattr(mgr, "_isv_pn88_jobs", None)
         if not jobs:
             return result
         entry = jobs.pop(getattr(result, "job_id", None), None)
@@ -323,9 +325,9 @@ def note_demote(mgr, job_id: int, nbytes: int, agent: str | None = None) -> None
     try:
         import time as _t
 
-        jobs = getattr(mgr, "_genesis_pn88_jobs", None)
+        jobs = getattr(mgr, "_isv_pn88_jobs", None)
         if jobs is None:
-            jobs = mgr._genesis_pn88_jobs = {}
+            jobs = mgr._isv_pn88_jobs = {}
         jobs[job_id] = (nbytes, _t.perf_counter(), "write", agent or AGENT_UNKNOWN)
         _trim_jobs(jobs)
     except Exception:
@@ -637,9 +639,9 @@ def observe_bucket(prom, payload: dict, engine_idx: int = 0) -> None:
     Nunca lanza: una métrica rota no puede tumbar el logger.
     """
     try:
-        cache = getattr(prom, "_genesis_metrics", None)
+        cache = getattr(prom, "_isv_metrics", None)
         if cache is None:
-            cache = prom._genesis_metrics = {}
+            cache = prom._isv_metrics = {}
         base_labels = list(prom._labelnames)
         base_values = list(prom.per_engine_labelvalues[engine_idx])
 

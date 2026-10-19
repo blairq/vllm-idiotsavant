@@ -80,7 +80,7 @@ under a future Inductor-default config could hit it.
 
 Fix design (this module)
 ------------------------
-Register `genesis::silu_and_mul_pooled` as `torch.library.custom_op`
+Register `idiotsavant::silu_and_mul_pooled` as `torch.library.custom_op`
 with `device_types=("cuda",)`. Inductor treats custom ops as opaque
 nodes — emits a call to the op and does NOT trace through the body.
 Inside the op body we run the same eager logic as PN12's patched
@@ -146,7 +146,7 @@ def should_apply() -> bool:
     return True
 
 
-_OP_QUALNAME = "genesis::silu_and_mul_pooled"
+_OP_QUALNAME = "idiotsavant::silu_and_mul_pooled"
 _op_registered = False
 
 
@@ -163,11 +163,11 @@ def _silu_and_mul_native_fallback(x: torch.Tensor) -> torch.Tensor:
 
 # ─── Genesis library (vLLM canonical pattern, v7.66 refactor) ─────────
 #
-# Module-level `Library("genesis", "FRAGMENT")` — `FRAGMENT` mode
+# Module-level `Library("idiotsavant", "FRAGMENT")` — `FRAGMENT` mode
 # permits multiple Library objects with the same name to coexist, which
 # is the spawn-safe property we need: each worker process re-imports
-# this module and creates a fresh `_GENESIS_LIB` against the same
-# global "genesis" namespace without conflict.
+# this module and creates a fresh `_ISV_LIB` against the same
+# global "idiotsavant" namespace without conflict.
 #
 # Reference: vLLM canonical pattern at vllm/utils/torch_utils.py:896
 # (`vllm_lib = Library("vllm", "FRAGMENT")`) + direct_register_custom_op
@@ -182,7 +182,7 @@ def _silu_and_mul_native_fallback(x: torch.Tensor) -> torch.Tensor:
 #     namespace. In a fresh worker process, the C++ registry STILL
 #     has the op from the parent's earlier `define()` call (C++ state
 #     survives spawn), so the worker's `define()` would fail.
-#   - We pre-check `torch.ops.genesis.silu_and_mul_pooled` existence
+#   - We pre-check `torch.ops.idiotsavant.silu_and_mul_pooled` existence
 #     BEFORE calling `define()` — the same belt-and-suspenders SGLang
 #     uses (custom_op.py:155 `if not hasattr(torch.ops.sglang,
 #     op_name)`). On hit: skip define, sync local flag.
@@ -203,19 +203,19 @@ except ImportError:
 # doesn't have side-effects on torch.library state. Once created, the
 # module-level reference keeps it alive for the operator lifetime
 # (per direct_register_custom_op docstring caveat).
-_GENESIS_LIB = None
+_ISV_LIB = None
 
 
-def _make_genesis_lib():
-    """Construct or fetch the module-level `genesis` FRAGMENT Library.
+def _make_isv_lib():
+    """Construct or fetch the module-level `idiotsavant` FRAGMENT Library.
 
     Idempotent. Each worker process gets its own object pointing at
-    the shared "genesis" namespace.
+    the shared "idiotsavant" namespace.
     """
-    global _GENESIS_LIB
-    if _GENESIS_LIB is None and _HAS_TORCH_LIBRARY:
-        _GENESIS_LIB = Library("genesis", "FRAGMENT")
-    return _GENESIS_LIB
+    global _ISV_LIB
+    if _ISV_LIB is None and _HAS_TORCH_LIBRARY:
+        _ISV_LIB = Library("idiotsavant", "FRAGMENT")
+    return _ISV_LIB
 
 
 def _silu_and_mul_pooled_impl(x: torch.Tensor) -> torch.Tensor:
@@ -275,7 +275,7 @@ def _silu_and_mul_pooled_fake(x: torch.Tensor) -> torch.Tensor:
 
 
 def _register_op_once() -> bool:
-    """Register `genesis::silu_and_mul_pooled` via vLLM canonical
+    """Register `idiotsavant::silu_and_mul_pooled` via vLLM canonical
     `direct_register_custom_op` pattern.
 
     Idempotent — and **fork-safe across worker spawn** (issue #16).
@@ -288,7 +288,7 @@ def _register_op_once() -> bool:
     `_op_registered` is a module-level Python flag — it RESETS to False
     in each worker process when vLLM spawns workers via
     `VLLM_WORKER_MULTIPROC_METHOD=spawn` (fresh interpreter, re-imports
-    this module). The C++ `torch.ops.genesis.silu_and_mul_pooled`
+    this module). The C++ `torch.ops.idiotsavant.silu_and_mul_pooled`
     state persists across spawn though, so workers detect existing
     global registration BEFORE attempting `Library.define()` — which
     would raise on duplicate name.
@@ -331,8 +331,8 @@ def _register_op_once() -> bool:
     # sync our local flag and return True — no `define()` call, no
     # duplicate-name raise.
     try:
-        if hasattr(torch.ops, "genesis") and hasattr(
-            torch.ops.genesis, "silu_and_mul_pooled"
+        if hasattr(torch.ops, "idiotsavant") and hasattr(
+            torch.ops.idiotsavant, "silu_and_mul_pooled"
         ):
             _op_registered = True
             log.info(
@@ -342,15 +342,15 @@ def _register_op_once() -> bool:
             )
             return True
     except (AttributeError, RuntimeError):
-        # torch.ops.genesis namespace may not exist yet — fall through.
+        # torch.ops.idiotsavant namespace may not exist yet — fall through.
         pass
 
     try:
         # Try vLLM's canonical helper first — drops infer_schema
         # overhead and keeps schema computation outside dynamo trace.
         from vllm.utils.torch_utils import direct_register_custom_op
-        genesis_lib = _make_genesis_lib()
-        if genesis_lib is None:
+        isv_lib = _make_isv_lib()
+        if isv_lib is None:
             log.info("[PN25] Library construction failed")
             return False
         direct_register_custom_op(
@@ -358,7 +358,7 @@ def _register_op_once() -> bool:
             op_func=_silu_and_mul_pooled_impl,
             mutates_args=[],
             fake_impl=_silu_and_mul_pooled_fake,
-            target_lib=genesis_lib,
+            target_lib=isv_lib,
         )
     except ImportError:
         # Older vLLM without direct_register_custom_op — fall back to
@@ -451,6 +451,6 @@ def get_op_callable():
     if not _register_op_once():
         return None
     try:
-        return torch.ops.genesis.silu_and_mul_pooled
+        return torch.ops.idiotsavant.silu_and_mul_pooled
     except (AttributeError, RuntimeError):
         return None

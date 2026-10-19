@@ -1,5 +1,3 @@
-# [Genesis wiring marker: [Genesis PN151: metadata GDN en un kernel]]
-# [Genesis wiring marker: [Genesis PN122: rollback GDN con cinta]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Backend for GatedDeltaNet attention."""
@@ -24,7 +22,7 @@ from vllm.v1.attention.backends.utils import (
     split_decodes_and_prefills,
 )
 from vllm.v1.kv_cache_interface import MambaSpec
-from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 
 
 class GDNAttentionBackend(AttentionBackend):
@@ -167,7 +165,7 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             dtype=torch.int32,
             device=device,
         )
-        # [Genesis PN122: rollback GDN con cinta] slot de cinta por request spec
+        # [PN122: rollback GDN con cinta] slot de cinta por request spec
         self._g122_slots: torch.Tensor = torch.zeros(
             (self.decode_cudagraph_max_bs,),
             dtype=torch.int32,
@@ -431,7 +429,7 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             f"num_decodes: {num_decodes}, num_spec_decodes: {num_spec_decodes}"
         )
 
-        # [Genesis PN122: rollback GDN con cinta] slots en el mismo orden que spec_state_indices
+        # [PN122: rollback GDN con cinta] slots en el mismo orden que spec_state_indices
         g122_slots = None
         # Con num_speculative_blocks=0 hay UNA columna, pero el conv spec usa
         # spec_state_indices_tensor.size(-1) como max_query_len (= K+1).
@@ -502,7 +500,7 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             )
             num_accepted_tokens = self.num_accepted_tokens[:batch_size]
             num_accepted_tokens[num_spec_decodes:].fill_(1)
-            if g122_slots is not None:  # [Genesis PN122: rollback GDN con cinta]
+            if g122_slots is not None:  # [PN122: rollback GDN con cinta]
                 self._g122_slots[:num_spec_decodes].copy_(
                     g122_slots, non_blocking=True
                 )
@@ -556,7 +554,7 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             batch_ptr=batch_ptr,
             token_chunk_offset_ptr=token_chunk_offset_ptr,
         )
-        attn_metadata.g122_slots = g122_slots  # [Genesis PN122: rollback GDN con cinta]
+        attn_metadata.g122_slots = g122_slots  # [PN122: rollback GDN con cinta]
         _g122.debug_builder(num_spec_decodes, num_accepted_tokens, g122_slots,
                             spec_state_indices_tensor, spec_query_start_loc,
                             m.seq_lens)
@@ -588,5 +586,5 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
         return self.build(0, m, num_accepted_tokens, num_decode_draft_tokens_cpu)
 
 
-from vllm.idiotsavant import gdn_meta as _g151  # [Genesis PN151: metadata GDN en un kernel]
-_g151.instalar(GDNAttentionMetadataBuilder)  # [Genesis PN151: metadata GDN en un kernel]
+from vllm.idiotsavant import gdn_meta as _g151  # [PN151: metadata GDN en un kernel]
+_g151.instalar(GDNAttentionMetadataBuilder)  # [PN151: metadata GDN en un kernel]

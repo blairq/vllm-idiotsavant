@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN145: bloque de la ventana deslizante]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -109,7 +108,7 @@ def _largest_kernel_block_within(
     """
     from vllm.v1.attention.backend import MultipleOf
 
-    # [Genesis PN145: bloque de la ventana deslizante]
+    # [PN145: bloque de la ventana deslizante]
     # Upstream toma solo `s.base` de un MultipleOf, asi que no puede elegir un multiplo;
     # y sin `page_budget` cae al mas chico, apostando a que `unify` despues escale el
     # bloque. En un hibrido `unify` padea la PAGINA y deja el bloque como esta, y el

@@ -16,7 +16,7 @@ en el momento del desalojo los del subagente son los MAS recientes, asi que
 LRU y ARC eligen exactamente al revés de lo que conviene.
 
 Pero sí tenemos la información: PN90 ya clasifica cada request por
-`genesis_agent`. Un agente efímero (coder, explorer, verifier...) es
+`agent`. Un agente efímero (coder, explorer, verifier...) es
 justamente el que no merece ocupar caché.
 
 ================================================================

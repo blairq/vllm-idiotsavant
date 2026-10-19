@@ -104,7 +104,7 @@ def _avisar_si_falta_disco(minimo_gib: float = 10.0) -> None:
 
         libre = shutil.disk_usage("/root/.cache").free / 2 ** 30
         if libre < minimo_gib:
-            log.warning("[Genesis] quedan %.1f GiB en el disco de las caches JIT (menos de "
+            log.warning("[idiotsavant] quedan %.1f GiB en el disco de las caches JIT (menos de "
                         "%.0f). Las caches de torch.compile/Inductor/Triton se escriben ahi "
                         "durante el arranque; sin lugar pueden quedar truncadas y cargarse "
                         "despues sin avisar.", libre, minimo_gib)

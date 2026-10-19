@@ -143,7 +143,7 @@ def publicar(agent: str, comun: int, tokens_por_bloque: int) -> None:
         if not M.enabled():
             return
         s = M.sink()
-        lab = (("agent", M.agent_label({"genesis_agent": agent})),)
+        lab = (("agent", M.agent_label({"agent": agent})),)
         s.set("kv_prefix_shared_blocks", lab, float(comun))
         s.set("kv_prefix_shared_tokens", lab, float(comun * max(tokens_por_bloque, 0)))
         # El MINIMO es el numero que sirve. `last` y `max` estan contaminados

@@ -84,8 +84,8 @@ def registrar(request, acierto_local: int) -> None:
             dtxt = "sin pedidos previos"
         from vllm.idiotsavant import sesion as _g169
         et = _g169.de_request(request)
-        stxt = (" | %s ses=%s raiz=%s" % (et.get("genesis_agente_oc", "?"), et.get("genesis_sesion", "")[-8:],
-                                          et.get("genesis_raiz", "")[-8:])) if et else ""
+        stxt = (" | %s ses=%s raiz=%s" % (et.get("session_agent", "?"), et.get("session_id", "")[-8:],
+                                          et.get("session_root", "")[-8:])) if et else ""
         log.warning("PN165 req=%s prompt=%d bloques=%d | comun_max=%d bloques (~%d tok) con req=%s de hace %.0f s | "
                     "acierto_local=%d tok (%.0f%%) | %s%s", str(request.request_id)[-10:], n_prompt, len(hs), mejor,
                     mejor * tok_por_bloque, str(quien)[-10:], hace, acierto_local,

@@ -1,4 +1,3 @@
-# [Genesis wiring marker: [Genesis PN122: rollback GDN con cinta]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from dataclasses import dataclass
@@ -27,7 +26,7 @@ from vllm.v1.worker.gpu.mm.encoder_cache import EncoderCache
 from vllm.v1.worker.gpu.model_states.default import DefaultModelState
 from vllm.v1.worker.gpu.model_states.interface import ModelSpecificAttnMetadata
 from vllm.v1.worker.gpu.model_states.recoverssm import RecoverSSMState
-from vllm.idiotsavant import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 from vllm.v1.worker.mamba_utils import (
     MambaSpecDecodeGPUContext,
     get_mamba_group_ids,
@@ -223,7 +222,7 @@ class MambaHybridModelState(DefaultModelState):
             BLOCK_SIZE=block,
             MAMBA_BLOCK_SIZE=mamba_spec.block_size,
         )
-        if _g122.activo():  # [Genesis PN122: rollback GDN con cinta]
+        if _g122.activo():  # [PN122: rollback GDN con cinta]
             _g122.v2_pre(
                 ctx, kv_cache_config,
                 self.vllm_config.compilation_config.static_forward_context,
@@ -389,7 +388,7 @@ class MambaHybridModelState(DefaultModelState):
             and num_computed_tokens is not None
             and self._mamba_ctx is not None
         ):
-            if _g122.activo():  # [Genesis PN122: rollback GDN con cinta]
+            if _g122.activo():  # [PN122: rollback GDN con cinta]
                 _g122.v2_post(
                     self._mamba_ctx, num_reqs, self.num_accepted_tokens_gpu,
                     self._mamba_state_idx_gpu, num_computed_tokens, idx_mapping,

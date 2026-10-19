@@ -229,7 +229,7 @@ def _verificar(completo, ralo, runner, input_batch, pos, eidx):
 
 def instalar(cls) -> None:
     """Envuelve ``GPUModelRunner.sample`` (por encima del envoltorio del arbol)."""
-    if getattr(cls, "_genesis_pn153", False):
+    if getattr(cls, "_isv_pn153", False):
         return
     sample0 = cls.sample
 
@@ -239,7 +239,7 @@ def instalar(cls) -> None:
         if motivo is not None:
             return sample0(self, hidden_states, input_batch, grammar_output)
         m = self.model
-        if not getattr(m, "_genesis_pn153", False):
+        if not getattr(m, "_isv_pn153", False):
             cl0 = m.compute_logits
 
             def compute_logits(h, _cl0=cl0, _m=m):
@@ -249,7 +249,7 @@ def instalar(cls) -> None:
                 _ctx[0] = None
                 return _logits_por_rango(_m, h, *c)
             m.compute_logits = compute_logits
-            m._genesis_pn153 = True
+            m._isv_pn153 = True
         _ctx[0] = (self, input_batch)
         try:
             return sample0(self, hidden_states, input_batch, grammar_output)
@@ -257,7 +257,7 @@ def instalar(cls) -> None:
             _ctx[0] = None
 
     cls.sample = sample
-    cls._genesis_pn153 = True
+    cls._isv_pn153 = True
     log.warning("[PN153] logits por rango instalados (C max %d, margen %d, verificar %d)",
                 _C_MAX, _MARGEN, _VERIFICAR[0])
 
