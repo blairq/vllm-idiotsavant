@@ -157,7 +157,7 @@ def _sec_vram(mem: dict) -> list[str]:
     pesos = _gib(mem.get("weights_memory"))
     kv = _gib(mem.get("available_kv_cache_memory_bytes"))
     graphs = _gib(mem.get("cudagraph_memory_estimate"))
-    no_kv = _gib(mem.get("non_kv_cache_memory"))
+    _gib(mem.get("non_kv_cache_memory"))
     # lo que el profiler reservo para activaciones y overhead del runtime,
     # descontando los pesos (que ya se muestran aparte)
     # OJO con la aritmetica: vLLM reporta `non_kv_cache_memory` medido DENTRO
@@ -291,15 +291,6 @@ def _sec_offloading(vc, num_tokens: int) -> list[str]:
         )
         out.append("    hace diez minutos y te lo empujan. Considera 'arc'.")
 
-    if tiers and False:
-        out.append("")
-        out.append(
-            "  ⚠ PN81 APAGADO y hay tier de disco: vLLM no le pone cuota NI"
-        )
-        out.append(
-            "    limpieza a ese directorio. Crece sin techo (medido: 38 GB en"
-        )
-        out.append("    una sesion). Activar GENESIS_ENABLE_PN81_KV_DISK_QUOTA=1.")
     return out
 
 
@@ -591,8 +582,6 @@ def construir_informe(vc, num_tokens: int) -> str:
 def emitir_informe(vllm_config, num_tokens: int) -> None:
     """Llamado desde kv_cache_utils una vez que se sabe el tamaño del KV."""
     try:
-        if False:
-            return
         # el anchor puede ejecutarse mas de una vez por proceso (vLLM llama al
         # calculo del tamaño de KV mas de una vez en algunos arranques); el
         # informe tiene que salir UNA sola vez

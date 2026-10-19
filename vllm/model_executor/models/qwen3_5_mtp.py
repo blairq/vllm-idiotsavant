@@ -380,7 +380,6 @@ class Qwen3_5MTP(LocalArgmaxMixin, nn.Module, SupportsMultiModal):
                 yield name, weight
 
         # [Genesis P112 MTP Quant Disk Cache v1.1]
-        import os as _genesis_os
         _genesis_p112_cache_enabled = (
             False
         )

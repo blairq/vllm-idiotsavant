@@ -111,18 +111,11 @@ def _contar(motivo: str, pedidos_decode: int) -> None:
         except OSError:
             pass
 
-# Bisectar sin reiniciar (solo con GENESIS_ARBOL_DEBUG=1): bits leidos de /dev/shm/arbol_modo.
-#   1 aceptar solo por la primera corrida   2 sin delta de RoPE        4 sin compactar KV
-#   8 sin compactar estados ocultos         16 sin compactar la conv   32 volcar el paso al log
-#  64 mascara de cadena en un paso que POR LO DEMAS va en arbol (aisla la mascara)
-# Cambiarlo SOLO con el servidor ocioso: los dos ranks de TP tienen que leer lo mismo.
-_DEBUG = False
 _modo_cache = [0, 0.0]
 
 
 def _modo() -> int:
-    if not _DEBUG:
-        return 0
+    return 0
     import time
     ahora = time.monotonic()
     if ahora - _modo_cache[1] > 0.5:
@@ -180,29 +173,13 @@ def _init(K: int, max_reqs: int, slots: int, dev, KC: int = 16) -> None:
 # arboles de decenas de nodos. Reintentar solo si el arbol crece. GENESIS_ARBOL_RHEO=1 lo prende.
 _RHEO = False
 
-_DUPLICADO = False
 _path0 = None
 
 
 def _sample_path(self, candidate_ids, scores, num_reqs):
     R = num_reqs
-    if _DUPLICADO:
-        # Diagnostico: la misma cadena de 4 tokens DOS veces, como dos ramas que salen del ancla.
-        # Con un forward correcto los logits de los nodos 5..8 son los de 1..4 (mismo camino).
-        _path0(self, candidate_ids, scores, num_reqs)
-        self.draft_tokens[:R, 4:8] = self.draft_tokens[:R, 0:4]
-        E.padre_b[:R] = E.dup_padre           # constantes creadas fuera del grafo
-        E.prof_b[:R] = E.dup_prof
-        E.bits_b[:R] = E.dup_bits
-        return
     S, Kc = self.num_speculative_steps, self.selector_top_k
     rheo = None
-    if _RHEO:
-        # temperatura, semilla y posicion de cada pedido, como las lee el kernel de upstream
-        sl = self.sample_idx_mapping.view(-1, S)[:R, 0].long().clamp(min=0)
-        rheo = (self.temperature[sl].float().contiguous(), self.seeds[sl].long().contiguous(),
-                self.sample_pos.view(-1, S)[:R, 0].long().contiguous(),
-                E.rheo_b[0][:R], E.rheo_b[1][:R], E.rheo_b[2][:R], E.rheo_b[3][:R])
     ab.construir_dfs_kernel(candidate_ids.view(R, S, Kc).contiguous(),
                             scores.view(R, S, Kc, Kc).contiguous(),
                             self.draft_tokens[:R], E.padre_b[:R], E.prof_b[:R], S, E.bits_b[:R],
@@ -236,9 +213,6 @@ def _envolver_borrador() -> None:
         E.bits_v[idx] = E.bits_b[:R]
         E.delta_v[idx] = E.prof_b[:R] - E.ar_T[None]
         E.corrida_v[idx] = (pb.long() == (E.ar_T[None] - 1)).long().cumprod(dim=1).bool()
-        if _RHEO and not _DUPLICADO:
-            for v, b in zip(E.rheo_v, E.rheo_b):
-                v[idx] = b[:R]
         return out
 
     cls.__init__, cls.propose, cls._sample_path = __init__, propose, _sample_path
@@ -345,7 +319,7 @@ def _rejection_sample(target_logits, draft_logits, draft_sampled, cu_num_logits,
     if not uniforme_valido and E.uniforme:
         E.uniforme = False
     en_arbol = uniforme_valido and not (_modo() & 1)
-    idx = idx_mapping.long() if (_RHEO and E.hay_temp) or en_arbol else idx_mapping
+    idx = idx_mapping.long() if en_arbol else idx_mapping
     if en_arbol:
         # La semilla del ruido se indexa por posicion REAL (base + profundidad): asi el token j
         # del camino aceptado consume la misma clave que consumiria en una cadena. El lote es
@@ -358,18 +332,6 @@ def _rejection_sample(target_logits, draft_logits, draft_sampled, cu_num_logits,
     muestra_f = gumbel_sample(target_logits, expanded_idx_mapping, temperature, seed, pos,
                               apply_temperature=False, is_drafting=False, use_fp64=use_fp64)
     rheo = None
-    if _RHEO and E.hay_temp and not _DUPLICADO:
-        n = target_logits.shape[0]
-        ei, lp = expanded_idx_mapping.long(), expanded_local_pos.long().clamp(max=T - 1)
-        fila = torch.bucketize(torch.arange(n, device=target_logits.device),
-                               cu_num_logits[1:].long(), right=True).clamp(max=R - 1)
-        razon, y_r = ab.preparar_rheo(
-            target_logits, draft_sampled, cu_num_logits, fila, E.rheo_v[2][ei, lp],
-            E.rheo_v[3][ei, lp], E.rheo_v[1][ei, lp], E.rheo_v[0][ei, lp],
-            lambda lg: gumbel_sample(lg, expanded_idx_mapping, temperature, seed, pos,
-                                     apply_temperature=False, is_drafting=False, use_fp64=use_fp64))
-        rheo = (E.rheo_v[2][idx].contiguous(), razon.contiguous(), y_r.contiguous(),
-                seed[idx].long().contiguous(), pos.long().contiguous())
     sampled, nacc, camino, E.filas = ab.aceptar_kernel(
         draft_sampled, muestra_f, cu_num_logits, E.padre_v, alcanzable, T, E.K, rheo=rheo,
         idx_map=idx_mapping)
@@ -545,9 +507,6 @@ def _envolver_conv() -> None:
 def instalar() -> None:
     from vllm.idiotsavant import opciones
     if not opciones.actual().tree_drafting:
-        return
-    if False:
-        log.error("[ARBOL] necesita PN122 (la cinta de GDN): queda APAGADO")
         return
     _envolver_borrador()
     _envolver_runner()

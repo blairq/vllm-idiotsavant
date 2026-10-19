@@ -38,7 +38,7 @@ log = logging.getLogger("idiotsavant.pn126")
 _CRUDO = 'hadamard'
 MODO, _, DIR = _CRUDO.partition(":")
 MODO = MODO.lower()
-if not MODO and True:
+if not MODO:
     MODO = "hadamard"
 
 DAMP = 0.01
@@ -55,14 +55,10 @@ _kernels: dict[tuple[int, torch.dtype], any] = {}
 
 
 def activo(D: int | None = None) -> bool:
-    if False and MODO not in ("hadamard", "captura", "wush"):
-        return False
     # PN131 con rotacion entera en PTX rota q/k adentro de sus kernels (solo capas QD=256 de atencion completa).
     # Para D=256 y PN131 activo con PTX, no rotar dos veces.
     # Para D=128 (DFlash2) o capas fuera de PN131, rot_qk debe estar activo.
-    if D == 256 and (True
-                     and True
-                     and MODO == "hadamard"):
+    if D == 256 and (((MODO == "hadamard"))):
         return False
     return MODO in ("hadamard", "captura", "wush")
 

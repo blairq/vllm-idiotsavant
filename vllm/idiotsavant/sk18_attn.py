@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import logging
 import math
-import os
 
 import numpy as np
 import torch
@@ -97,7 +96,7 @@ ZSH = 13
 ZSH4 = 16   # int4: z = (sum_g acc_g*rq_g*rk_g*kmax) >> ZSH4
 WCAP = 1911  # tope de wp: 3 planos de nibbles
 QPLANOS = 2  # 2 = q int8 en dos planos de nibbles
-PLANOS_A = int((1 if QPLANOS == 2 else QPLANOS))
+PLANOS_A = 1
 ESPERA4 = 1
 # Ventana reciente en int8 (camino hibrido): PAGS paginas por secuencia espejadas en un pool
 # aparte. La atencion se concentra ahi (39-49% de la masa en las ultimas 832 posiciones), y
@@ -105,7 +104,7 @@ ESPERA4 = 1
 VENT = 2     # paginas espejadas (0 = sin espejo)
 SCH = 8           # trozos por pagina espejada
 ESC8 = 3               # el espejo usa refs 2^ESC8 mas chicas (mas precision de escala)   # grupos cp.async pendientes (0 = esperar todo)  # planos en la pasada del maximo
-NIV4 = int((119 if QPLANOS == 2 else 7))
+NIV4 = 119
 # escala del logit int4: q = mx/NIV4 (una escala por fila), k = KM*r/16 * 2^ek/32767, 16 = sqrt(256)
 MQ4 = round(2 ** 56 / (NIV4 * 32767 * 16 * 16 * math.log(2)))
 CLIP4 = 243   # recorte de la escala, sobre 256
@@ -128,10 +127,6 @@ SH_H = 32 * (256 + 128) + 2 * 64 * 256 + 2 * 256 * 64 + 2 * 64 * 2 * 4
 NW8 = 8
 
 
-# SK-30 (28-09): decode en UNA pasada (softmax en linea en fp32, K leida una vez, reparto en GMAX grupos de
-# keys segun el seq_len real). Offline, reloj fijo: 272 -> 198 us por capa a 62k, 139 -> 91 a 20k, 125 -> 39 a
-# 4k; mas preciso que batch2 contra float. P.V con P' en 16 bits (hi/lo, dos mma int8).
-SK30 = True
 # Grupos de keys de SK-30: una ola con 1 bloque por SM, SMs / nh (82 / 2 = 41 en la 3090; 03-10: -11 a -31% contra 128).
 SK30_NQ = 2
 # V rotada en d al escribir (Hadamard/16 con signos, como K): con canales outlier el error int8 de V baja de
@@ -161,7 +156,6 @@ def _arbol() -> bool:
     return _ARBOL
 
 
-ROTV_MAIN = False and SK30 and _arbol() and ROT_PTX
 _signos = {}
 
 
@@ -208,7 +202,7 @@ def _habilitado() -> bool:
 
 
 def _int4_listo() -> bool:
-    return True and _INT4_IMPL
+    return _INT4_IMPL
 
 
 _INT4_IMPL = True    # camino int4 completo (SK-18i)
@@ -264,33 +258,32 @@ def _kernels(md="int8"):
                       union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs + ["-DO32=1"], warps=1),
                       decuant=Kernel("sk18i_decuant.cu", "sk18i_decuant", warps=1),
                       salida=Kernel("sk18i_salida.cu", "sk18i_salida", warps=1))
-            if VENT > 0:     # espejo int8 de la ventana reciente
-                ks["lado"] = Kernel("sk18i_lado.cu", "sk18i_lado", warps=4)
-                ks["escribir8"] = Kernel("sk18h_escribir2.cu", "sk18h_escribir2", defs=["-DROTV=1"], warps=1)
-                ks["decuant8"] = Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"], warps=1)
-                ks["prep8"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", warps=1)
-                ks["espejo"] = Kernel("sk18h_batch2.cu", "sk18h_batch2",
-                                      defs=defs + [f"-DHIB=1", f"-DESC8={ESC8}", f"-DWCAPW={WCAP}", f"-DSCH={SCH}"], warps=4)
+            ks["lado"] = Kernel("sk18i_lado.cu", "sk18i_lado", warps=4)
+            ks["escribir8"] = Kernel("sk18h_escribir2.cu", "sk18h_escribir2", defs=["-DROTV=1"], warps=1)
+            ks["decuant8"] = Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"], warps=1)
+            ks["prep8"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", warps=1)
+            ks["espejo"] = Kernel("sk18h_batch2.cu", "sk18h_batch2",
+                                  defs=defs + [f"-DHIB=1", f"-DESC8={ESC8}", f"-DWCAPW={WCAP}", f"-DSCH={SCH}"], warps=4)
             for x in ks.values():
                 x.cargar()
             _k[dev] = ks
             return ks
-        arb = ["-DARBOL=1"] if (_arbol() and ROT_PTX) else []
+        arb = ["-DARBOL=1"] if (_arbol()) else []
         ks = dict(main=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb, warps=4),
                   main8=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb + [f"-DNWARPS={NW8}"], warps=NW8),
-                  escribir=Kernel("sk18h_escribir2.cu" if ROT_PTX else "sk18h_escribir.cu",
-                                  "sk18h_escribir2" if ROT_PTX else "sk18h_escribir",
-                                  defs=["-DROTV=1"] if (ROTV_MAIN and ROT_PTX) else [], warps=1),
-                  prep=Kernel("sk18h_prep2.cu" if ROT_PTX else "sk18h_prep.cu",
-                              "sk18h_prep2" if ROT_PTX else "sk18h_prep", defs=arb, warps=1),
+                  escribir=Kernel('sk18h_escribir2.cu',
+                                  'sk18h_escribir2',
+                                  defs=["-DROTV=1"] if (False) else [], warps=1),
+                  prep=Kernel('sk18h_prep2.cu',
+                              'sk18h_prep2', defs=arb, warps=1),
                   union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs, warps=1),
-                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"] if ROTV_MAIN else [], warps=1),
+                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"] if False else [], warps=1),
                   salida=Kernel("sk18h_salida.cu", "sk18h_salida", warps=1))
-        if SK30 and _arbol() and ROT_PTX:
+        if _arbol():
             ks["prep30"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=arb + ["-DQSF=1"], warps=1)
             ks["sk30"] = Kernel("sk30_decode_1pasada.cu", "sk30_decode",
                                 defs=[f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"], warps=4 * SK30_NQ)
-            ks["sk30u"] = Kernel("sk30_decode_1pasada.cu", "sk30_union", defs=["-DROTV=1"] if ROTV_MAIN else [], warps=8)
+            ks["sk30u"] = Kernel("sk30_decode_1pasada.cu", "sk30_union", defs=["-DROTV=1"] if False else [], warps=8)
         for x in ks.values():
             x.cargar()
         _k[dev] = ks
@@ -345,14 +338,13 @@ class _Bufs:
         self.Q = z(bmax * nh * MB * QD, dt=torch.int8)
         self.rq = z(R * 4, dt=torch.int32)
         self.sq = z(R * 2 * 4, dt=torch.int32)        # sumas de q por grupo (int4, hasta 2 planos)
-        self.oc = z((nchmax + (VENT * SCH if VENT > 0 else 0)) * R, dt=torch.int32)       # correccion del cero de V (int4)
-        if VENT > 0:                                  # espejo int8 de la ventana reciente
-            self.dueno = torch.full((bmax * VENT,), -1, dtype=torch.int32, device=dev)
-            self.slot2 = z(16384, dt=torch.int64)
-            self.Q8 = z(R * QD, dt=torch.int8)
-            self.mqb8 = z(R, dt=torch.int32)
-            self.dcap8 = z(R, dt=torch.int32)
-            self.lim8 = z(R, dt=torch.int32)
+        self.oc = z((nchmax + ((VENT * SCH))) * R, dt=torch.int32)       # correccion del cero de V (int4)
+        self.dueno = torch.full((bmax * VENT,), -1, dtype=torch.int32, device=dev)
+        self.slot2 = z(16384, dt=torch.int64)
+        self.Q8 = z(R * QD, dt=torch.int8)
+        self.mqb8 = z(R, dt=torch.int32)
+        self.dcap8 = z(R, dt=torch.int32)
+        self.lim8 = z(R, dt=torch.int32)
         self.lim = z(R, dt=torch.int32)
         if _arbol():
             self.abase = z(R, dt=torch.int32)
@@ -361,19 +353,18 @@ class _Bufs:
             self.anc_cadena = {}
         self.mqb = z(R, dt=torch.int32)
         self.dcap = z(R, dt=torch.int32)
-        self.nx = VENT * SCH if VENT > 0 else 0       # ranuras extra para los trozos del espejo
+        self.nx = VENT * SCH       # ranuras extra para los trozos del espejo
         self._dev, self._nchx, self._R, self._NG = dev, nchmax + self.nx, R, NG
         self.oh = None                                # acumuladores de batch2: ver acumuladores()
-        if not (ROT_PTX and _arbol() and SK30 and MB == 64):
+        if not (((_arbol() and MB == 64))):
             self.acumuladores()
         self.ar = torch.arange(_max_tok_decode(), device=dev, dtype=torch.int32)
-        if SK30:
-            self.gmax30 = max(1, torch.cuda.get_device_properties(dev).multi_processor_count // nh)
-            self.qsf = z(R, dt=torch.float32)
-            self.Op30 = z(self.gmax30 * R * QD, dt=torch.float16)
-            self.Mp30 = z(self.gmax30 * R, dt=torch.float32)
-            self.Lp30 = z(self.gmax30 * R, dt=torch.float32)
-            log.info("PN131 SK-30: parciales %d grupos (%.0f MiB)", self.gmax30, self.Op30.numel() * 2 / 2**20)
+        self.gmax30 = max(1, torch.cuda.get_device_properties(dev).multi_processor_count // nh)
+        self.qsf = z(R, dt=torch.float32)
+        self.Op30 = z(self.gmax30 * R * QD, dt=torch.float16)
+        self.Mp30 = z(self.gmax30 * R, dt=torch.float32)
+        self.Lp30 = z(self.gmax30 * R, dt=torch.float32)
+        log.info("PN131 SK-30: parciales %d grupos (%.0f MiB)", self.gmax30, self.Op30.numel() * 2 / 2**20)
         log.info("PN131 buffers: bmax=%d nchmax=%d MB=%d (acumuladores de batch2: %s)", bmax, nchmax, MB,
                  "%.0f MiB" % ((self.oh.numel() + self.ol.numel()) * 4 / 2**20) if self.oh is not None
                  else "no, los pide solo el camino sin SK-30")
@@ -510,9 +501,8 @@ def escribir(impl, layer, key, value, kv_cache, slot_mapping):
         if bool(ok.any()):
             kk_ = key[:n].float()
             vv_ = value[:n].float()
-            if ROT_PTX:   # la referencia de K es la de k ROTADA (el max baja ~2x con Hadamard)
-                kk_ = _rotar_q_prefill(kk_.view(n, -1, QD).to(torch.float32))
-            if md == "int4" or ROTV_MAIN:   # la V tambien va rotada (int4, o int8 con ROTV)
+            kk_ = _rotar_q_prefill(kk_.view(n, -1, QD).to(torch.float32))
+            if md == "int4":   # la V tambien va rotada (int4, o int8 con ROTV)
                 vv_ = _rotar_q_prefill(vv_.view(n, -1, QD).to(torch.float32))
             sk = float(kk_.abs().amax(-1)[ok].max()) / niv
             sv = float(vv_.abs().amax(-1)[ok].max()) / niv
@@ -534,21 +524,15 @@ def escribir(impl, layer, key, value, kv_cache, slot_mapping):
         for par in (0, 1):
             ks["escribir"].lanzar((n, nh), [k16, v16, slot, raw, c.refs, _signos_dev(dev),
                                             nh, bs, blk, VSH, k16.stride(0), v16.stride(0), par])
-        if VENT > 0:
-            _espejar(impl, layer, ks, k16, v16, slot, n, dev, nh, bs, c)
-    elif ROT_PTX:
-        ks["escribir"].lanzar((n, nh), [k16, v16, slot, raw, c.refs, _signos_dev(dev), nh, bs, blk, VSH, k16.stride(0), v16.stride(0)])
+        _espejar(impl, layer, ks, k16, v16, slot, n, dev, nh, bs, c)
     else:
-        ks["escribir"].lanzar((n, nh), [k16, v16, slot, raw, c.refs, nh, bs, blk, VSH, k16.stride(0), v16.stride(0)])
+        ks["escribir"].lanzar((n, nh), [k16, v16, slot, raw, c.refs, _signos_dev(dev), nh, bs, blk, VSH, k16.stride(0), v16.stride(0)])
 
 
-_md_forzada = None      # solo para los tests offline, que llaman escribir() sin contexto
 
 
 def _md_actual(impl, layer=None):
     """Metadata del paso desde el contexto de forward (do_kv_cache_update no la recibe)."""
-    if _md_forzada is not None:
-        return _md_forzada
     try:
         from vllm.forward_context import get_forward_context
         md = get_forward_context().attn_metadata
@@ -603,18 +587,11 @@ def forward(impl, layer, query, kv_cache, md, output):
                 _decode_uniforme(impl, query, kv_cache, md, output, nreq, L, capturando)
                 _diag(impl, layer, query, kv_cache, md, output, nreq, L, capturando)
                 return output
-        if _MIXTO and nreq > 1 and _mixto(impl, layer, query, kv_cache, md, output, qsl, qlen, nreq):
+        if nreq > 1 and _mixto(impl, layer, query, kv_cache, md, output, qsl, qlen, nreq):
             return output
     return _prefill_decuant(impl, layer, query, kv_cache, md, output)
 
 
-# ─────────────────────── pasos mixtos: decode por SK-18h, prefill aparte ───────────────────────
-# En un paso con prefill, el lote entero iba por _prefill_decuant: descuantizar a fp16 las paginas de
-# TODOS los pedidos (tambien de los que solo decodifican, con todo su contexto) + FlashInfer para todos.
-# Medido en is25_decode4 (27-09): sk18h_decuant 0,6-1,3 ms por capa de atencion, 10-20 ms por paso mixto.
-# vLLM ordena el lote con los decodes primero: el prefijo uniforme (mismos L tokens por pedido) va por
-# el decode entero SK-18h, sin descuantizar, y solo el resto por descuantizar + FlashInfer (con SUS paginas).
-_MIXTO = True
 _MIXTO_VERIF = 0
 _mixto_n = {"n": 0, "aviso": False}
 
@@ -725,37 +702,33 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
         sqb = bf.sq[: R * QPLANOS * 4]
         ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, rq, sqb, lim, mqb, dcap,
                                          L, nh, G, MB, ZSH4, q16.stride(0)])
-        if VENT > 0:   # q en int8 y mqb/dcap propios para el espejo de la ventana
-            ks["prep8"].lanzar((nt, nh * G), [q16, seq, c.refs8, _signos_dev(dev), bf.Q8[: R * QD],
-                                              bf.lim8[:R], bf.mqb8[:R], bf.dcap8[:R],
-                                              L, nh, G, MB, ZSH, q16.stride(0)])
-    elif ROTV_MAIN and MB != 64:
-        raise RuntimeError(f"PN131/ROTV: la V rotada solo la lee SK-30 (MB=64); MB={MB}")
-    elif ROT_PTX and _arbol() and SK30 and MB == 64:
-        # SK-30: prep2 con la escala de fila en float, decode en una pasada y union a la salida
-        anc = mascara_arbol(dev, L, bf, capturando)
-        ks["prep30"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
-                                           bf.abase[:R], bf.amask[:R], bf.qsf[:R], L, nh, G, MB, ZSH, q16.stride(0)])
-        g30 = bf.gmax30
-        ks["sk30"].lanzar((g30, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
-                                          lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g30,
-                                          bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
-                                          bf.Lp30[: g30 * R]], shared=SH_30)
-        ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
-                                          bf.Lp30[: g30 * R], seq, g30, B, nh, L, G, output[:nt],
-                                          _signos_dev(dev)])
-        return
-    elif ROT_PTX and _arbol():
-        anc = mascara_arbol(dev, L, bf, capturando)
-        ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
-                                         bf.abase[:R], bf.amask[:R], L, nh, G, MB, ZSH, q16.stride(0)])
-    elif ROT_PTX:
-        ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, L, nh, G, MB, ZSH, q16.stride(0)])
+        ks["prep8"].lanzar((nt, nh * G), [q16, seq, c.refs8, _signos_dev(dev), bf.Q8[: R * QD],
+                                          bf.lim8[:R], bf.mqb8[:R], bf.dcap8[:R],
+                                          L, nh, G, MB, ZSH, q16.stride(0)])
     else:
-        ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, Qb, lim, mqb, dcap, L, nh, G, MB, ZSH, q16.stride(0)])
+        if _arbol() and MB == 64:
+            # SK-30: prep2 con la escala de fila en float, decode en una pasada y union a la salida
+            anc = mascara_arbol(dev, L, bf, capturando)
+            ks["prep30"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
+                                               bf.abase[:R], bf.amask[:R], bf.qsf[:R], L, nh, G, MB, ZSH, q16.stride(0)])
+            g30 = bf.gmax30
+            ks["sk30"].lanzar((g30, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
+                                              lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g30,
+                                              bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
+                                              bf.Lp30[: g30 * R]], shared=SH_30)
+            ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
+                                              bf.Lp30[: g30 * R], seq, g30, B, nh, L, G, output[:nt],
+                                              _signos_dev(dev)])
+            return
+        elif _arbol():
+            anc = mascara_arbol(dev, L, bf, capturando)
+            ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
+                                             bf.abase[:R], bf.amask[:R], L, nh, G, MB, ZSH, q16.stride(0)])
+        else:
+            ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, L, nh, G, MB, ZSH, q16.stride(0)])
     bt = md.block_table
     bf.acumuladores()
-    NX = bf.nx if (mo == "int4" and VENT > 0) else 0      # ranuras extra del espejo
+    NX = bf.nx if ((mo == "int4")) else 0      # ranuras extra del espejo
     oh = bf.oh[: (NCH + NX) * R * QD]
     ol = bf.ol[: (NCH + NX) * R * QD]
     om = bf.om[: (NCH + NX) * R]
@@ -764,17 +737,17 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
         oc = bf.oc[: (NCH + NX) * R]
         ks["main"].lanzar((NCH, B * nh * (MB // 32)), [Qb, rq, sqb, raw, bt, seq, lim, mqb, dcap, oh, ol, om, os_, oc,
                                           blk, bt.stride(0), bs, NCH, nh, MB // 32, ZSH4, VSH,
-                                          bf.dueno if VENT > 0 else oc, VENT], shared=SH_I)
-        if VENT > 0 and c.lado is not None:
+                                          bf.dueno, VENT], shared=SH_I)
+        if c.lado is not None:
             blk8 = bs * nh * 520
             ks["espejo"].lanzar((VENT * SCH, B * nh * (MB // 32)), [bf.Q8[: R * QD], _lado(c, dev, bf.bmax, nh, bs), bt, seq, bf.lim8[:R],
                                                 bf.mqb8[:R], bf.dcap8[:R], oh, ol, om, os_,
                                                 blk8, bt.stride(0), bs, NCH, nh, MB // 32, ZSH, VSH,
                                                 bf.dueno, mqb, oc, VENT], shared=SH_H)
     else:
-        bq = 8 * NW8 if (NW8 != 4 and MB % (8 * NW8) == 0) else 32
+        bq = 8 * NW8 if ((MB % (8 * NW8) == 0)) else 32
         km, sh = (ks["main8"], sh_h(NW8)) if bq != 32 else (ks["main"], SH_H)
-        if _arbol() and ROT_PTX:
+        if _arbol():
             km.lanzar((NCH, B * nh * (MB // bq)), [Qb, raw, bt, seq, lim, mqb, dcap, bf.abase[:R], bf.amask[:R],
                                                    oh, ol, om, os_,
                                                    blk, bt.stride(0), bs, NCH, nh, MB // bq, ZSH, VSH], shared=sh)
@@ -818,7 +791,7 @@ def decuantizar_kv(impl, kv_cache, ids):
         ks["decuant"].lanzar((n, bs), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16), blk, bs, nh])
         return kv
     ids4 = ids
-    if VENT > 0 and c.lado is not None:
+    if c.lado is not None:
         dueno = _get_bufs(dev, nh, bs, max(1, impl.num_heads // nh)).dueno
         igual = ids[:, None] == dueno.to(torch.int64)[None, :]        # [n, ranuras]
         esp = torch.where(igual.any(1), igual.float().argmax(1).to(torch.int64), torch.full_like(ids, -1))
@@ -842,7 +815,7 @@ def _prefill_flashinfer(impl, layer, query, kv_cache, md, output):
     dev = query.device
     nact = md.num_actual_tokens
     nb, nh, bs, blk, raw = _geom(kv_cache)
-    G = impl.num_heads // nh
+    impl.num_heads // nh
     B = md.query_start_loc.shape[0] - 1
     est = _fi.get(dev.index)
     if est is None:
@@ -872,14 +845,12 @@ def _prefill_flashinfer(impl, layer, query, kv_cache, md, output):
 
 
 def _prefill_decuant(impl, layer, query, kv_cache, md, output):
-    if ROT_PTX:
-        nact = md.num_actual_tokens
-        query = _rotar_q_prefill(query[:nact].view(nact, impl.num_heads, QD))
-    if True:
-        try:
-            return _prefill_flashinfer(impl, layer, query, kv_cache, md, output)
-        except ImportError:
-            pass
+    nact = md.num_actual_tokens
+    query = _rotar_q_prefill(query[:nact].view(nact, impl.num_heads, QD))
+    try:
+        return _prefill_flashinfer(impl, layer, query, kv_cache, md, output)
+    except ImportError:
+        pass
     return _prefill_triton(impl, layer, query, kv_cache, md, output)
 
 

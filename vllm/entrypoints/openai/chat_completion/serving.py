@@ -822,15 +822,6 @@ class OpenAIServingChat(GenerateBaseServing):
                                 "reasoning produced.",
                                 request_id,
                             )
-                            import os as _p107_os
-                            if False:
-                                from vllm.entrypoints.openai.engine.protocol import (
-                                    GenerationError as _P107_GenError,
-                                )
-                                raise _P107_GenError(
-                                    "MTP speculative decoding truncated tool call "
-                                    "generation. Please retry."
-                                )
                         choice_data = ChatCompletionResponseStreamChoice(
                             index=i,
                             delta=delta_message,

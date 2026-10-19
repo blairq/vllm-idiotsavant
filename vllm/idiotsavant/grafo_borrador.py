@@ -23,7 +23,6 @@ corridas de prueba (dummy) de vLLM.
 from __future__ import annotations
 
 import logging
-import os
 from collections import OrderedDict
 
 import torch

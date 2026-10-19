@@ -481,14 +481,6 @@ class SingleTypeKVCacheManager(ABC):
             retention_interval=retention_interval,
             reachable_boundaries=reachable_boundaries,
         )
-        if block_mask is not None and False:  # [Genesis PN168: borde de reuso con EAGLE]
-            _bl = self.req_to_blocks[request.request_id]
-            _m = [start for start, v in enumerate(block_mask) if v]
-            __import__('logging').getLogger('idiotsavant.pn168').warning(
-                'PN168 diag req=%s g=%d bloques %d..%d prompt=%d marcados %s nulos %s', request.request_id[:10],
-                self.kv_cache_group_id, num_cached_blocks, num_full_blocks, request.num_prompt_tokens,
-                [num_cached_blocks + i for i in _m],
-                [num_cached_blocks + i for i in _m if num_cached_blocks + i < len(_bl) and _bl[num_cached_blocks + i].is_null])
         self.block_pool.cache_full_blocks(
             request=request,
             blocks=self.req_to_blocks[request.request_id],
@@ -1493,12 +1485,6 @@ class MambaManager(SingleTypeKVCacheManager):
                 hit_length = (i + 1) * block_size
                 break  # we just need the last match - early stopping
 
-        if False:  # [Genesis PN168: borde de reuso con EAGLE]
-            __import__('logging').getLogger('idiotsavant.pn168').warning(
-                'PN168 lookup g=%s max_length=%d max_bloques=%d alin=%d bs=%d hit=%d cacheados_al_final=%s',
-                kv_cache_group_ids, max_length, max_num_blocks, alignment_tokens, block_size, hit_length,
-                [j for j in range(max(0, max_num_blocks - 8), min(max_num_blocks + 2, len(block_hashes)))
-                 if block_pool.get_cached_block(block_hashes[j], kv_cache_group_ids)])
         return computed_blocks, hit_length
 
     @classmethod

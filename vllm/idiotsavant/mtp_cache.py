@@ -142,7 +142,7 @@ import json
 import logging
 import os
 import time
-from typing import Any, Iterable, Iterator, Tuple
+from typing import Iterable, Iterator, Tuple
 
 import torch
 

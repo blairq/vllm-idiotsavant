@@ -10,7 +10,6 @@ stride de fila, SK-25 lee z con stride, y gdn_arbol / pn122_cinta leen a y b con
 """
 from __future__ import annotations
 
-import os
 
 ACTIVO = True
 
@@ -26,8 +25,6 @@ def vistas(gdn, mixed):
 
 def en_op(attn_metadata, mixed_qkv, b, a):
     """En _forward_core (fuera del grafo compilado): contiguas salvo en el paso solo-spec del arbol PTX."""
-    if not ACTIVO:
-        return mixed_qkv, b, a
     from vllm.idiotsavant import gdn_cinta as _g122
     directo = (attn_metadata.spec_sequence_masks is not None and attn_metadata.num_prefills == 0
                and attn_metadata.num_decodes == 0 and _g122.activo() and not (_g122.sync_bits() & 512)

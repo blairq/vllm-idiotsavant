@@ -13,7 +13,6 @@ vllm#28182 queria evitar con torch.empty (memoria sin inicializar).
 """
 from __future__ import annotations
 
-import os
 
 ACTIVO = True
 
@@ -21,8 +20,6 @@ ACTIVO = True
 def preparar_salida(attn_metadata, core_attn_out) -> bool:
     """Al comienzo de _forward_core (fuera del grafo compilado). True = paso solo-spec por PN122: spec_update
     escribe directo en core_attn_out y no hace falta el cero."""
-    if not ACTIVO:
-        return False
     from vllm.idiotsavant import gdn_cinta as _g122
     directo = (attn_metadata.spec_sequence_masks is not None and attn_metadata.num_prefills == 0
                and attn_metadata.num_decodes == 0 and _g122.activo() and not (_g122.sync_bits() & 512))

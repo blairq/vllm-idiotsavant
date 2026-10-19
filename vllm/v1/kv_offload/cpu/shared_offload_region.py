@@ -103,35 +103,34 @@ class SharedOffloadRegion:
         # hermano que este arrancando.
         try:
             import os as _g81s_os, glob as _g81s_glob, time as _g81s_t, sys as _g81s_sys
-            if True:
-                # Sin guard de edad: al arrancar, todo mmap que NADIE tenga
-                # mapeado es basura de una corrida anterior. El chequeo de
-                # /proc/*/maps es la unica salvaguarda necesaria.
-                _min_age = 0.0
-                _en_uso = set()
-                for _mp in _g81s_glob.glob('/proc/*/maps'):
-                    try:
-                        with open(_mp) as _fh:
-                            for _ln in _fh:
-                                if 'vllm_offload_' in _ln:
-                                    _en_uso.add(_ln.rsplit(' ', 1)[-1].strip())
-                    except Exception:
+            # Sin guard de edad: al arrancar, todo mmap que NADIE tenga
+            # mapeado es basura de una corrida anterior. El chequeo de
+            # /proc/*/maps es la unica salvaguarda necesaria.
+            _min_age = 0.0
+            _en_uso = set()
+            for _mp in _g81s_glob.glob('/proc/*/maps'):
+                try:
+                    with open(_mp) as _fh:
+                        for _ln in _fh:
+                            if 'vllm_offload_' in _ln:
+                                _en_uso.add(_ln.rsplit(' ', 1)[-1].strip())
+                except Exception:
+                    continue
+            _ahora = _g81s_t.time()
+            for _f in _g81s_glob.glob('/dev/shm/vllm_offload_*.mmap'):
+                if _f in _en_uso:
+                    continue
+                try:
+                    _st = _g81s_os.stat(_f)
+                    if _ahora - _st.st_mtime < _min_age:
                         continue
-                _ahora = _g81s_t.time()
-                for _f in _g81s_glob.glob('/dev/shm/vllm_offload_*.mmap'):
-                    if _f in _en_uso:
-                        continue
-                    try:
-                        _st = _g81s_os.stat(_f)
-                        if _ahora - _st.st_mtime < _min_age:
-                            continue
-                        _g81s_os.unlink(_f)
-                        print('[PN81] mmap huerfano borrado de /dev/shm: %s '
-                              '(%.2f GiB liberados)'
-                              % (_f, _st.st_size / (1 << 30)),
-                              file=_g81s_sys.stderr, flush=True)
-                    except OSError:
-                        continue
+                    _g81s_os.unlink(_f)
+                    print('[PN81] mmap huerfano borrado de /dev/shm: %s '
+                          '(%.2f GiB liberados)'
+                          % (_f, _st.st_size / (1 << 30)),
+                          file=_g81s_sys.stderr, flush=True)
+                except OSError:
+                    continue
         except Exception:
             pass  # la purga nunca debe impedir el arranque
         self.mmap_path = f"/dev/shm/vllm_offload_{engine_id}.mmap"

@@ -6398,7 +6398,6 @@ class GPUModelRunner(
             # peak rejection-sampler footprint. Covers EAGLE, MTP,
             # ngram, draft-model methods uniformly.
             # Fallback to [0] if env disabled or attribute missing.
-            import os as _genesis_pn33_os
             _genesis_pn33_disabled = False
             _genesis_pn33_K = getattr(
                 self.speculative_config, 'num_speculative_tokens', 0

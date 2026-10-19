@@ -38,21 +38,20 @@ upstream en 40 pasos con aceptaciones al azar (redondeo fp16).
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 log = logging.getLogger("idiotsavant.pn122")
 
 _TRUTHY = ("1", "true", "yes", "on")
-_ACTIVO = '1' in _TRUTHY
+_ACTIVO = True
 
 
 def activo() -> bool:
     return _ACTIVO
 
 
-_DEBUG = '0' in _TRUTHY
+_DEBUG = False
 
 # Arbol de borrador (apagado por defecto). Con el arbol, los tokens 1..K del paso no son una
 # cadena: cada uno cuelga de un ancestro. Cambian dos cosas y nada mas:
@@ -79,10 +78,7 @@ _ARBOL: bool | None = None
 # (Gb es nilpotente, asi que la serie es finita) y todo en layout traspuesto [BV, BT], con k y q
 # ya normalizados en un buffer del prep. El riesgo es el derrame de registros: b_h [BV, BK] ya son
 # 4096 floats por programa. Ver [[arbol-gdn-forma-cerrada-bole-treewy]].
-_CERRADA = '0' in _TRUTHY
-# Los productos pesados (S_0 k y S_0 q) en int8 sobre tensor cores. Solo con la forma cerrada:
-# es la unica que deja S_0 FIJO durante el arbol, asi que se cuantiza una vez y se usa 2T veces.
-_INT8 = '1' in _TRUTHY
+_CERRADA = False
 _camino_gpu: torch.Tensor | None = None     # [slots, TM] int32; la cadena es arange(TM)
 _cerr: dict = {}                            # buffers del sistema triangular, por device
 _anc_gpu: torch.Tensor | None = None        # [tokens del lote] int32, bits de ancestros por token
@@ -162,8 +158,7 @@ def sync_bits() -> int:
     Se relee como mucho una vez por segundo: leerlo en cada llamada frenaba la
     CPU lo suficiente como para ESCONDER la carrera que se esta buscando.
     """
-    if not _DEBUG:
-        return 0
+    return 0
     import time
     now = time.monotonic()
     if now - _sync_cache[1] > 1.0:
@@ -214,9 +209,7 @@ def num_speculative_blocks(vllm_config) -> int:
         k = 0                                       # v0.29.0: RecoverSSM no usa esos slots
     # Diagnostico: GENESIS_PN122_SIN_LIBERAR=1 conserva los bloques especulativos
     # (cinta y kernel activos, sin ahorro) para aislar el efecto de sacarlos.
-    if False:
-        return k
-    return 0 if _ACTIVO else k
+    return 0
 
 
 # ─────────────────────────────── slots ────────────────────────────────
@@ -978,7 +971,6 @@ def escribir_cinta(A_log, a, b, dt_bias, k, v, cu_seqlens, sidx, slots, cinta, N
             num_warps=4, num_stages=3)
 
 
-_DIAG_CRESTA = '0' in _TRUTHY
 _cresta_n = 0
 
 
@@ -1013,7 +1005,7 @@ def _diag_cresta(layer, ssm_state, sidx) -> None:
                 cr(SR, "fila"), cr(SR, "col"), S.abs().max().item(), S.abs().median().item())
 
 
-_ARBOL_PTX = '1' in _TRUTHY
+_ARBOL_PTX = True
 _ARBOL_RPW = 4                      # filas por warp (barrido 27-09: 4 gana a 8 y a 2)
 
 
@@ -1079,9 +1071,6 @@ def spec_update(layer, A_log, a, b, dt_bias, q, k, v, ssm_state, cu_seqlens,
     Devuelve lo mismo que upstream: ``(o [1, T, HV, V], ssm_state)``. Con ``o_dest`` (PN163) la salida se
     escribe ahi (una vista de core_attn_out) y vLLM saltea la copia.
     """
-    if _DIAG_CRESTA:
-        _diag_cresta(layer, ssm_state, spec_state_indices[:, 0]
-                     if spec_state_indices.ndim == 2 else spec_state_indices)
     _, Ttot, H, K = k.shape
     HV, V = v.shape[2], v.shape[3]
     N = cu_seqlens.shape[0] - 1
@@ -1114,42 +1103,7 @@ def spec_update(layer, A_log, a, b, dt_bias, q, k, v, ssm_state, cu_seqlens,
         o = o_dest
     else:
         o = q.new_empty(1, Ttot, HV, V)
-    if paso_arbol_activo() and _camino_gpu is not None and _CERRADA:
-        # Contrato: solo se llega aca si el runner ya verifico que el lote es UNIFORME de T = K+1
-        # tokens (lo exige la mascara de arbol de PN131). El kernel igual lo comprueba y se saltea
-        # el pedido que no cumpla, antes que escribir basura.
-        T1 = layer.num_spec + 1
-        BT = triton.next_power_of_2(T1)
-        c = _cerr.get(q.device.index)
-        if c is None or c[0].shape[0] < N or c[0].shape[1] != HV or c[0].shape[2] != BT * BT:
-            nmax = max(N, _n_slots or N)
-            c = (torch.empty(nmax, HV, BT * BT, dtype=torch.float32, device=q.device),
-                 torch.empty(nmax, HV, BT * BT, dtype=torch.float32, device=q.device),
-                 torch.empty(nmax, HV, BT * 2, dtype=torch.float32, device=q.device),
-                 torch.empty(nmax, H, BT * K, dtype=torch.int8, device=q.device),
-                 torch.empty(nmax, H, BT * K, dtype=torch.int8, device=q.device),
-                 torch.empty(nmax, H, BT * 2, dtype=torch.float32, device=q.device))
-            _cerr[q.device.index] = c
-        Gb, Cm, aux, k8, q8, esc = c
-        _k_prep_cerrada[(N, HV)](
-            A_log, a, b, dt_bias, 1.0, 20.0, k, q, cu_seqlens, sidx, _anc_gpu,
-            Gb, Cm, aux, k8, q8, esc, K ** -0.5, Gb.stride(1), aux.stride(1), k8.stride(1),
-            esc.stride(1), H=H, HV=HV, K=K, BK=BK, BT=BT, T=T1, IS_L2=True, INT8=_INT8,
-            num_warps=4, num_stages=2)
-        if _INT8:
-            _k_spec_cerrada8[(triton.cdiv(V, BV), N * HV)](
-                q, k, v, o, ssm_state, ssm_state.stride(0), cu_seqlens, sidx, nacc, slots, cinta,
-                _camino_gpu, Cm, aux, k8, q8, esc, Gb.stride(1), aux.stride(1), k8.stride(1),
-                esc.stride(1), K ** -0.5, N,
-                H=H, HV=HV, K=K, V=V, BK=BK, BV=BV, BT=BT, T=T1, TM=TM, ROW=ROW, IS_L2=True,
-                num_warps=4, num_stages=3)
-        else:
-            _k_spec_cerrada[(triton.cdiv(V, BV), N * HV)](
-                q, k, v, o, ssm_state, ssm_state.stride(0), cu_seqlens, sidx, nacc, slots, cinta,
-                _camino_gpu, Gb, Cm, aux, Gb.stride(1), aux.stride(1), K ** -0.5, N,
-                H=H, HV=HV, K=K, V=V, BK=BK, BV=BV, BT=BT, T=T1, TM=TM, ROW=ROW, IS_L2=True,
-                num_warps=4, num_stages=3)
-    elif arbol_ptx:
+    if arbol_ptx:
         _lanzar_arbol_ptx(layer, A_log, a, b, dt_bias, q, k, v, o, ssm_state, cu_seqlens, sidx, nacc, slots,
                           cinta, N, H, HV, K, V, TM)
     elif paso_arbol_activo() and _camino_gpu is not None:
@@ -1464,7 +1418,7 @@ def v2_pre(ctx, kv_cache_config, forward_context, num_reqs, idx_mapping, state_i
            src_off) -> None:
     """Antes de ``ctx.run_fused_precopy``. Fija el slot de cinta de cada fila del batch
     (= slot de req-state + 1; el 0 es relleno) y materializa las migraciones con bias>0."""
-    if not _ACTIVO or _slots_gpu is None or num_reqs == 0:
+    if _slots_gpu is None or num_reqs == 0:
         return
     n = min(num_reqs, _slots_gpu.shape[0])
     _slots_gpu[:n].copy_(idx_mapping[:n])
@@ -1477,7 +1431,7 @@ def v2_pre(ctx, kv_cache_config, forward_context, num_reqs, idx_mapping, state_i
 
 def v2_post(ctx, num_reqs, nacc, state_idx, ncomp_nuevo, idx_mapping) -> None:
     """Antes de ``ctx.run_fused_postprocess_align`` (que pisa ``nacc`` con 1)."""
-    if not _ACTIVO or num_reqs == 0 or _meta.ssm_addrs is None:
+    if num_reqs == 0 or _meta.ssm_addrs is None:
         return
     if sync_bits() & 4:
         return

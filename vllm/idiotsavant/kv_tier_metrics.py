@@ -55,7 +55,6 @@ proxy.
 
 from __future__ import annotations
 
-import os
 import threading
 
 # Clave bajo la que PN88 cuelga este bucket dentro de

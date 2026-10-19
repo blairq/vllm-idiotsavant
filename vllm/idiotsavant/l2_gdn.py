@@ -15,7 +15,6 @@ Diagnosticos: GENESIS_PN170_DIAG (handoffs, prepare_store), GENESIS_PN170_SUMAS 
 """
 from __future__ import annotations
 
-import os
 
 ACTIVO = True
 
@@ -24,15 +23,11 @@ ACTIVO = True
 import logging
 
 log = logging.getLogger("idiotsavant.pn170")
-DIAG = False
 
 
 
 def tras_prepare(req, nuevas: list, store_output) -> None:
-    if DIAG and req.is_finished():
-        acepta = None if store_output is None else len(store_output.keys_to_store)
-        log.warning("PN170 prepare_store req=%s: %d claves pedidas, %s aceptadas", str(req.request_id)[-10:],
-                    len(nuevas), acepta)
+    pass
 
 
 def sin_eagle_en_mamba(eagle_groups: set, kv_cache_config) -> set:
@@ -43,21 +38,15 @@ def sin_eagle_en_mamba(eagle_groups: set, kv_cache_config) -> set:
 
 
 def handoff(req, group_idx: int, block_id: int, boundary: int) -> None:
-    if DIAG:
-        log.warning("PN170 handoff req=%s grupo=%d bloque=%d borde=%d (chunk %d) prompt=%d computados=%d fin=%s",
-                    str(req.request_id)[-10:], group_idx, block_id, boundary, boundary // 880 - 1,
-                    req.num_prompt_tokens, req.num_computed_tokens, req.is_finished())
+    pass
 
 
-# ---- diagnostico de bytes (GENESIS_PN170_SUMAS=1): checksum por (grupo, indice logico) al guardar y al cargar ----
-SUMAS = False
 _kv = {"cajas": None}
 _cargas: dict = {}
 
 
 def registrar_kv(canonical_kv_caches) -> None:
-    if SUMAS:
-        _kv["cajas"] = canonical_kv_caches
+    pass
 
 
 def _sumas(spec) -> list:
@@ -81,27 +70,17 @@ def _sumas(spec) -> list:
 
 
 def al_guardar(job_id, src_spec) -> None:
-    if SUMAS:
-        for g, idx, s in _sumas(src_spec):
-            log.warning("PN170S guardar g=%d idx=%d suma=%d", g, idx, s)
+    pass
 
 
 def al_cargar(job_id, dst_spec) -> None:
-    if SUMAS:
-        _cargas[job_id] = dst_spec
+    pass
 
 
 def carga_lista(job_id) -> None:
-    if SUMAS and job_id in _cargas:
-        for g, idx, s in _sumas(_cargas.pop(job_id)):
-            log.warning("PN170S cargar g=%d idx=%d suma=%d", g, idx, s)
+    pass
 
 
-# ---- PN171: del grupo del borrador (ventana deslizante) guardar solo los chunks que un lookup puede pedir ----
-# Un acierto externo solo cae donde hay estado GDN guardado: cortes de segmento de la retencion (16 chunks con 14080),
-# P-2 de cada prompt (el estado de P-3, ver PN168) y la junction compartida. Para un acierto de H chunks el lookup de
-# la ventana pide [H-w-e, H] (w = ventana en chunks, e = 1 por EAGLE). Lo demas del borrador se guardaba de gusto.
-RECORTE = True
 # Segmento = --prefix-cache-retention-interval.
 
 
@@ -109,7 +88,7 @@ def saltear_ventana(req, group_config, c: int) -> bool:
     """True = no guardar el chunk c de un grupo de ventana deslizante (no lo pide ningun lookup).
     Un acierto de H chunks consulta la ventana en los indices [H-w-e+1, H] (la consulta de EAGLE llega a H); se
     guarda [H-w-e-1, H] con un chunk de margen. H = multiplos del segmento, P-2 y la junction."""
-    if not RECORTE or group_config.sliding_window_size_in_chunks is None or group_config.requires_cow_source:
+    if group_config.sliding_window_size_in_chunks is None or group_config.requires_cow_source:
         return False
     tpc = group_config.tokens_per_chunk
     margen = group_config.sliding_window_size_in_chunks + int(group_config.is_eagle_group) + 1

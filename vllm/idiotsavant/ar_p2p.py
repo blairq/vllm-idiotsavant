@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import ctypes
 import logging
-import os
 
 import torch
 
@@ -93,7 +92,7 @@ def inicializar(rank: int, w: int, grupo_cpu) -> None:
 
 def asegurar_inicializado() -> bool:
     """Inicializa en la primera llamada en eager (nunca dentro de una captura). True si se puede usar."""
-    if not _ACTIVO or _estado["fallo"] is not None:
+    if _estado["fallo"] is not None:
         return False
     if _estado["listo"]:
         return True
@@ -140,8 +139,7 @@ _BLOQUES_I8 = 8   # barrido 27-09: 8 gana con 36 y 54 filas
 
 def sirve_i8(x: torch.Tensor) -> bool:
     n = x.numel()
-    return (_MIN_I8 > 0 and sirve(x) and x.shape[-1] % _G == 0 and n * 2 >= _MIN_I8
-            and n + (n // _G) * 2 <= _MAX_BYTES)
+    return (sirve(x) and x.shape[-1] % _G == 0 and n * 2 >= _MIN_I8 and n + (n // _G) * 2 <= _MAX_BYTES)
 
 
 def all_reduce_i8(x: torch.Tensor) -> torch.Tensor:

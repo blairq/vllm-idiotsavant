@@ -17,16 +17,10 @@ en el forward solo se leen atributos, estaticos al trazar.
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 log = logging.getLogger("idiotsavant.pn157")
-ACTIVO = True
-BITS_CONV = 0     # 8, 4, o 0 (densa: int8 por canal cuesta ~1% de aceptacion)
-# grupo del int8 de la conv: -1 por canal (lo que vio la destilacion con --conv_int8), 64 = la mitad de error en el
-# kernel de la conv (0,54% contra 0,95%, tests/proto/pn163_kp_conv.py) a igual tiempo (11,8 contra 21,6 us en fp16)
-GRUPO_CONV = -1
 
 
 def _empacar_gptq(q: torch.Tensor, bits: int) -> torch.Tensor:
@@ -91,8 +85,6 @@ def marlin_de_empacado(packed: torch.Tensor, escala: torch.Tensor, in_f: int) ->
 
 def preparar(modelo, layers_attn) -> None:
     """Desde _build_context_kv_buffers (fin de load_weights): arma los pesos Marlin del borrador."""
-    if not ACTIVO:
-        return
     try:
         qkv = [a.qkv_proj for a in layers_attn]
         if all(hasattr(p, "weight_packed") and hasattr(p, "weight_scale") for p in qkv):
@@ -103,20 +95,6 @@ def preparar(modelo, layers_attn) -> None:
             modelo._fused_kv_weight = modelo._fused_kv_weight[:0]     # libera los 52 MB densos
             log.info("PN157: K/V de contexto en Marlin W%dA16 [%d x %d]", 32 * packed.shape[1] // modelo._g157_kv.k,
                      modelo._g157_kv.n, modelo._g157_kv.k)
-        if BITS_CONV in (4, 8):
-            n = 0
-            for capa in modelo.layers:
-                for nombre in ("attention_conv", "mlp_conv"):
-                    conv = getattr(capa, nombre, None)
-                    kp = getattr(conv, "kernel_projection", None)
-                    if kp is None or getattr(kp, "bias", None) is not None:
-                        continue
-                    g = 128 if BITS_CONV == 4 else GRUPO_CONV
-                    q, s = _rtn(kp.weight.data, BITS_CONV, g)
-                    kp._g157 = _Marlin(q, s, BITS_CONV, g)
-                    n += 1
-            log.info("PN157: %d kernel_projection en Marlin W%dA16 (grupo %s)", n, BITS_CONV,
-                     128 if BITS_CONV == 4 else (GRUPO_CONV if GRUPO_CONV > 0 else "canal"))
     except Exception as e:  # sin Marlin armado todo sigue por el camino denso
         log.warning("PN157: no se armo (%s: %s); camino denso", type(e).__name__, e)
         for a in ("_g157_kv",):

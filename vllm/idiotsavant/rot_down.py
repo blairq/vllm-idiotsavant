@@ -19,7 +19,7 @@ import torch
 B = 512
 # Kernel fusionado SiluAndMul + Hadamard (silu_had.py): 624 us contra 2042 del camino de torch a 8192
 # tokens, y la mitad de error. Solo existe para B = 512.
-FUSIONADO = True and B == 512
+FUSIONADO = B == 512
 # SK-23: ademas sale int8 por token y down_proj (Marlin W4A8) lo toma sin volver a cuantizar.
 INT8 = FUSIONADO and True
 if FUSIONADO:
@@ -106,7 +106,6 @@ def _reducir(down, out: torch.Tensor) -> torch.Tensor:
     return out
 
 
-VERIFICAR = False   # solo con --enforce-eager
 _n_verif: dict = {}
 
 
@@ -132,8 +131,6 @@ def act_had_down(mlp, gate_up: torch.Tensor) -> torch.Tensor:
     if k is not None and d.bias is None:
         q, esc = torch.ops.genesis.pn148_silu_had_q8(gate_up, d.input_global_scale)
         out = _gemm_int8(d, k, q, esc)
-        if VERIFICAR:
-            _verificar(mlp, gate_up, out)
         return _reducir(d, out.reshape(*gate_up.shape[:-1], out.shape[-1]))
     out, _ = d(act_had(mlp, gate_up))
     return out

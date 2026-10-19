@@ -413,8 +413,7 @@ class CustomAllreduce:
         # Con GENESIS_B3_CAPTURA=1 (y sin --enable-cumem-allocator) se permite capturarlo:
         # en decode TODAS las all-reduce van dentro del grafo, asi que con el bypass NCCL
         # se queda con el 100% (141 lanzamientos, 4,0 ms por paso, 25,6 us cada uno).
-        import os as _os
-        if getattr(self, '_IS_CAPTURING', False) and True:
+        if getattr(self, '_IS_CAPTURING', False):
             return False
         if inp.dtype not in (torch.float32, torch.float16, torch.bfloat16):
             return False

@@ -330,7 +330,7 @@ async def wrap_streaming_generator(generator: AsyncIterator[str], ctx: RequestTr
 
             observe_chunk(ctx, chunk)
             yield chunk
-    except Exception as e:
+    except Exception:
         finish_request(ctx, None, status=500)
         raise
     else:

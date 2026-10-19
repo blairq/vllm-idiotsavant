@@ -18,12 +18,10 @@ con un checkpoint del 25-09 este parche no hace nada.
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 log = logging.getLogger("idiotsavant.pn154")
-_APAGAR = False
 _cfg = {"leido": False, "had": {}}
 
 
@@ -33,7 +31,7 @@ def _had_entrada() -> dict:
         _cfg["leido"] = True
         from vllm.idiotsavant import opciones
         _cfg["had"] = dict(opciones.actual().had_entrada)
-    return {} if _APAGAR else _cfg["had"]
+    return _cfg["had"]
 
 
 def hadamard(b: int, dtype=None) -> torch.Tensor:
@@ -63,8 +61,6 @@ def rotar(lineal, x: torch.Tensor) -> torch.Tensor:
     return (x.reshape(*x.shape[:-1], -1, b) @ lineal._g154_h).reshape(x.shape)
 
 
-# ─── SK-25: la operacion por cabeza + Hadamard + int8 en un kernel, y Marlin W4A8 directo ──────────
-FUSIONADO = True
 _k25: dict = {}
 
 
@@ -118,7 +114,7 @@ def _cabeza_q8_fake(x, a, w, gscale, modo, d, eps):
 def _marlin(lineal):
     """El kernel Marlin W4A8 de la lineal, o None. Solo lee atributos: al trazar es estatico por capa
     (nada de guardar cosas en el modulo desde el forward: torch.compile + grafos no lo permiten)."""
-    if not FUSIONADO or not getattr(lineal, "_g154_b", 0) or lineal.bias is not None:
+    if not getattr(lineal, "_g154_b", 0) or lineal.bias is not None:
         return None
     from vllm.idiotsavant import rot_down as _g148
     return _g148._marlin_int8(lineal)

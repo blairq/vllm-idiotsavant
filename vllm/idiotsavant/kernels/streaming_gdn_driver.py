@@ -39,7 +39,6 @@ Author: Sandermage 2026-05-05, Variant D Phase 2.
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
@@ -176,8 +175,6 @@ def streaming_chunk_gated_delta_rule_fwd(
                 "every bypass.)",
                 reason,
             )
-        elif False:
-            log.info("[PN59] vanilla path (reason: %s)", reason)
         return _vanilla_path(
             q, k, v, g, beta, scale, initial_state, output_final_state,
             cu_seqlens, chunk_indices, chunk_offsets,
@@ -369,7 +366,7 @@ def _streaming_path(
     `chunk_fwd_kernel_o:74` analysis).
     """
     B, T, Hg, K = q.shape
-    V = v.shape[-1]
+    v.shape[-1]
     BT = _FLA_CHUNK_SIZE
 
     # Phase A: full-input pre-h ops (small allocations, cheap)
@@ -414,7 +411,7 @@ def _streaming_path(
 
     # State chained across windows (float32 per kernel signature)
     state = initial_state
-    H = u.shape[-2]
+    u.shape[-2]
     final_state = None
 
     # Window loop — slice T-dim by window_nt × BT tokens
@@ -422,7 +419,7 @@ def _streaming_path(
     for win_start in range(0, T, window_T):
         win_end = min(win_start + window_T, T)
         cur_T = win_end - win_start
-        cur_NT = (cur_T + BT - 1) // BT
+        (cur_T + BT - 1) // BT
         is_last_window = (win_end >= T)
 
         # Slice T-dim inputs (input_guard wraps will re-contigify if needed)

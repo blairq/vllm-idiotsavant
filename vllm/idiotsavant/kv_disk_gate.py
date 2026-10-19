@@ -34,7 +34,6 @@ Notas de auditoría (2026-08-23)
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from collections.abc import Iterable
 from typing import Any

@@ -488,7 +488,6 @@ def assert_vllm_pin_allowed(
     patches against an unvalidated pin. The allowlist must be updated
     explicitly when a new pin is qualified.
     """
-    import os as _os
 
     if policy is None:
         policy = 'warn'

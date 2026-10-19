@@ -20,14 +20,12 @@ mismas reglas. Las condiciones se chequean con tensores de CPU (sin sincronizar)
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 from vllm.triton_utils import tl, triton
 
 log = logging.getLogger("idiotsavant.pn151")
-_ACTIVO = True
 _VERIFICAR = 0
 _verif = {"n": 0, "mal": 0}
 
@@ -63,7 +61,7 @@ def _k_meta_spec(bt, s_bt, seq_lens, qsl, nacc, slots, st_out, s_st, mask_out, q
 
 def build_rapido(builder, m, num_accepted_tokens, num_decode_draft_tokens_cpu):
     """El camino rapido de ``build``; None si no aplica (y entonces corre el original)."""
-    if not _ACTIVO or not builder.use_spec_decode or not builder.use_full_cuda_graph:
+    if not builder.use_spec_decode or not builder.use_full_cuda_graph:
         return None
     if num_decode_draft_tokens_cpu is None or num_accepted_tokens is None:
         return None
@@ -154,7 +152,7 @@ def build(builder, original, common_prefix_len, m, num_accepted_tokens=None, num
 
 def instalar(cls) -> None:
     """Envuelve ``cls.build`` (lo llama la linea que PN151 agrega al final de gdn_attn.py, en cada proceso)."""
-    if getattr(cls, "_genesis_pn151", False) or not _ACTIVO:
+    if getattr(cls, "_genesis_pn151", False):
         return
     original = cls.build
 

@@ -265,18 +265,16 @@ def all_reduce_exacto(x: torch.Tensor) -> torch.Tensor:
     return torch.ops.vllm.genesis_ar_exacto(x)
 
 
-if True:     # al importar, nunca dentro de una traza
-    try:
-        from vllm.utils.torch_utils import direct_register_custom_op as _reg
-        _reg(op_name="genesis_ar_exacto", op_func=_impl_exacto, mutates_args=[], fake_impl=_fake)
-    except Exception as _e:   # pragma: no cover
-        log.error("[PN158] no se pudo registrar el custom op: %s", _e)
+try:
+    from vllm.utils.torch_utils import direct_register_custom_op as _reg
+    _reg(op_name="genesis_ar_exacto", op_func=_impl_exacto, mutates_args=[], fake_impl=_fake)
+except Exception as _e:   # pragma: no cover
+    log.error("[PN158] no se pudo registrar el custom op: %s", _e)
 
-if _ACTIVO:
-    try:
-        registrar()
-    except Exception as _e:   # pragma: no cover
-        log.error("[PN120] no se pudo registrar el custom op: %s", _e)
+try:
+    registrar()
+except Exception as _e:   # pragma: no cover
+    log.error("[PN120] no se pudo registrar el custom op: %s", _e)
 
 
 __all__ = ["activo", "m_min", "grupo", "registrar", "all_reduce_int8", "all_reduce_exacto"]

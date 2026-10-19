@@ -495,8 +495,6 @@ def apply_hook(serving_chat: Any, request: Any) -> dict[str, Any]:
     if p69_enabled:
         try:
             tail_roles = ("user", "tool")
-            if False:
-                tail_roles = ("user",)
             last = messages[-1] if isinstance(messages, list) else None
             if last is not None and isinstance(last, dict):
                 role = last.get("role")

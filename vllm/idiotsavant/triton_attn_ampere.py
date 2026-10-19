@@ -34,7 +34,6 @@ Qué hace
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
@@ -43,13 +42,12 @@ from vllm.idiotsavant import borrador_attn as _sk31
 log = logging.getLogger("idiotsavant.pn124")
 
 _ACTIVO = True
-_APLANAR = True
 # 16 (28-09): el borrador DFlash2 verifica bloques de 9 tokens y con 8 caia siempre al 2D (12 bloques
 # en 82 SM, ~1 ms por paso en sus 5 capas).
 _Q_MAX = 16
 _VERIFICAR = [0]
 # Queries por secuencia con las que se deja entrar al kernel 3D SIN aplanar (upstream: 1). 1 = apagado.
-_Q3D = [16 if _ACTIVO else 1]
+_Q3D = [16]
 
 
 def q_max_3d() -> int:
@@ -70,7 +68,7 @@ def activo() -> bool:
 
 def ampere_head256(head_size: int) -> bool:
     global _es_ampere
-    if not _ACTIVO or head_size != 256:
+    if head_size != 256:
         return False
     if _es_ampere is None:
         try:
@@ -149,49 +147,48 @@ def llamar(fn, **kw):
     global _nivel, _nivel_int4
     if _sk31.ACTIVO and _sk31.intentar(kw):          # SK-31: atencion del borrador en una pasada
         return None
-    if _ACTIVO and _APLANAR:
-        plano = _aplanar(kw)
-        Qk = int(kw["max_seqlen_q"])
-        thr = kw.get("seq_threshold_3D")
-        if (plano is None and 1 < Qk <= _Q3D[0] and _VERIFICAR[0] > 0 and thr is not None
-                and kw["q"].shape[0] <= thr and not torch.cuda.is_current_stream_capturing()
-                and int(kw["seqused_k"].max()) > 64):              # solo llamadas reales que van al 3D
-            # 3D con varias queries contra el 2D de siempre, sobre la misma llamada
+    plano = _aplanar(kw)
+    Qk = int(kw["max_seqlen_q"])
+    thr = kw.get("seq_threshold_3D")
+    if (plano is None and 1 < Qk <= _Q3D[0] and _VERIFICAR[0] > 0 and thr is not None
+            and kw["q"].shape[0] <= thr and not torch.cuda.is_current_stream_capturing()
+            and int(kw["seqused_k"].max()) > 64):              # solo llamadas reales que van al 3D
+        # 3D con varias queries contra el 2D de siempre, sobre la misma llamada
+        _VERIFICAR[0] -= 1
+        q3d, _Q3D[0] = _Q3D[0], 1
+        fn(**kw)
+        ref = kw["out"].clone()
+        _Q3D[0] = q3d
+        fn(**kw)
+        d = float((kw["out"].float() - ref.float()).abs().max())
+        m = float(ref.float().abs().max())
+        log.warning("[PN124 verificar 3D] Q=%d N=%d causal=%s ws=%s: max|dif| %.3e (max|ref| %.3e)",
+                    Qk, int(kw["seqused_k"].shape[0]), kw.get("causal"), kw.get("window_size"), d, m)
+        return None
+    if plano is None and _VERIFICAR[0] > 0 and not torch.cuda.is_current_stream_capturing():
+        _VERIFICAR[0] -= 1
+        log.warning("[PN124 diag] sin aplanar: Q=%s q=%s N=%s thr=%s segm=%s causal=%s head=%s alibi=%s sinks=%s ws=%s mm=%s rswa=%s",
+                    kw.get("max_seqlen_q"), tuple(kw["q"].shape), int(kw["seqused_k"].shape[0]),
+                    kw.get("seq_threshold_3D"), kw.get("softmax_segm_output") is not None, kw.get("causal"),
+                    kw["q"].shape[-1], kw.get("alibi_slopes") is not None, kw.get("sinks") is not None,
+                    kw.get("window_size"), kw.get("mm_prefix_range") is not None, kw.get("rswa_prefix_lens") is not None)
+    if plano is not None:
+        if _VERIFICAR[0] > 0 and not torch.cuda.is_current_stream_capturing():
             _VERIFICAR[0] -= 1
-            q3d, _Q3D[0] = _Q3D[0], 1
             fn(**kw)
             ref = kw["out"].clone()
-            _Q3D[0] = q3d
-            fn(**kw)
-            d = float((kw["out"].float() - ref.float()).abs().max())
+            fn(**plano)
+            d = float((plano["out"].float() - ref.float()).abs().max())
             m = float(ref.float().abs().max())
-            log.warning("[PN124 verificar 3D] Q=%d N=%d causal=%s ws=%s: max|dif| %.3e (max|ref| %.3e)",
-                        Qk, int(kw["seqused_k"].shape[0]), kw.get("causal"), kw.get("window_size"), d, m)
+            log.warning("[PN124 verificar] Q=%d N=%d causal=%s: max|dif| %.3e (max|ref| %.3e)",
+                        int(kw["max_seqlen_q"]), int(kw["seqused_k"].shape[0]), kw.get("causal"), d, m)
             return None
-        if plano is None and _VERIFICAR[0] > 0 and not torch.cuda.is_current_stream_capturing():
-            _VERIFICAR[0] -= 1
-            log.warning("[PN124 diag] sin aplanar: Q=%s q=%s N=%s thr=%s segm=%s causal=%s head=%s alibi=%s sinks=%s ws=%s mm=%s rswa=%s",
-                        kw.get("max_seqlen_q"), tuple(kw["q"].shape), int(kw["seqused_k"].shape[0]),
-                        kw.get("seq_threshold_3D"), kw.get("softmax_segm_output") is not None, kw.get("causal"),
-                        kw["q"].shape[-1], kw.get("alibi_slopes") is not None, kw.get("sinks") is not None,
-                        kw.get("window_size"), kw.get("mm_prefix_range") is not None, kw.get("rswa_prefix_lens") is not None)
-        if plano is not None:
-            if _VERIFICAR[0] > 0 and not torch.cuda.is_current_stream_capturing():
-                _VERIFICAR[0] -= 1
-                fn(**kw)
-                ref = kw["out"].clone()
-                fn(**plano)
-                d = float((plano["out"].float() - ref.float()).abs().max())
-                m = float(ref.float().abs().max())
-                log.warning("[PN124 verificar] Q=%d N=%d causal=%s: max|dif| %.3e (max|ref| %.3e)",
-                            int(kw["max_seqlen_q"]), int(kw["seqused_k"].shape[0]), kw.get("causal"), d, m)
-                return None
-            kw = plano
+        kw = plano
     while True:
         try:
             return fn(**kw)
         except Exception as e:
-            if not (_ACTIVO and _es_sin_sram(e)):
+            if not (_es_sin_sram(e)):
                 raise
             # Se degradan las dos listas un escalon: la llamada no dice cual de los
             # dos kernels (fp16/int8 o INT4 empaquetado) fue el que no entro.

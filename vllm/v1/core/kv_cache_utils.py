@@ -1314,7 +1314,6 @@ def _get_kv_cache_groups_uniform_page_size(
     # [Genesis PN146: tamano de grupo de KV] ver el modulo del parche para la aritmetica.
     # bytes_per_block lo fija el grupo MAS GRANDE (un max, no una suma), asi que un
     # group_size mas chico da mas bloques totales aunque haya mas grupos por request.
-    import os as _g146_os
     _g146 = '8'
     if _g146:
         try:

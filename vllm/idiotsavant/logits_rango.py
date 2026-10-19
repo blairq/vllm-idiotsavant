@@ -229,7 +229,7 @@ def _verificar(completo, ralo, runner, input_batch, pos, eidx):
 
 def instalar(cls) -> None:
     """Envuelve ``GPUModelRunner.sample`` (por encima del envoltorio del arbol)."""
-    if not ACTIVO or getattr(cls, "_genesis_pn153", False):
+    if getattr(cls, "_genesis_pn153", False):
         return
     sample0 = cls.sample
 

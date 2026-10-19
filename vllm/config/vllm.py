@@ -2170,21 +2170,20 @@ class VllmConfig:
                 if _p66_uniform_q_len > 1:
                     _p66_orig = list(cudagraph_capture_sizes)
                     _p66_env = __import__('os').environ
-                    if True:
-                        # Generar (K+1)*n en vez de filtrar una lista pensada para otro K.
-                        _p66_n = 4
-                        if _p66_n <= 0:
-                            _p66_n = int(self.scheduler_config.max_num_seqs)
-                        cudagraph_capture_sizes = [
-                            _p66_uniform_q_len * _i for _i in range(1, _p66_n + 1)
-                            if _p66_uniform_q_len * _i <= max_num_tokens
-                        ]
-                        logger.info(
-                            '[Genesis P66] cudagraph_capture_sizes GENERADAS para '
-                            'uniform_query_len=%d, hasta %d pedidos: %s (se ignora la lista '
-                            'del usuario %s)', _p66_uniform_q_len, _p66_n,
-                            cudagraph_capture_sizes, _p66_orig,
-                        )
+                    # Generar (K+1)*n en vez de filtrar una lista pensada para otro K.
+                    _p66_n = 4
+                    if _p66_n <= 0:
+                        _p66_n = int(self.scheduler_config.max_num_seqs)
+                    cudagraph_capture_sizes = [
+                        _p66_uniform_q_len * _i for _i in range(1, _p66_n + 1)
+                        if _p66_uniform_q_len * _i <= max_num_tokens
+                    ]
+                    logger.info(
+                        '[Genesis P66] cudagraph_capture_sizes GENERADAS para '
+                        'uniform_query_len=%d, hasta %d pedidos: %s (se ignora la lista '
+                        'del usuario %s)', _p66_uniform_q_len, _p66_n,
+                        cudagraph_capture_sizes, _p66_orig,
+                    )
                     cudagraph_capture_sizes = [
                         _s for _s in cudagraph_capture_sizes
                         if _s % _p66_uniform_q_len == 0

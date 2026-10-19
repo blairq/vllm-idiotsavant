@@ -18,7 +18,6 @@ y viajan como argumento explicito (``_q156``) del decoder a la lineal consumidor
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
@@ -78,7 +77,7 @@ def _consumidor(capa, cual: int):
 
 def _marlin(lin):
     """Kernel Marlin W4A8 de la lineal o None. Solo lee atributos: estatico al trazar."""
-    if not ACTIVO or lin is None or getattr(lin, "bias", None) is not None:
+    if lin is None or getattr(lin, "bias", None) is not None:
         return None
     from vllm.idiotsavant import rot_down as _g148
     return _g148._marlin_int8(lin)

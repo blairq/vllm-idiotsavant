@@ -25,13 +25,11 @@ y pesos uint4b8; W4A16 no se toca.
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
 log = logging.getLogger("idiotsavant.pn125")
 
-_BUSQUEDA = True
 _FACTORES = (6.5, 6.75, 7.0, 7.25, 7.5, 7.75, 8.0, 8.25, 8.5)
 _FILAS = 1024
 
@@ -55,18 +53,17 @@ def _corregir_bloque(q: torch.Tensor, s: torch.Tensor, G: int) -> tuple[torch.Te
     neg = sg < 0
     qa = torch.where(neg, (16 - qg).clamp(max=15), qg)
     sa = sg.abs()
-    if _BUSQUEDA:
-        W = (qg - 8).float() * sg.float()
-        mejor_e = ((qa - 8).float() * sa.float() - W).square().sum(-1, keepdim=True)
-        base = W.abs().amax(-1, keepdim=True).clamp_min(1e-12)
-        for f in _FACTORES:
-            sc = base / f
-            qb = (W / sc).round().clamp(-8, 7)
-            e = (qb * sc - W).square().sum(-1, keepdim=True)
-            m = neg & (e < mejor_e)
-            qa = torch.where(m, (qb + 8).to(qa.dtype), qa)
-            sa = torch.where(m, sc.to(sa.dtype), sa)
-            mejor_e = torch.where(m, e, mejor_e)
+    W = (qg - 8).float() * sg.float()
+    mejor_e = ((qa - 8).float() * sa.float() - W).square().sum(-1, keepdim=True)
+    base = W.abs().amax(-1, keepdim=True).clamp_min(1e-12)
+    for f in _FACTORES:
+        sc = base / f
+        qb = (W / sc).round().clamp(-8, 7)
+        e = (qb * sc - W).square().sum(-1, keepdim=True)
+        m = neg & (e < mejor_e)
+        qa = torch.where(m, (qb + 8).to(qa.dtype), qa)
+        sa = torch.where(m, sc.to(sa.dtype), sa)
+        mejor_e = torch.where(m, e, mejor_e)
     return qa.view(n, g * G), sa.squeeze(-1)
 
 

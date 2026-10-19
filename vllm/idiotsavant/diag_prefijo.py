@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import collections
 import logging
-import os
 import time
 
 log = logging.getLogger("idiotsavant.pn165")
@@ -49,8 +48,6 @@ def _ubicar(ids, pos):
 
 
 def registrar(request, acierto_local: int) -> None:
-    if not ACTIVO:
-        return
     try:
         hs = [bytes(h) if not isinstance(h, bytes) else h for h in request.block_hashes]
         n_prompt = request.num_prompt_tokens
@@ -105,8 +102,6 @@ _vistos_offload: dict = {}
 
 def offload_grupo(req_id, grupo, ventana, inicio, n_claves, n_hit, computados, max_hit) -> None:
     """PN167: por pedido y grupo, que encontro la busqueda del offload (vLLM solo lo dice en debug)."""
-    if not ACTIVO:
-        return
     clave = (str(req_id), grupo, n_hit)
     if clave in _vistos_offload:
         return

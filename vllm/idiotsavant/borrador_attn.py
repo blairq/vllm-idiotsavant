@@ -15,7 +15,6 @@ from __future__ import annotations
 import ctypes
 import logging
 import math
-import os
 
 import torch
 
@@ -55,8 +54,7 @@ def _bufs(dev, nkv):
 
 def intentar(kw) -> bool:
     """True si la llamada la resolvio SK-31 (kw['out'] escrito); False para seguir con Triton."""
-    if not ACTIVO:
-        return False
+    return False
     try:
         from vllm.v1.kv_cache_interface import KVQuantMode
         q, kc, out = kw["q"], kw["k"], kw["out"]
@@ -64,7 +62,7 @@ def intentar(kw) -> bool:
         if (kw.get("kv_quant_mode") != KVQuantMode.INT8_PER_TOKEN_HEAD or q.dim() != 3 or q.shape[-1] != QD
                 or kc.dtype != torch.int8 or kc.dim() != 4 or kc.shape[-1] != QD + 4 or kw.get("causal", True)
                 or ws is None or ws[0] < 0 or kw.get("alibi_slopes") is not None or kw.get("sinks") is not None
-                or (kw.get("softcap") or 0) != 0 or kw.get("mm_prefix_range") is not None
+                or (kw.get("softcap")) != 0 or kw.get("mm_prefix_range") is not None
                 or kw.get("rswa_prefix_lens") is not None or q.dtype != torch.float16 or out.dtype != torch.float16):
             return False
         L = int(kw["max_seqlen_q"])

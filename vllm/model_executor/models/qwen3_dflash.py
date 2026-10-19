@@ -10,7 +10,6 @@ from collections.abc import Iterable
 from vllm.idiotsavant import rot_qk as _g126  # [Genesis PN126: rotacion qk]
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 from transformers import Qwen3Config
 
@@ -377,10 +376,6 @@ def _dense_kv_rows(attn):
     qkv = attn.qkv_proj
     w = getattr(qkv, "weight", None)
     if w is not None and w.dim() == 2:
-        import os as _os
-        if False and not globals().get("_g142_av1"):
-            globals()["_g142_av1"] = True
-            print("[PN142 DIAG] camino DENSO: weight %s %s" % (tuple(w.shape), w.dtype), flush=True)
         return w[attn.q_size:]
     packed, scale = qkv.weight_packed, qkv.weight_scale
     # weight_shape solo guarda el ultimo shard cargado de una qkv fusionada: usar los tensores.
@@ -394,14 +389,6 @@ def _dense_kv_rows(attn):
              * scale.to(torch.float32)[..., None]).reshape(out_f, in_f)
     fuera = scale.dtype if scale.dtype.is_floating_point else torch.bfloat16
     salida = dense.to(fuera)[attn.q_size:]
-    import os as _os
-    if False and not globals().get("_g142_av2"):
-        globals()["_g142_av2"] = True
-        print("[PN142 DIAG] camino CUANTIZADO: packed %s %s | scale %s %s | bits=%d grupo=%d "
-              "| denso %s min=%.4g max=%.4g | salida %s"
-              % (tuple(packed.shape), packed.dtype, tuple(scale.shape), scale.dtype, bits, group,
-                 tuple(dense.shape), float(dense.min()), float(dense.max()), tuple(salida.shape)),
-              flush=True)
     return salida
 
 

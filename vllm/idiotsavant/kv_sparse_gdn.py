@@ -56,7 +56,6 @@ reanudación del turno siguiente— siempre se conserva.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 
 

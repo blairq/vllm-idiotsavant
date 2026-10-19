@@ -387,8 +387,6 @@ class FileSystemTierManager(SecondaryTierManager):
     def on_schedule_end(self, context: ScheduleEndContext) -> None:
         self._lookup_manager.flush()
         import os as _g81_os
-        if False:
-            return
         try:
             # GATE POR TIEMPO, no por pasos del scheduler.
             # El gate viejo era cada N pasos del scheduler, y
@@ -546,20 +544,17 @@ class FileSystemTierManager(SecondaryTierManager):
                 finally:
                     self._genesis_pn81_running = False
 
-            if True:
-                if getattr(self, '_genesis_pn81_running', False):
-                    return
-                self._genesis_pn81_running = True
-                import threading as _g81_th
-                _t = _g81_th.Thread(
-                    target=_do_pn81_quota,
-                    name='pn81_quota',
-                    daemon=True,
-                )
-                self._genesis_pn81_worker = _t
-                _t.start()
-            else:
-                _do_pn81_quota()
+            if getattr(self, '_genesis_pn81_running', False):
+                return
+            self._genesis_pn81_running = True
+            import threading as _g81_th
+            _t = _g81_th.Thread(
+                target=_do_pn81_quota,
+                name='pn81_quota',
+                daemon=True,
+            )
+            self._genesis_pn81_worker = _t
+            _t.start()
         except Exception as _g81_err:
             # la poda NUNCA debe tumbar el scheduler; se avisa una sola vez
             if not getattr(self, '_genesis_pn81_failed', False):

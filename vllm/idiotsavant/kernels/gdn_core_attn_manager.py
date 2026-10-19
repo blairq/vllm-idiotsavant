@@ -57,7 +57,6 @@ Author: Sandermage(Sander)-Barzov Aleksandr, Ukraine, Odessa
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Optional
 
 import torch
@@ -65,8 +64,6 @@ import torch
 log = logging.getLogger("idiotsavant.gdn_core_attn_manager")
 
 
-# ─── Env budget (resolved ONCE at import, dynamo-safe) ──────────────────────
-_ENV_BUDGET: Optional[int] = None
 _DEFAULT_MAX_BT: int = 4096
 
 
@@ -81,8 +78,6 @@ def resolve_max_batched_tokens(hint: Optional[int] = None) -> int:
     if hint is not None and hint > 0:
         return int(hint)
     # Back-compat: domain env still wins if explicitly set
-    if _ENV_BUDGET is not None:
-        return _ENV_BUDGET
     # Try central resolver (consults vllm scheduler_config)
     try:
         from vllm.idiotsavant.prealloc_budget import resolve_token_budget

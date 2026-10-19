@@ -44,7 +44,6 @@ ocupar a lo efimero".
 
 from __future__ import annotations
 
-import os
 from collections import OrderedDict
 
 _MAX_VISTOS = 65536

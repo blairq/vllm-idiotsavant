@@ -77,7 +77,6 @@ en la lista de arriba y hay que buscarlo con la traza.
 from __future__ import annotations
 
 import logging
-import os
 
 log = logging.getLogger("idiotsavant.dflash2_escala")
 

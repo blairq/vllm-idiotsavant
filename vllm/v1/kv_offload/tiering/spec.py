@@ -391,7 +391,6 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
             # El numero de bloques solo no dice nada. Lo traducimos a
             # tokens y lo comparamos con L1, que es la regla que importa.
             try:
-                import os as _g98_os
 
                 from vllm.idiotsavant import l2_sizing as _g98
 
@@ -401,8 +400,6 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                     if type(_g98_g.kv_cache_spec).__name__.startswith('Mamba'):
                         _g98_rec += 1
                 _g98_stride = 1
-                if False:
-                    _g98_stride = 1
                 _g98_cc = self.vllm_config.cache_config
                 _g98_tpb = _g98_cc.block_size * self.block_size_factor
                 _g98_l1 = int(

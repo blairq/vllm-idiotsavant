@@ -243,12 +243,7 @@ def _anillo_fake(h, vs, is_):
     return torch.empty_like(vs), torch.empty_like(is_)
 
 
-_SK28 = False      # apagado hasta validarlo en el servidor
 _k28: dict = {}
-# GENESIS_PN159_VERIFICAR=1: con SK-28/29 corre tambien la rama de flashinfer y cuenta en la GPU las filas cuyo
-# conjunto de ids difiere. Vale dentro del grafo: el contador se copia a memoria fijada del host en cada paso y
-# un hilo lo registra cada 30 s (grep "PN159 verificar" en los logs del worker).
-_VERIF = False
 _ver: dict = {}
 
 
@@ -347,20 +342,10 @@ def top_k(proc, lm_head, hidden_states: torch.Tensor, k: int):
     from vllm.model_executor.layers.logits_processor import _topk
 
     logits = _logits(lm_head, hidden_states)
-    if k == 16 and _SK28:
-        # SK-28: top-k del fijo (+ anillo de la fase 2) con los ids ya mapeados, sin flashinfer ni casts
-        values, ids = torch.ops.genesis.pn159_topk(logits, hidden_states, lm_head.pn159_ids)
-        if _VERIF:
-            rv, ri = _topk(logits, k)
-            ri = lm_head.pn159_ids[ri.to(torch.int64)]
-            if getattr(lm_head, "pn159_din", None) is not None:
-                rv, ri = torch.ops.genesis.pn159_anillo(hidden_states, rv, ri)
-            _verificar(values, ids, rv, ri)
-    else:
-        values, idx = _topk(logits, k)
-        ids = lm_head.pn159_ids[idx.to(torch.int64)]
-        if getattr(lm_head, "pn159_din", None) is not None:
-            values, ids = torch.ops.genesis.pn159_anillo(hidden_states, values, ids)
+    values, idx = _topk(logits, k)
+    ids = lm_head.pn159_ids[idx.to(torch.int64)]
+    if getattr(lm_head, "pn159_din", None) is not None:
+        values, ids = torch.ops.genesis.pn159_anillo(hidden_states, values, ids)
     if lm_head.tp_size > 1:
         values = tensor_model_parallel_all_gather(values, dim=-1)
         ids = tensor_model_parallel_all_gather(ids, dim=-1)

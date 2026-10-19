@@ -48,7 +48,7 @@ def _aplica(engine_input: Any, sampling_params: Any, chat_template_kwargs: dict 
     from vllm.sampling_params import SamplingParams
     if not isinstance(sampling_params, SamplingParams):
         return False                                   # beam search
-    if (sampling_params.n or 1) != 1 or sampling_params.logprobs is not None:
+    if sampling_params.logprobs is not None:
         return False
     if not include_reasoning or reasoning_ended:
         return False

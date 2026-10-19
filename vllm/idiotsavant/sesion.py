@@ -8,7 +8,6 @@ de desalojo por conversacion. Un pedido sin cabeceras no cambia. Solo ids opacos
 from __future__ import annotations
 
 import logging
-import os
 
 log = logging.getLogger("idiotsavant.pn169")
 ACTIVO = True
@@ -23,8 +22,6 @@ def de_cabeceras(raw_request) -> dict:
 
 
 def etiquetar(request, raw_request) -> None:
-    if not ACTIVO:
-        return
     try:
         et = de_cabeceras(raw_request)
         if not et:

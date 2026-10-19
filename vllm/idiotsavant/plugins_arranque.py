@@ -63,87 +63,27 @@ def cargar() -> None:
 
     _avisar_si_falta_disco()
 
-    if False:
-        try:
-            from vllm.idiotsavant.diag_lm_head import enganchar
-
-            enganchar()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG] no se pudo enganchar la firma de lm_head (%s: %s)",
-                      type(e).__name__, e)
 
     # El arbol de borrador se instala en opciones.configurar(): necesita la config del proceso,
     # y en el frontend este enganche corre antes de que exista.
 
-    if '':
-        try:
-            from vllm.idiotsavant import diag_capas_dump
-            diag_capas_dump.instalar()
-        except Exception as e:  # noqa: BLE001
-            log.error("[DIAG capas] no se pudo instalar: %s: %s", type(e).__name__, e)
 
-    if False:
-        # Datos para ajustar DFlash2 contra noon: features del fc en los pasos de prefill.
-        try:
-            from vllm.idiotsavant import captura_borrador
-            captura_borrador.instalar()
-        except Exception as e:  # noqa: BLE001
-            log.error("[CAPTURA] no se pudo instalar: %s: %s", type(e).__name__, e)
 
-    if '':
-        try:
-            from vllm.idiotsavant.diag_ddtree_dump import enganchar as _ddt
 
-            _ddt()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG] no se pudo enganchar el volcado ddtree (%s: %s)",
-                      type(e).__name__, e)
-
-    if False:
-        try:
-            from vllm.idiotsavant.diag_drafter_a16 import enganchar as _a16
-
-            _a16()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG] no se pudo enganchar drafter A16 (%s: %s)", type(e).__name__, e)
 
     # PN144 (escala del residual del borrador) se engancha en opciones.configurar(): el divisor
     # sale de --speculative-config.
 
-    if False:
-        try:
-            from vllm.idiotsavant.diag_offload import enganchar as _eng_off
 
-            _eng_off()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG offload] no se pudo enganchar (%s: %s)", type(e).__name__, e)
 
-    if False:
-        try:
-            from vllm.idiotsavant.diag_kv import enganchar as _eng_kv
 
-            _eng_kv()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG KV] no se pudo enganchar el volcado de KVCacheConfig (%s: %s)",
-                      type(e).__name__, e)
+    try:
+        from vllm.idiotsavant.sk18_backend import registrar
 
-    if False:
-        try:
-            from vllm.idiotsavant.diag_dflash import enganchar as _eng_dflash
-
-            _eng_dflash()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[DIAG] no se pudo enganchar el borrador DFlash (%s: %s)",
-                      type(e).__name__, e)
-
-    if True:
-        try:
-            from vllm.idiotsavant.sk18_backend import registrar
-
-            registrar()
-        except Exception as e:                                   # noqa: BLE001
-            log.error("[PN131] no se pudo registrar el backend SK-18 (%s: %s). La atencion "
-                      "va a correr por el kernel generico.", type(e).__name__, e)
+        registrar()
+    except Exception as e:                                   # noqa: BLE001
+        log.error("[PN131] no se pudo registrar el backend SK-18 (%s: %s). La atencion "
+                  "va a correr por el kernel generico.", type(e).__name__, e)
 
 
 def _avisar_si_falta_disco(minimo_gib: float = 10.0) -> None:

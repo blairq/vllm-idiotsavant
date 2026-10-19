@@ -37,7 +37,6 @@ grupo), asi que el GEMM es el mismo kernel que ya corre en las 256 capas del mod
 from __future__ import annotations
 
 import logging
-import os
 
 import torch
 
