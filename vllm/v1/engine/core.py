@@ -114,8 +114,10 @@ class EngineCore:
         include_finished_set: bool = False,
     ):
         # plugins need to be loaded at the engine/scheduler level too
+        from vllm.idiotsavant import opciones
         from vllm.plugins import load_general_plugins
 
+        opciones.configurar(vllm_config)
         load_general_plugins()
 
         self.vllm_config = vllm_config

@@ -132,7 +132,7 @@ NW8 = 8
 # keys segun el seq_len real). Offline, reloj fijo: 272 -> 198 us por capa a 62k, 139 -> 91 a 20k, 125 -> 39 a
 # 4k; mas preciso que batch2 contra float. P.V con P' en 16 bits (hi/lo, dos mma int8).
 SK30 = True
-SK30_GMAX = int(os.environ.get("GENESIS_PN131_SK30_GMAX", "41"))   # 82 SMs / NH=2: una ola con 1 bloque por SM (03-10: -11 a -31% contra 128)
+# Grupos de keys de SK-30: una ola con 1 bloque por SM, SMs / nh (82 / 2 = 41 en la 3090; 03-10: -11 a -31% contra 128).
 SK30_NQ = 2
 # V rotada en d al escribir (Hadamard/16 con signos, como K): con canales outlier el error int8 de V baja de
 # 2,0% a 0,64% (tests/proto/sk30_rot_pv.py). Solo con SK-30 (su union des-rota la salida); batch2 no la sabe
@@ -150,8 +150,18 @@ ROT_PTX = True
 # Verificacion de un ARBOL de borrador (ver vllm.idiotsavant.arbol_borrador): la query ve el contexto
 # y, entre los tokens nuevos, solo a sus ancestros. Solo el camino int8 con rotacion PTX. Apagado
 # el texto de los kernels queda identico al de siempre.
-ARBOL = os.environ.get("GENESIS_ENABLE_ARBOL", "0") == "1"
-ROTV_MAIN = False and SK30 and ARBOL and ROT_PTX
+_ARBOL: bool | None = None
+
+
+def _arbol() -> bool:
+    global _ARBOL
+    if _ARBOL is None:
+        from vllm.idiotsavant import opciones
+        _ARBOL = opciones.actual().tree_drafting
+    return _ARBOL
+
+
+ROTV_MAIN = False and SK30 and _arbol() and ROT_PTX
 _signos = {}
 
 
@@ -265,7 +275,7 @@ def _kernels(md="int8"):
                 x.cargar()
             _k[dev] = ks
             return ks
-        arb = ["-DARBOL=1"] if (ARBOL and ROT_PTX) else []
+        arb = ["-DARBOL=1"] if (_arbol() and ROT_PTX) else []
         ks = dict(main=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb, warps=4),
                   main8=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb + [f"-DNWARPS={NW8}"], warps=NW8),
                   escribir=Kernel("sk18h_escribir2.cu" if ROT_PTX else "sk18h_escribir.cu",
@@ -276,7 +286,7 @@ def _kernels(md="int8"):
                   union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs, warps=1),
                   decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"] if ROTV_MAIN else [], warps=1),
                   salida=Kernel("sk18h_salida.cu", "sk18h_salida", warps=1))
-        if SK30 and ARBOL and ROT_PTX:
+        if SK30 and _arbol() and ROT_PTX:
             ks["prep30"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=arb + ["-DQSF=1"], warps=1)
             ks["sk30"] = Kernel("sk30_decode_1pasada.cu", "sk30_decode",
                                 defs=[f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"], warps=4 * SK30_NQ)
@@ -344,7 +354,7 @@ class _Bufs:
             self.dcap8 = z(R, dt=torch.int32)
             self.lim8 = z(R, dt=torch.int32)
         self.lim = z(R, dt=torch.int32)
-        if ARBOL:
+        if _arbol():
             self.abase = z(R, dt=torch.int32)
             self.amask = z(R, dt=torch.int32)
             # mascara de la CADENA de siempre, por L: el token j ve a los j-1 anteriores y a si mismo
@@ -354,15 +364,16 @@ class _Bufs:
         self.nx = VENT * SCH if VENT > 0 else 0       # ranuras extra para los trozos del espejo
         self._dev, self._nchx, self._R, self._NG = dev, nchmax + self.nx, R, NG
         self.oh = None                                # acumuladores de batch2: ver acumuladores()
-        if not (ROT_PTX and ARBOL and SK30 and MB == 64):
+        if not (ROT_PTX and _arbol() and SK30 and MB == 64):
             self.acumuladores()
         self.ar = torch.arange(_max_tok_decode(), device=dev, dtype=torch.int32)
         if SK30:
+            self.gmax30 = max(1, torch.cuda.get_device_properties(dev).multi_processor_count // nh)
             self.qsf = z(R, dt=torch.float32)
-            self.Op30 = z(SK30_GMAX * R * QD, dt=torch.float16)
-            self.Mp30 = z(SK30_GMAX * R, dt=torch.float32)
-            self.Lp30 = z(SK30_GMAX * R, dt=torch.float32)
-            log.info("PN131 SK-30: parciales %d grupos (%.0f MiB)", SK30_GMAX, self.Op30.numel() * 2 / 2**20)
+            self.Op30 = z(self.gmax30 * R * QD, dt=torch.float16)
+            self.Mp30 = z(self.gmax30 * R, dt=torch.float32)
+            self.Lp30 = z(self.gmax30 * R, dt=torch.float32)
+            log.info("PN131 SK-30: parciales %d grupos (%.0f MiB)", self.gmax30, self.Op30.numel() * 2 / 2**20)
         log.info("PN131 buffers: bmax=%d nchmax=%d MB=%d (acumuladores de batch2: %s)", bmax, nchmax, MB,
                  "%.0f MiB" % ((self.oh.numel() + self.ol.numel()) * 4 / 2**20) if self.oh is not None
                  else "no, los pide solo el camino sin SK-30")
@@ -390,26 +401,14 @@ _bufs: dict[int, _Bufs] = {}
 def _get_bufs(dev, nh, bs, G=6):
     b = _bufs.get(dev.index)
     if b is None:
-        try:
-            from vllm.config import get_current_vllm_config
-            cfg = get_current_vllm_config()
-            maxlen = int(cfg.model_config.max_model_len)
-            bmax = int(cfg.scheduler_config.max_num_seqs)
-        except Exception as e:
-            # El contexto de configuracion de vLLM no siempre esta activo cuando se arman los
-            # buffers (esto corre en la primera inferencia del worker). Caer a un 10 en SILENCIO
-            # hacia que el servidor se muriera recien al llegar el lote 11:
-            #   RuntimeError: PN131: lote 12 > GENESIS_PN131_BMAX 10
-            # Con --max-num-seqs 24 eso pasa apenas hay carga. Ahora avisa y se puede fijar.
-            maxlen, bmax = 262144, 10
-            log.warning(
-                "PN131: no se pudo leer la config de vLLM (%s); usando bmax=%d. Si "
-                "--max-num-seqs es mayor, fijar GENESIS_PN131_BMAX o el lote lo va a tirar.",
-                type(e).__name__, bmax)
-        bmax = int(os.environ.get("GENESIS_PN131_BMAX", bmax))
+        # Desde opciones y no get_current_vllm_config(): ese contexto no siempre esta activo en la
+        # primera inferencia, y caer a un tope fijo tiraba el servidor al llegar un lote mayor.
+        from vllm.idiotsavant import opciones
+        op = opciones.actual()
+        maxlen, bmax = op.max_model_len, op.max_num_seqs
         nchmax = (maxlen + bs - 1) // bs
         b = _bufs[dev.index] = _Bufs(dev, bmax, nchmax, nh, bs, G)
-        if ARBOL:
+        if _arbol():
             # La mascara tiene que existir ANTES de capturar (un arange adentro del grafo la
             # repondria a cadena en cada replay): se crea ya, para el largo del decode spec.
             try:
@@ -732,20 +731,21 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
                                               L, nh, G, MB, ZSH, q16.stride(0)])
     elif ROTV_MAIN and MB != 64:
         raise RuntimeError(f"PN131/ROTV: la V rotada solo la lee SK-30 (MB=64); MB={MB}")
-    elif ROT_PTX and ARBOL and SK30 and MB == 64:
+    elif ROT_PTX and _arbol() and SK30 and MB == 64:
         # SK-30: prep2 con la escala de fila en float, decode en una pasada y union a la salida
         anc = mascara_arbol(dev, L, bf, capturando)
         ks["prep30"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
                                            bf.abase[:R], bf.amask[:R], bf.qsf[:R], L, nh, G, MB, ZSH, q16.stride(0)])
-        ks["sk30"].lanzar((SK30_GMAX, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
-                                                lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, SK30_GMAX,
-                                                bf.Op30[: SK30_GMAX * R * QD], bf.Mp30[: SK30_GMAX * R],
-                                                bf.Lp30[: SK30_GMAX * R]], shared=SH_30)
-        ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: SK30_GMAX * R * QD], bf.Mp30[: SK30_GMAX * R],
-                                          bf.Lp30[: SK30_GMAX * R], seq, SK30_GMAX, B, nh, L, G, output[:nt],
+        g30 = bf.gmax30
+        ks["sk30"].lanzar((g30, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
+                                          lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g30,
+                                          bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
+                                          bf.Lp30[: g30 * R]], shared=SH_30)
+        ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
+                                          bf.Lp30[: g30 * R], seq, g30, B, nh, L, G, output[:nt],
                                           _signos_dev(dev)])
         return
-    elif ROT_PTX and ARBOL:
+    elif ROT_PTX and _arbol():
         anc = mascara_arbol(dev, L, bf, capturando)
         ks["prep"].lanzar((nt, nh * G), [q16, seq, c.refs, _signos_dev(dev), Qb, lim, mqb, dcap, anc,
                                          bf.abase[:R], bf.amask[:R], L, nh, G, MB, ZSH, q16.stride(0)])
@@ -774,7 +774,7 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
     else:
         bq = 8 * NW8 if (NW8 != 4 and MB % (8 * NW8) == 0) else 32
         km, sh = (ks["main8"], sh_h(NW8)) if bq != 32 else (ks["main"], SH_H)
-        if ARBOL and ROT_PTX:
+        if _arbol() and ROT_PTX:
             km.lanzar((NCH, B * nh * (MB // bq)), [Qb, raw, bt, seq, lim, mqb, dcap, bf.abase[:R], bf.amask[:R],
                                                    oh, ol, om, os_,
                                                    blk, bt.stride(0), bs, NCH, nh, MB // bq, ZSH, VSH], shared=sh)

@@ -143,6 +143,7 @@ class OpenAIServingChat(GenerateBaseServing):
         enable_log_deltas: bool = True,
         default_chat_template_kwargs: dict[str, Any] | None = None,
         enable_per_request_metrics: bool = False,
+        reasoning_force_close: bool = False,
     ) -> None:
         super().__init__(
             engine_client=engine_client,
@@ -159,6 +160,7 @@ class OpenAIServingChat(GenerateBaseServing):
         self.default_chat_template_kwargs = default_chat_template_kwargs or {}
         self.enable_log_outputs = enable_log_outputs
         self.enable_log_deltas = enable_log_deltas
+        self.reasoning_force_close = reasoning_force_close
 
         self.enable_auto_tools: bool = enable_auto_tools
         self._include_reasoning_tokens_details = bool(reasoning_parser)
@@ -415,7 +417,7 @@ class OpenAIServingChat(GenerateBaseServing):
         assert len(generators) == 1
         (result_generator,) = generators
         from vllm.idiotsavant import cierre_forzado as _g175  # [Genesis PN175: cierre forzado]
-        if not isinstance(sampling_params, BeamSearchParams):
+        if self.reasoning_force_close and not isinstance(sampling_params, BeamSearchParams):
             result_generator = _g175.envolver(
                 result_generator, engine_client=self.engine_client, engine_input=engine_input,
                 sampling_params=sampling_params, request_id=sub_request_id, tokenizer=tokenizer,

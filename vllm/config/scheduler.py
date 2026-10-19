@@ -71,6 +71,32 @@ class SchedulerConfig:
     """For chunked prefill, a request is considered long if the prompt is
     longer than this number of tokens. 0 disables the cap (default)."""
 
+    long_prefill_token_threshold_with_decode: int = Field(default=0, ge=0)
+    """Long-prefill cap used while some running request is decoding or has
+    little prefill left, so its steps stay short. `long_prefill_token_threshold`
+    applies otherwise. 0 disables the switch (default)."""
+
+    max_concurrent_prefills: int = Field(default=0, ge=0)
+    """Maximum number of requests prefilling at the same time. Waiting
+    requests are held back until a prefill finishes. 0 means no limit."""
+
+    short_prompt_bypass_tokens: int = Field(default=0, ge=0)
+    """Prompts of up to this many tokens are not held back by
+    `max_concurrent_prefills`. 0 disables the bypass."""
+
+    remaining_prefill_bypass_tokens: int = Field(default=0, ge=0)
+    """Requests whose prompt minus local prefix-cache hit fits in this many
+    tokens are not held back by `max_concurrent_prefills`. 0 disables the
+    bypass."""
+
+    kv_admission_headroom: float = Field(default=0.10, ge=0.0, lt=1.0)
+    """Fraction of GPU KV-cache blocks that admission control keeps free
+    when deciding whether to start a waiting request."""
+
+    kv_admission_min_concurrency: int = Field(default=2, ge=1)
+    """Admission control never limits concurrency below this number of
+    running requests."""
+
     max_num_queued_reqs: int | None = Field(default=None, ge=0)
     """Maximum number of requests that can be in-flight (waiting or running)
     at the same time, or None for no limit. When the limit is reached, new

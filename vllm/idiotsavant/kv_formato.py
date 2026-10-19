@@ -77,6 +77,9 @@ def componentes() -> dict:
         pass
     for k, v in _de_argv().items():      # la linea de comandos siempre esta; completa lo que falte
         c.setdefault(k, v)
+    from vllm.idiotsavant import opciones
+
+    c["draft_residual_scale"] = opciones.actual().draft_residual_scale
     return c
 
 

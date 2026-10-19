@@ -72,14 +72,8 @@ def cargar() -> None:
             log.error("[DIAG] no se pudo enganchar la firma de lm_head (%s: %s)",
                       type(e).__name__, e)
 
-    if _prendido("GENESIS_ENABLE_ARBOL"):
-        # Arbol de borrador de DFlash2: monkeypatch del borrador, del runner v2 y de la conv de
-        # GDN. Tiene que correr aca (el proceso que sirve), no en apply_all.
-        try:
-            from vllm.idiotsavant import arbol_runner
-            arbol_runner.instalar()
-        except Exception as e:  # noqa: BLE001
-            log.error("[ARBOL] no se pudo instalar: %s: %s", type(e).__name__, e)
+    # El arbol de borrador se instala en opciones.configurar(): necesita la config del proceso,
+    # y en el frontend este enganche corre antes de que exista.
 
     if '':
         try:
@@ -113,15 +107,8 @@ def cargar() -> None:
         except Exception as e:                                   # noqa: BLE001
             log.error("[DIAG] no se pudo enganchar drafter A16 (%s: %s)", type(e).__name__, e)
 
-    # PN144 va ANTES del diagnostico: engancha load_weights, que corre despues igual, pero
-    # asi el orden en el log cuenta la historia en el orden en que pasan las cosas.
-    try:
-        from vllm.idiotsavant import dflash2_escala
-
-        dflash2_escala.enganchar()
-    except Exception as e:                                       # noqa: BLE001
-        log.error("[PN144] no se pudo escalar el residual del borrador DFlash2 (%s: %s). "
-                  "En fp16 el borrador va a dar NaN y aceptar 0.", type(e).__name__, e)
+    # PN144 (escala del residual del borrador) se engancha en opciones.configurar(): el divisor
+    # sale de --speculative-config.
 
     if False:
         try:

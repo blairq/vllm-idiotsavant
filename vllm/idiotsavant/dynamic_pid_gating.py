@@ -207,8 +207,8 @@ class PIDAdmissionController:
         # None = línea base auto, POR NIVEL DE CONCURRENCIA.
         self.target_step_ms: Optional[float] = float(env_target) if env_target else None
 
-        env_min_c = os.environ.get("GENESIS_PID_MIN_CONCURRENCY")
-        self.min_concurrency: int = max(1, int(env_min_c)) if env_min_c else 2
+        # Los parametros salen del scheduler_config en init_from_scheduler.
+        self.min_concurrency: int = 2
 
         env_max_c = None
         self.max_concurrency: Optional[int] = int(env_max_c) if env_max_c else None
@@ -233,9 +233,7 @@ class PIDAdmissionController:
         # no entrega ninguno hasta el final; de a uno, el tiempo total es el
         # mismo pero cada request queda usable N veces antes.
         # 0 = desactivado. 1 = un prefill por vez.
-        self.max_concurrent_prefills = int(
-            os.environ.get("GENESIS_PN115_MAX_CONCURRENT_PREFILLS", "0")
-        )
+        self.max_concurrent_prefills = 0
         # Prioridad AUTOMATICA: un prompt de hasta N tokens no espera detras de un prefill en
         # curso. La serializacion tiene sentido entre prefills comparables (6 subagentes de
         # 50k); contra un pedido de 300 tokens es pura espera — medido 2026-09-20: 26 s detras
@@ -245,18 +243,16 @@ class PIDAdmissionController:
         # Rinde junto con --long-prefill-token-threshold < max-num-batched-tokens: si el largo
         # se lleva el paso entero, el corto admitido igual espera un chunk completo.
         # 0 = desactivado (comportamiento anterior).
-        self.short_prompt_tokens = int(
-            os.environ.get("GENESIS_PN115_PROMPT_CORTO_TOKENS", "0")
-        )
+        self.short_prompt_tokens = 0
         # Lo mismo por lo que FALTA calcular (06-10): un turno de 101k con 96% en el prefix cache local tiene ~3,5k
         # tokens de trabajo, pero por largo total esperaba detras del prefill de otro pedido (15-24 s de TTFT medidos
         # con 2-4 s de computo). Si lo que falta (prompt menos el acierto local) entra en N tokens, no espera.
         # Solo exime de la serializacion, como el prompt corto. 0 = desactivado.
-        self.faltan_tokens = int(os.environ.get("GENESIS_PN115_FALTAN_TOKENS", "0"))
+        self.faltan_tokens = 0
         self.faltan_bypass = 0
 
         # Headroom de seguridad: fracción de bloques GPU que nunca se compromete.
-        self.safety_headroom_ratio = float(os.environ.get("GENESIS_PID_HEADROOM_RATIO", "0.10"))
+        self.safety_headroom_ratio = 0.10
         self.max_safe_usage_ratio = 1.0 - self.safety_headroom_ratio
 
         # Estado descubierto de vLLM
@@ -296,6 +292,13 @@ class PIDAdmissionController:
             return
         try:
             sc = getattr(scheduler, "scheduler_config", None)
+            if sc is not None:
+                self.min_concurrency = sc.kv_admission_min_concurrency
+                self.max_concurrent_prefills = sc.max_concurrent_prefills
+                self.short_prompt_tokens = sc.short_prompt_bypass_tokens
+                self.faltan_tokens = sc.remaining_prefill_bypass_tokens
+                self.safety_headroom_ratio = sc.kv_admission_headroom
+                self.max_safe_usage_ratio = 1.0 - self.safety_headroom_ratio
 
             sc_max = getattr(scheduler, "max_num_running_reqs", None)
             if sc_max is None:

@@ -119,6 +119,11 @@ class FileSystemTierManager(SecondaryTierManager):
         n_write_threads: int = 16,
         enable_kv_events: bool = False,
         locality: str | None = None,
+        max_size_gb: float = 30.0,
+        target_ratio: float = 0.85,
+        quota_check_secs: float = 60.0,
+        orphan_max_age_days: float = 0.0,
+        orphan_check_secs: float = 3600.0,
     ):
         """
         Args:
@@ -134,8 +139,21 @@ class FileSystemTierManager(SecondaryTierManager):
                 cache events are enabled globally (kv_events_config).
             locality: Whether this tier's storage is LOCAL or REMOTE relative
                 to the publishing vLLM instance.
+            max_size_gb: Disk quota per rank. When exceeded, the oldest files
+                are pruned down to `target_ratio` of it.
+            target_ratio: Fraction of `max_size_gb` to prune down to.
+            quota_check_secs: Seconds between quota checks.
+            orphan_max_age_days: Delete sibling directories under the parent of
+                `root_dir` (other models or configs) unused for this many days.
+                0 disables it.
+            orphan_check_secs: Seconds between orphan sweeps.
         """
         super().__init__(offloading_spec, primary_kv_view, tier_type)
+        self._quota_max_gb = max_size_gb
+        self._quota_target_ratio = target_ratio
+        self._quota_check_secs = quota_check_secs
+        self._orphan_max_age_days = orphan_max_age_days
+        self._orphan_check_secs = orphan_check_secs
         self.locality = Locality(locality) if locality is not None else None
 
         self.events: list[OffloadingEvent] | None = None
@@ -373,14 +391,14 @@ class FileSystemTierManager(SecondaryTierManager):
             return
         try:
             # GATE POR TIEMPO, no por pasos del scheduler.
-            # El gate viejo era `paso % GENESIS_KV_DISK_CHECK_EVERY`, y
+            # El gate viejo era cada N pasos del scheduler, y
             # on_schedule_end sube un paso por iteracion del scheduler: si el
             # engine esta ocioso, los pasos no se acumulan y la cuota NUNCA
             # corre. Medido: 22 min sirviendo 61 requests cortos no alcanzaron
             # los 2000 pasos, y el directorio llego a 31,4 GiB con limite de 30
             # sin una sola poda. Con reloj, la cuota corre haya o no trafico.
             import time as _g81_time
-            _secs = float(_g81_os.environ.get('GENESIS_KV_DISK_CHECK_SECS', '60'))
+            _secs = self._quota_check_secs
             _now = _g81_time.monotonic()
             _last = getattr(self, '_genesis_pn81_last', 0.0)
             if _now - _last < _secs:
@@ -389,13 +407,12 @@ class FileSystemTierManager(SecondaryTierManager):
 
             def _do_pn81_quota():
                 try:
-                    _max = float(_g81_os.environ.get('GENESIS_KV_DISK_MAX_GB', '30'))
-                    _ratio = float(_g81_os.environ.get(
-                        'GENESIS_KV_DISK_TARGET_RATIO', '0.85'))
+                    _max = self._quota_max_gb
+                    _ratio = self._quota_target_ratio
                     # El directorio real NO es base_path: FileMapper escribe en
                     # f'{base_path}_r{rank}' (ver get_file_name). Cada rank poda el
                     # SUYO, asi que la cuota es POR RANK: con TP=2 el total en disco
-                    # es 2 x GENESIS_KV_DISK_MAX_GB.
+                    # es 2 x max_size_gb.
                     _bp = getattr(self.file_mapper, 'base_path', None)
                     _rk = getattr(self.file_mapper, 'rank', 0)
                     _root = f'{_bp}_r{_rk}' if _bp else None
@@ -421,14 +438,13 @@ class FileSystemTierManager(SecondaryTierManager):
                     # Despistaba que su hermano sin datos (solo config.json, 0 GiB) SI
                     # se borro: nadie le escribe despues de crearlo, asi que su mtime
                     # ya tenia 3,2 dias. Se borro la cascara y quedo el contenido.
-                    # Ahora corre cada GENESIS_KV_DISK_ORPHAN_CHECK_SECS (default una
+                    # Ahora corre cada orphan_check_secs (default una
                     # hora). Cadencia propia y no la de la cuota (60s) porque este
                     # barrido recorre TODOS los directorios de /kv-offload y no solo
                     # el del modelo actual: son miles de stat() en vez de cientos.
                     # La primera pasada sigue siendo al arranque (_olast is None).
-                    _dias = float(_g81_os.environ.get('GENESIS_KV_DISK_ORPHAN_DAYS', '0'))
-                    _osecs = float(_g81_os.environ.get(
-                        'GENESIS_KV_DISK_ORPHAN_CHECK_SECS', '3600'))
+                    _dias = self._orphan_max_age_days
+                    _osecs = self._orphan_check_secs
                     _olast = getattr(self, '_genesis_pn81_orphan_last', None)
                     if _dias > 0 and (_olast is None or _now - _olast >= _osecs):
                         self._genesis_pn81_orphan_last = _now

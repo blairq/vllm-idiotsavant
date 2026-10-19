@@ -386,6 +386,7 @@ class ModelConfig:
     from the architecture of `self.model`."""
     language_model_only: InitVar[bool] = False
     limit_mm_per_prompt: InitVar[dict[str, int | dict[str, int]] | None] = None
+    limit_mm_per_turn: InitVar[int | None] = None
     enable_mm_embeds: InitVar[bool | None] = None
     media_io_kwargs: InitVar[dict[str, dict[str, Any]] | None] = None
     mm_processor_kwargs: InitVar[dict[str, Any] | None] = None
@@ -447,6 +448,7 @@ class ModelConfig:
             "pooler_config",
             "multimodal_config",
             "limit_mm_per_prompt",
+            "limit_mm_per_turn",
             "media_io_kwargs",
             "mm_processor_kwargs",
             "mm_processor_cache_gb",
@@ -519,6 +521,7 @@ class ModelConfig:
         # Multimodal config init vars
         language_model_only: bool,
         limit_mm_per_prompt: dict[str, int | dict[str, int]] | None,
+        limit_mm_per_turn: int | None,
         enable_mm_embeds: bool | None,
         media_io_kwargs: dict[str, dict[str, Any]] | None,
         mm_processor_kwargs: dict[str, Any] | None,
@@ -782,6 +785,7 @@ class ModelConfig:
             mm_config_kwargs = dict(
                 language_model_only=language_model_only,
                 limit_per_prompt=limit_mm_per_prompt,
+                limit_per_turn=limit_mm_per_turn,
                 enable_mm_embeds=enable_mm_embeds,
                 media_io_kwargs=media_io_kwargs,
                 mm_processor_kwargs=mm_processor_kwargs,

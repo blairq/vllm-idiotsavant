@@ -10,7 +10,7 @@ procesador del API server las encuentra en su cache por hash. Lo caro es una ima
 
 El arreglo, sin estado y sin tocar nunca el prefijo:
 - **Por turno:** un turno es lo que hay despues de un mensaje del asistente. En cada turno quedan como
-  mucho ``GENESIS_PN176_POR_TURNO`` imagenes (2 por defecto), las mas nuevas; las otras se reemplazan por
+  mucho ``--limit-mm-per-turn`` imagenes (0 = sin limite por turno), las mas nuevas; las otras se reemplazan por
   una nota de texto. La decision de cada turno depende solo de ese turno, asi que un turno viejo da siempre
   el mismo texto: el prompt de la conversacion solo crece por el final y la cache de prefijos sirve entera.
 - **Total:** ``--limit-mm-per-prompt`` queda como techo de la conversacion (memoria del API server si hay que
@@ -19,17 +19,15 @@ El arreglo, sin estado y sin tocar nunca el prefijo:
   asi que el prefijo cambia una vez cada h imagenes y no en cada una.
 
 No toca nada si el limite de la modalidad es 0 (sigue dando el 400 de siempre) o si el modelo no es
-multimodal. El limite total se lee de la config del modelo; el de por turno, del entorno.
+multimodal. Los dos limites se leen de la config multimodal del modelo.
 """
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 log = logging.getLogger("idiotsavant.pn176")
 
-_POR_TURNO = int(os.environ.get("GENESIS_PN176_POR_TURNO", "2"))
 
 # tipo de parte -> modalidad (los de chat_utils.MM_PARSER_MAP)
 _MODALIDAD = {
@@ -62,7 +60,7 @@ def _omitir(request: Any, lugares: list[tuple[int, int]], nota: str) -> None:
 
 
 def recortar(request: Any, model_config: Any) -> None:
-    """Como mucho ``_POR_TURNO`` items nuevos por turno y el limite de vLLM en total, sin cambiar el prefijo."""
+    """Como mucho ``--limit-mm-per-turn`` items nuevos por turno y el limite de vLLM en total, sin cambiar el prefijo."""
     mm = getattr(model_config, "multimodal_config", None)
     if mm is None:
         return
@@ -85,11 +83,12 @@ def recortar(request: Any, model_config: Any) -> None:
                 while len(por_m) <= turno:
                     por_m.append([])
                 por_m[turno].append((i, j))
+    por_turno_max = mm.limit_per_turn
     for m, por_turno in turnos.items():
         limite = mm.get_limit_per_prompt(m)
         if limite <= 0:
             continue
-        x = min(_POR_TURNO, limite) if _POR_TURNO > 0 else limite
+        x = min(por_turno_max, limite) if por_turno_max > 0 else limite
         quedan: list[tuple[int, int]] = []
         omitidas = 0
         for lugares in por_turno:

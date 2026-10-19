@@ -60,7 +60,7 @@ _DEBUG = '0' in _TRUTHY
 #   * lo que se reproduce al paso siguiente no son las filas 0..r-1 de la cinta sino las del
 #     camino aceptado: ``camino[slot, j]`` = fila de cinta del j-esimo token aceptado.
 # La cinta se escribe igual que siempre (fila t-1 = token t del paso).
-_ARBOL = os.environ.get("GENESIS_ENABLE_ARBOL", "0").strip().lower() in _TRUTHY
+_ARBOL: bool | None = None
 # Forma cerrada del arbol (Bole arXiv 2608.01651 / TreeWY arXiv 2608.20961): un sistema triangular
 # en vez de rehacer los ancestros con actualizaciones de rango 1. APAGADA: es correcta (2,2e-4
 # contra fp32, igual que el secuencial) y su costo NO depende de la topologia del arbol, que era
@@ -90,6 +90,10 @@ _anc3_gpu: torch.Tensor | None = None       # [tokens del lote, 3] int32, los 3 
 
 
 def arbol() -> bool:
+    global _ARBOL
+    if _ARBOL is None:
+        from vllm.idiotsavant import opciones
+        _ARBOL = opciones.actual().tree_drafting
     return _ARBOL
 
 
@@ -137,7 +141,7 @@ def paso_en_arbol(si: bool) -> None:
 
 
 def paso_arbol_activo() -> bool:
-    if not _ARBOL or _anc_gpu is None:
+    if not arbol() or _anc_gpu is None:
         return False
     # Capturando un grafo se hornea SIEMPRE el kernel de arbol, valga lo que valga la bandera
     # (una corrida dummy anterior la puede haber dejado apagada, y el grafo quedaba con la conv
@@ -322,10 +326,10 @@ def enlazar(layer, device) -> None:
     layer._g122_cinta = torch.zeros(
         (_n_slots, layer.num_spec, fila(layer)), dtype=torch.float32, device=device)
     global _camino_gpu, _anc_gpu, _anc3_gpu
-    if _ARBOL and _camino_gpu is None:
+    if arbol() and _camino_gpu is None:
         _camino_gpu = torch.arange(layer.num_spec, dtype=torch.int32, device=device)[None] \
             .repeat(_n_slots, 1).contiguous()
-    if _ARBOL and _anc_gpu is None:
+    if arbol() and _anc_gpu is None:
         T = layer.num_spec + 1
         _anc_gpu = ((1 << torch.arange(T, device=device, dtype=torch.int32)) - 1) \
             .repeat(_n_slots).contiguous()
@@ -1398,7 +1402,7 @@ def _lanzar(modo_post, ctx, num_reqs, nacc, state_idx, nsched, ncomp, ndraft, sr
         idx_map if idx_map is not None else slots_gpu(),
         _camino_gpu if _camino_gpu is not None else slots_gpu(), num_reqs,
         block_size=ctx.block_size, IDX=idx_map is not None,
-        ARBOL=_ARBOL and _camino_gpu is not None, H=H, HV=HV, K=K, V=V,
+        ARBOL=arbol() and _camino_gpu is not None, H=H, HV=HV, K=K, V=V,
         BK=triton.next_power_of_2(K), BV=min(triton.next_power_of_2(V), 32),
         TM=TM, ROW=ROW, num_warps=4, num_stages=3)
 

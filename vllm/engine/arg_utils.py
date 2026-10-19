@@ -583,6 +583,16 @@ class EngineArgs:
     max_num_batched_tokens: int | None = None
     max_num_scheduled_tokens: int | None = None
     long_prefill_token_threshold: int = SchedulerConfig.long_prefill_token_threshold
+    long_prefill_token_threshold_with_decode: int = (
+        SchedulerConfig.long_prefill_token_threshold_with_decode
+    )
+    max_concurrent_prefills: int = SchedulerConfig.max_concurrent_prefills
+    short_prompt_bypass_tokens: int = SchedulerConfig.short_prompt_bypass_tokens
+    remaining_prefill_bypass_tokens: int = (
+        SchedulerConfig.remaining_prefill_bypass_tokens
+    )
+    kv_admission_headroom: float = SchedulerConfig.kv_admission_headroom
+    kv_admission_min_concurrency: int = SchedulerConfig.kv_admission_min_concurrency
     max_num_seqs: int | None = None
     max_num_queued_reqs: int | None = None
     max_num_queued_tokens: int | None = None
@@ -614,6 +624,7 @@ class EngineArgs:
     limit_mm_per_prompt: dict[str, int | dict[str, int]] = get_field(
         MultiModalConfig, "limit_per_prompt"
     )
+    limit_mm_per_turn: int = MultiModalConfig.limit_per_turn
     enable_mm_embeds: bool = MultiModalConfig.enable_mm_embeds
     interleave_mm_strings: bool = MultiModalConfig.interleave_mm_strings
     media_io_kwargs: dict[str, dict[str, Any]] = get_field(
@@ -1371,6 +1382,9 @@ class EngineArgs:
             "--limit-mm-per-prompt", **multimodal_kwargs["limit_per_prompt"]
         )
         multimodal_group.add_argument(
+            "--limit-mm-per-turn", **multimodal_kwargs["limit_per_turn"]
+        )
+        multimodal_group.add_argument(
             "--enable-mm-embeds", **multimodal_kwargs["enable_mm_embeds"]
         )
         multimodal_group.add_argument(
@@ -1610,6 +1624,28 @@ class EngineArgs:
             "--long-prefill-token-threshold",
             **scheduler_kwargs["long_prefill_token_threshold"],
         )
+        scheduler_group.add_argument(
+            "--long-prefill-token-threshold-with-decode",
+            **scheduler_kwargs["long_prefill_token_threshold_with_decode"],
+        )
+        scheduler_group.add_argument(
+            "--max-concurrent-prefills", **scheduler_kwargs["max_concurrent_prefills"]
+        )
+        scheduler_group.add_argument(
+            "--short-prompt-bypass-tokens",
+            **scheduler_kwargs["short_prompt_bypass_tokens"],
+        )
+        scheduler_group.add_argument(
+            "--remaining-prefill-bypass-tokens",
+            **scheduler_kwargs["remaining_prefill_bypass_tokens"],
+        )
+        scheduler_group.add_argument(
+            "--kv-admission-headroom", **scheduler_kwargs["kv_admission_headroom"]
+        )
+        scheduler_group.add_argument(
+            "--kv-admission-min-concurrency",
+            **scheduler_kwargs["kv_admission_min_concurrency"],
+        )
         # multi-step scheduling has been removed; corresponding arguments
         # are no longer supported.
         scheduler_group.add_argument(
@@ -1843,6 +1879,7 @@ class EngineArgs:
             served_model_name=self.served_model_name,
             language_model_only=self.language_model_only,
             limit_mm_per_prompt=self.limit_mm_per_prompt,
+            limit_mm_per_turn=self.limit_mm_per_turn,
             enable_mm_embeds=self.enable_mm_embeds,
             interleave_mm_strings=self.interleave_mm_strings,
             media_io_kwargs=self.media_io_kwargs,
@@ -2437,6 +2474,14 @@ class EngineArgs:
             policy=self.scheduling_policy,
             scheduler_cls=self.scheduler_cls,
             long_prefill_token_threshold=self.long_prefill_token_threshold,
+            long_prefill_token_threshold_with_decode=(
+                self.long_prefill_token_threshold_with_decode
+            ),
+            max_concurrent_prefills=self.max_concurrent_prefills,
+            short_prompt_bypass_tokens=self.short_prompt_bypass_tokens,
+            remaining_prefill_bypass_tokens=self.remaining_prefill_bypass_tokens,
+            kv_admission_headroom=self.kv_admission_headroom,
+            kv_admission_min_concurrency=self.kv_admission_min_concurrency,
             scheduler_reserve_full_isl=self.scheduler_reserve_full_isl,
             watermark=self.watermark,
             prefill_schedule_interval=self.prefill_schedule_interval,
@@ -2644,6 +2689,9 @@ class EngineArgs:
             shutdown_timeout=self.shutdown_timeout,
         )
 
+        from vllm.idiotsavant import opciones
+
+        opciones.configurar(config)
         return config
 
     def _check_feature_supported(self):

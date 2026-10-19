@@ -90,18 +90,10 @@ _NORMAS_POR_CAPA = ("input_layernorm", "post_attention_layernorm")
 
 
 def divisor() -> float:
-    """0 (apagado) o el divisor. `GENESIS_PN144_ESCALA_RESIDUAL=1` significa el valor por
-    defecto de 32, que es el que tiene el margen medido."""
-    crudo = os.environ.get("GENESIS_PN144_ESCALA_RESIDUAL", "0").strip()
-    if crudo in ("", "0", "off", "no", "false"):
-        return 0.0
-    if crudo in ("1", "on", "yes", "true"):
-        return 32.0
-    try:
-        return float(crudo)
-    except ValueError:
-        log.error("[PN144] GENESIS_PN144_ESCALA_RESIDUAL=%r no es un numero; apagado", crudo)
-        return 0.0
+    """0 (apagado) o el divisor: --speculative-config draft_residual_scale. 32 es el que tiene
+    el margen medido."""
+    from vllm.idiotsavant import opciones
+    return float(opciones.actual().draft_residual_scale)
 
 
 def _escalar_modulo(mod, c: float, nombre: str) -> bool:
@@ -142,6 +134,9 @@ def enganchar() -> None:
 
     modelo_cls = qwen3_dflash.DFlashQwen3Model
     cabeza_cls = qwen3_dflash.DFlashQwen3ForCausalLM
+    if getattr(cabeza_cls, "_escala_residual", None):
+        return
+    cabeza_cls._escala_residual = c
 
     # --- 1) las escalas, una vez, despues de cargar y ANTES del repack de Marlin ---
     load_original = cabeza_cls.load_weights

@@ -51,7 +51,6 @@ from vllm.idiotsavant import arbol_borrador as ab
 
 log = logging.getLogger("idiotsavant.arbol")
 
-ACTIVO = os.environ.get("GENESIS_ENABLE_ARBOL", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
 class _Estado:
@@ -544,7 +543,8 @@ def _envolver_conv() -> None:
 
 
 def instalar() -> None:
-    if not ACTIVO:
+    from vllm.idiotsavant import opciones
+    if not opciones.actual().tree_drafting:
         return
     if False:
         log.error("[ARBOL] necesita PN122 (la cinta de GDN): queda APAGADO")
@@ -555,4 +555,4 @@ def instalar() -> None:
     log.warning("[ARBOL] enganches instalados (borrador, runner v2, conv de GDN)")
 
 
-__all__ = ["instalar", "ACTIVO", "E"]
+__all__ = ["instalar", "E"]

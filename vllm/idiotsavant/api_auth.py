@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Autenticacion de los endpoints HTTP que agrega Genesis.
+"""Autenticacion de los endpoints HTTP que agrega idiotsavant.
 
 Por que existe
 --------------
 El ``AuthenticationMiddleware`` de vLLM solo protege las rutas que empiezan con ``/v1``. Todo
-lo demas (``/health``, ``/metrics``...) queda abierto a proposito. Genesis montaba alias sin
+lo demas (``/health``, ``/metrics``...) queda abierto a proposito. Se montaban alias sin
 ese prefijo (``/kv-offload/reset``, ``/reset_prefix_cache``, ``/kv-offload/requests``) y
 quedaban abiertos sin que nadie lo hubiera decidido: cualquiera que llegara al puerto podia
 leer el historial de requests o vaciar las tres capas de cache y cortar los pedidos en curso.
@@ -18,7 +18,7 @@ Dos niveles
 ``require_api_key``    la misma clave que el resto de la API (``--api-key`` / ``VLLM_API_KEY``).
                        Sin clave configurada el servidor es abierto, igual que vLLM.
 ``require_admin_key``  para las rutas que MUTAN el servidor (reset de caches, config de
-                       PN115). Con ``GENESIS_ADMIN_API_KEY`` definida exigen ESA clave, asi un
+                       PN115). Con ``--admin-api-key`` (o ``VLLM_ADMIN_API_KEY``) exigen ESA clave, asi un
                        cliente de inferencia no puede reconfigurar ni vaciar el servidor. Sin
                        ella, valen las claves normales.
 """
@@ -26,10 +26,11 @@ Dos niveles
 from __future__ import annotations
 
 import hashlib
-import os
 import secrets
 
 from fastapi import HTTPException, Request
+
+import vllm.envs as envs
 
 
 def _hash(token: str) -> bytes:
@@ -42,7 +43,7 @@ def _api_tokens(request: Request) -> list[str]:
     cli = getattr(args, "api_key", None)
     if isinstance(cli, str):
         cli = [cli]
-    return [k for k in (cli or [os.environ.get("VLLM_API_KEY")]) if k]
+    return [k for k in (cli or [envs.VLLM_API_KEY]) if k]
 
 
 def _bearer(request: Request) -> str | None:
@@ -65,8 +66,10 @@ def _rechazar() -> HTTPException:
                          headers={"WWW-Authenticate": "Bearer"})
 
 
-def _admin_token() -> str:
-    return os.environ.get("GENESIS_ADMIN_API_KEY", "").strip()
+def _admin_token(request: Request) -> str:
+    """``--admin-api-key``, o ``VLLM_ADMIN_API_KEY``."""
+    args = getattr(request.app.state, "args", None)
+    return (getattr(args, "admin_api_key", None) or envs.VLLM_ADMIN_API_KEY or "").strip()
 
 
 async def require_api_key(request: Request) -> None:
@@ -75,13 +78,13 @@ async def require_api_key(request: Request) -> None:
         return
     # La clave de admin tambien lee: un cliente manda UN solo Bearer, y las rutas que mutan
     # pasan por las dos dependencias (la del router y la propia).
-    admin = _admin_token()
+    admin = _admin_token(request)
     if not _coincide(_bearer(request), validos + ([admin] if admin else [])):
         raise _rechazar()
 
 
 async def require_admin_key(request: Request) -> None:
-    admin = _admin_token()
+    admin = _admin_token(request)
     validos = [admin] if admin else _api_tokens(request)
     if validos and not _coincide(_bearer(request), validos):
         raise _rechazar()

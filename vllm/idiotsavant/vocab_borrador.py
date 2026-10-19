@@ -24,8 +24,15 @@ import os
 import torch
 
 log = logging.getLogger("idiotsavant.pn159")
-ACTIVO = True
-TAM = int(os.environ.get("GENESIS_PN159_VOCAB", "65536"))     # 32k: -3,5% de aceptacion; 64k: igual
+# Tamano del vocabulario recortado: --speculative-config draft_vocab_size (0 = completo).
+# 32k: -3,5% de aceptacion; 64k: igual.
+
+
+def _tam() -> int:
+    from vllm.idiotsavant import opciones
+    return opciones.actual().draft_vocab_size
+
+
 DIN = 0           # filas del anillo dinamico por rango (0 = fase 1)
 _HECHO = False
 _din: dict = {}
@@ -46,7 +53,7 @@ def _repartir(filas_de, ancho: int, ini: int, dev, T: int = 4096):
                                   tensor_model_parallel_all_gather)
     tp, r = get_tensor_model_parallel_world_size(), get_tensor_model_parallel_rank()
     orden = torch.from_numpy(np.load(_ORDEN).astype("int64"))
-    s = -(-TAM // (256 * tp)) * 256 * tp
+    s = -(-_tam() // (256 * tp)) * 256 * tp
     sub = orden[:s]
     destino = torch.arange(s) % tp                                    # rango que la usa
     if tp == 1:
@@ -85,7 +92,7 @@ def preparar(layer, qp: torch.Tensor, esc: torch.Tensor) -> None:
     escalas son exactamente los del lm_head completo (sin recuantizar; el lm_head ya esta en la base rotada
     del residuo y la entrada llega rotada por PN149)."""
     global _HECHO
-    if not ACTIVO or _HECHO:
+    if _HECHO or not _tam():
         # Una sola vez: la primera es el lm_head del target. El borrador carga el suyo, PN139 lo procesa y
         # load_dflash_model lo BORRA y le pone el del target (dflash/utils.py): armarlo ahi seria otro
         # all-gather y memoria tirada.
@@ -128,7 +135,7 @@ def preparar(layer, qp: torch.Tensor, esc: torch.Tensor) -> None:
             _preparar_dinamico(layer, qp, esc, ini, int(layer.shard_indices.org_vocab_end_index))
         torch.cuda.empty_cache()   # lo que carga despues (el borrador) asigna en el pool de pesos de vLLM
         log.warning("PN159: candidatos del borrador: %d columnas del lm_head int4 en este rango (%.0f MB), "
-                    "vocabulario %d", n, n * k / 2 / 1e6, TAM)
+                    "vocabulario %d", n, n * k / 2 / 1e6, _tam())
     except Exception as e:      # sin subconjunto el borrador usa el lm_head completo
         log.error("PN159: no se armo el vocabulario recortado (%s: %s)", type(e).__name__, e)
         for a in ("pn159_w", "pn159_ids"):
@@ -150,7 +157,7 @@ def _preparar_dinamico(layer, qp, esc, ini, fin) -> None:
         hs[a:b].copy_(esc[:, a:b].t())
     orden = torch.from_numpy(np.load(_ORDEN).astype("int64"))       # todo el vocabulario, ordenado
     palabras = (max(int(orden.max()) + 1, fin) + 31) // 32 + 1
-    s_tot = -(-TAM // (256 * layer.tp_size)) * 256 * layer.tp_size
+    s_tot = -(-_tam() // (256 * layer.tp_size)) * 256 * layer.tp_size
     est = torch.zeros(palabras * 32, dtype=torch.bool)
     est[orden[:s_tot]] = True
     bits = (est.view(-1, 32).to(torch.int64) << torch.arange(32)).sum(1)

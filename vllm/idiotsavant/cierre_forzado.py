@@ -20,12 +20,13 @@ paso de razonamiento a contenido) y despues la respuesta; sin streaming, un solo
 
 No se fuerza: con thinking apagado, si el razonamiento ya termino en el prompt, con beam search, n > 1,
 logprobs, entradas multimodales (la continuacion necesitaria las imagenes otra vez) o si queda poco
-presupuesto de tokens. ``GENESIS_PN175_MAX_TOKENS`` acota la respuesta forzada (4096 por defecto).
+presupuesto de tokens. La respuesta forzada se acota a 4096 tokens.
+
+Se activa con ``--reasoning-force-close``.
 """
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import AsyncGenerator
 from typing import Any
 

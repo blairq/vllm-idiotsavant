@@ -102,7 +102,7 @@ def carga_lista(job_id) -> None:
 # P-2 de cada prompt (el estado de P-3, ver PN168) y la junction compartida. Para un acierto de H chunks el lookup de
 # la ventana pide [H-w-e, H] (w = ventana en chunks, e = 1 por EAGLE). Lo demas del borrador se guardaba de gusto.
 RECORTE = True
-SEGMENTO = int(os.environ.get("GENESIS_PN171_SEGMENTO", "14080") or 0)
+# Segmento = --prefix-cache-retention-interval.
 
 
 def saltear_ventana(req, group_config, c: int) -> bool:
@@ -119,7 +119,9 @@ def saltear_ventana(req, group_config, c: int) -> bool:
         puntos.append(spb // tpc - 1)
     if any(h - margen <= c <= h for h in puntos):
         return False
-    seg = SEGMENTO // tpc if SEGMENTO else 0
+    from vllm.idiotsavant import opciones
+    segmento = opciones.actual().prefix_cache_retention_interval
+    seg = segmento // tpc if segmento else 0
     if seg > 0:
         h = (c + margen) // seg * seg                 # el primer multiplo del segmento >= c (si esta a menos de margen)
         if h >= c and h > 0:

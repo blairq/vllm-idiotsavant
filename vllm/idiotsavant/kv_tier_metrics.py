@@ -44,7 +44,7 @@ string en vez de usar tuplas como clave.
 CARDINALIDAD
 ================================================================
 
-`agent_label()` colapsa cualquier nombre fuera de `GENESIS_KV_AGENTS` al
+`agent_label()` colapsa cualquier nombre fuera de `kv_connector_extra_config.agents` al
 bucket `other`. Es deliberado: el nombre del agente entra por
 `kv_transfer_params`, o sea desde el cliente, y sin lista cerrada un typo
 en un `extraBody` de opencode crea una serie de Prometheus nueva para
@@ -197,9 +197,10 @@ _AGENTS_CACHE: frozenset[str] | None = None
 def _allowlist() -> frozenset[str]:
     global _AGENTS_CACHE
     if _AGENTS_CACHE is None:
-        raw = os.environ.get("GENESIS_KV_AGENTS", "")
-        names = tuple(n.strip() for n in raw.split(",") if n.strip())
-        _AGENTS_CACHE = frozenset(names or _DEFAULT_AGENTS)
+        from vllm.idiotsavant import opciones
+
+        # kv_connector_extra_config.agents; sin lista, la de siempre.
+        _AGENTS_CACHE = frozenset(opciones.actual().kv_metric_agents or _DEFAULT_AGENTS)
     return _AGENTS_CACHE
 
 

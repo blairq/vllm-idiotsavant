@@ -266,8 +266,10 @@ class WorkerWrapperBase:
 
         vllm_config.enable_trace_function_call_for_thread()
 
+        from vllm.idiotsavant import opciones
         from vllm.plugins import load_general_plugins
 
+        opciones.configurar(vllm_config)
         load_general_plugins()
 
         parallel_config = vllm_config.parallel_config
