@@ -1,3 +1,8 @@
+# [Genesis wiring marker: [Genesis PN175: cierre forzado]]
+# [Genesis wiring marker: [Genesis PN176: recorte mm]]
+# [Genesis wiring marker: [Genesis PN169: sesion por pedido]]
+# [Genesis wiring marker: Genesis P68/P69 long-context tool-call adherence v7.13]
+# [Genesis wiring marker: Genesis P107 MTP truncation detector (vllm#41467) v2]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -237,6 +242,8 @@ class OpenAIServingChat(GenerateBaseServing):
 
         self._preflight(request.n or 1)
 
+        from vllm._genesis import recorte_mm as _g176  # [Genesis PN176: recorte mm]
+        _g176.recortar(request, self.model_config)
         return await self.online_renderer.render_chat(request)
 
     async def create_chat_completion(
@@ -260,6 +267,25 @@ class OpenAIServingChat(GenerateBaseServing):
         request: ChatCompletionRequest,
         raw_request: Request | None = None,
     ) -> AsyncGenerator[str, None] | ChatCompletionResponse | ErrorResponse:
+        try:  # [Genesis PN169: sesion por pedido]
+            from vllm._genesis import sesion as _g169
+            _g169.etiquetar(request, raw_request)
+        except Exception:
+            pass
+        # [Genesis P68/P69 long-ctx tool-call adherence] Mutate request
+        # in-place if conditions met (env-gated). No-op when env flags
+        # off, when no tools, or when prompt below threshold.
+        try:
+            from vllm._genesis.middleware.long_ctx_tool_adherence import (
+                apply_hook as _genesis_p6869_apply_hook,
+            )
+            _genesis_p6869_apply_hook(self, request)
+        except Exception:
+            # Hook failure is non-fatal — fall through to standard path.
+            import logging as _genesis_p6869_logging
+            _genesis_p6869_logging.getLogger(
+                'genesis.middleware.long_ctx_tool_adherence'
+            ).debug('Genesis P68/P69 hook raised; ignored', exc_info=True)
         # Streaming response
         tokenizer = self.renderer.tokenizer
         assert tokenizer is not None
@@ -388,6 +414,14 @@ class OpenAIServingChat(GenerateBaseServing):
 
         assert len(generators) == 1
         (result_generator,) = generators
+        from vllm._genesis import cierre_forzado as _g175  # [Genesis PN175: cierre forzado]
+        if not isinstance(sampling_params, BeamSearchParams):
+            result_generator = _g175.envolver(
+                result_generator, engine_client=self.engine_client, engine_input=engine_input,
+                sampling_params=sampling_params, request_id=sub_request_id, tokenizer=tokenizer,
+                chat_template_kwargs=chat_template_kwargs, include_reasoning=request.include_reasoning,
+                reasoning_ended=locals().get("reasoning_ended"), lora_request=lora_request,
+                priority=self._get_priority(request, raw_request), data_parallel_rank=data_parallel_rank)
 
         if request.stream:
             return self.chat_completion_stream_generator(
@@ -762,6 +796,39 @@ class OpenAIServingChat(GenerateBaseServing):
                             finish_reason_ = (
                                 output.finish_reason if output.finish_reason else "stop"
                             )
+
+                        # [Genesis P107 vllm#41467] MTP truncation detector.
+                        # ~0.25% rate on Qwen3.6 27B-FP8 + MTP K=3 (per upstream
+                        # author): EOS at reasoning→tool_call boundary leaves
+                        # finish_reason=stop with no content/tool_calls. Raise
+                        # retryable error only when GENESIS_P107_RAISE_ERROR=1,
+                        # otherwise complete cleanly to prevent infinite loops in
+                        # agentic clients (OpenCode/Cline).
+                        if (
+                            finish_reason_ == "stop"
+                            and request.tools
+                            and not tools_streamed[i]
+                            and parser is not None
+                            and parser.reasoning_parser is not None
+                            and delta_message is not None
+                            and not delta_message.content
+                            and not delta_message.tool_calls
+                        ):
+                            logger.warning(
+                                "[Genesis P107] MTP truncation detected for request %s: "
+                                "finished with 'stop' but tools configured and only "
+                                "reasoning produced.",
+                                request_id,
+                            )
+                            import os as _p107_os
+                            if _p107_os.environ.get("GENESIS_P107_RAISE_ERROR", "").strip().lower() in ("1", "true", "yes"):
+                                from vllm.entrypoints.openai.engine.protocol import (
+                                    GenerationError as _P107_GenError,
+                                )
+                                raise _P107_GenError(
+                                    "MTP speculative decoding truncated tool call "
+                                    "generation. Please retry."
+                                )
                         choice_data = ChatCompletionResponseStreamChoice(
                             index=i,
                             delta=delta_message,

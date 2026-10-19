@@ -1,3 +1,4 @@
+# [Genesis wiring marker: _GENESIS_PN83_ANALISIS_ARRANQUE]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """A GPU worker class."""
@@ -626,6 +627,32 @@ class Worker(WorkerBase):
             "Available KV cache memory: %s GiB",
             format_gib(self.available_kv_cache_memory_bytes),
         )
+        # _GENESIS_PN83_ANALISIS_ARRANQUE
+        # El desglose de memoria solo existe aca, en el WORKER. El total de
+        # tokens de KV se calcula en el ENGINE CORE, otro proceso. Guardamos
+        # esta mitad para que el informe pueda juntar las dos.
+        try:
+            from vllm._genesis import analisis_arranque as _g83
+
+            _g83.guardar_memoria(
+                rank=int(getattr(self, "rank", 0) or 0),
+                total_memory=int(self.init_snapshot.total_memory),
+                free_memory=int(self.init_snapshot.free_memory),
+                requested_memory=int(self.requested_memory),
+                weights_memory=int(profile_result.weights_memory),
+                non_kv_cache_memory=int(profile_result.non_kv_cache_memory),
+                torch_peak_increase=int(profile_result.torch_peak_increase),
+                non_torch_increase=int(profile_result.non_torch_increase),
+                cudagraph_memory_estimate=int(cudagraph_memory_estimate),
+                available_kv_cache_memory_bytes=int(
+                    self.available_kv_cache_memory_bytes
+                ),
+                gpu_memory_utilization=float(
+                    self.cache_config.gpu_memory_utilization
+                ),
+            )
+        except Exception:
+            pass  # el informe es opcional; nunca puede tumbar el arranque
 
         if cudagraph_memory_estimate > 0:
             total_mem = self.init_snapshot.total_memory

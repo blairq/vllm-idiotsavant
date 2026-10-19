@@ -1,3 +1,4 @@
+# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -74,6 +75,11 @@ class FileMapper:
         # identity participates in the storage namespace.
         if canonical_format is not None:
             self.fields["canonical_format"] = canonical_format
+        # [Genesis PN81 kv disk tier quota] un directorio por FORMATO de KV
+        # Sin esto, cambiar --kv-cache-dtype, la rotacion de k, PN131 o PN122 dejaba el
+        # mismo directorio y los bloques viejos se restauraban con el significado nuevo.
+        from vllm._genesis import kv_formato as _g81fmt
+        self.fields["genesis_kv_format"] = _g81fmt.huella()
         self.base_path: str = self._compute_base_path(root_dir, self.fields)
 
     @classmethod

@@ -1,3 +1,4 @@
+# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import errno
@@ -95,6 +96,45 @@ class SharedOffloadRegion:
         self._row_stride = kv_bytes_per_block
         self.total_size_bytes = self.num_blocks * self._row_stride
 
+        # [Genesis PN81 kv disk tier quota] (purga de huerfanos)
+        # Borra mmaps de corridas anteriores que quedaron por un cierre
+        # abrupto. Es CONSERVADOR: saltea los que algun proceso visible
+        # tiene mapeados y los muy recientes, para no pisar a un engine
+        # hermano que este arrancando.
+        try:
+            import os as _g81s_os, glob as _g81s_glob, time as _g81s_t, sys as _g81s_sys
+            if _g81s_os.environ.get('GENESIS_ENABLE_PN81_KV_DISK_QUOTA') == '1':
+                # Sin guard de edad: al arrancar, todo mmap que NADIE tenga
+                # mapeado es basura de una corrida anterior. El chequeo de
+                # /proc/*/maps es la unica salvaguarda necesaria.
+                _min_age = float(_g81s_os.environ.get(
+                    'GENESIS_SHM_ORPHAN_MIN_AGE_S', '0'))
+                _en_uso = set()
+                for _mp in _g81s_glob.glob('/proc/*/maps'):
+                    try:
+                        with open(_mp) as _fh:
+                            for _ln in _fh:
+                                if 'vllm_offload_' in _ln:
+                                    _en_uso.add(_ln.rsplit(' ', 1)[-1].strip())
+                    except Exception:
+                        continue
+                _ahora = _g81s_t.time()
+                for _f in _g81s_glob.glob('/dev/shm/vllm_offload_*.mmap'):
+                    if _f in _en_uso:
+                        continue
+                    try:
+                        _st = _g81s_os.stat(_f)
+                        if _ahora - _st.st_mtime < _min_age:
+                            continue
+                        _g81s_os.unlink(_f)
+                        print('[PN81] mmap huerfano borrado de /dev/shm: %s '
+                              '(%.2f GiB liberados)'
+                              % (_f, _st.st_size / (1 << 30)),
+                              file=_g81s_sys.stderr, flush=True)
+                    except OSError:
+                        continue
+        except Exception:
+            pass  # la purga nunca debe impedir el arranque
         self.mmap_path = f"/dev/shm/vllm_offload_{engine_id}.mmap"
         self._creator = False  # set True only if this worker creates the file
         self.rank = rank

@@ -1,3 +1,5 @@
+# [Genesis wiring marker: [Genesis PN151: metadata GDN en un kernel]]
+# [Genesis wiring marker: [Genesis PN122: rollback GDN con cinta]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Backend for GatedDeltaNet attention."""
@@ -22,6 +24,7 @@ from vllm.v1.attention.backends.utils import (
     split_decodes_and_prefills,
 )
 from vllm.v1.kv_cache_interface import MambaSpec
+from vllm._genesis import gdn_cinta as _g122  # [Genesis PN122: rollback GDN con cinta]
 
 
 class GDNAttentionBackend(AttentionBackend):
@@ -160,6 +163,12 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             device=device,
         )
         self.num_accepted_tokens: torch.Tensor = torch.empty(
+            (self.decode_cudagraph_max_bs,),
+            dtype=torch.int32,
+            device=device,
+        )
+        # [Genesis PN122: rollback GDN con cinta] slot de cinta por request spec
+        self._g122_slots: torch.Tensor = torch.zeros(
             (self.decode_cudagraph_max_bs,),
             dtype=torch.int32,
             device=device,
@@ -422,6 +431,27 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             f"num_decodes: {num_decodes}, num_spec_decodes: {num_spec_decodes}"
         )
 
+        # [Genesis PN122: rollback GDN con cinta] slots en el mismo orden que spec_state_indices
+        g122_slots = None
+        # Con num_speculative_blocks=0 hay UNA columna, pero el conv spec usa
+        # spec_state_indices_tensor.size(-1) como max_query_len (= K+1).
+        if (
+            _g122.activo()
+            and spec_state_indices_tensor is not None
+            and spec_state_indices_tensor.shape[-1] != self.num_spec + 1
+        ):
+            spec_state_indices_tensor = spec_state_indices_tensor[:, :1].expand(
+                -1, self.num_spec + 1
+            ).contiguous()
+        if _g122.activo() and spec_sequence_masks_cpu is not None:
+            _sl = _g122.slots_gpu()
+            _msk = spec_sequence_masks_cpu[: _sl.shape[0]]
+            # Decode puro: las filas spec son un prefijo del batch y alcanza
+            # con un slice (sin indexacion con mascara, que cuesta ops).
+            if num_spec_decodes == _msk.shape[0] or bool(_msk[:num_spec_decodes].all()):
+                g122_slots = _sl[:num_spec_decodes]
+            else:
+                g122_slots = _sl[: _msk.shape[0]][_msk]
         # Prepare per-request tensors for cudagraph. m.num_actual_tokens is
         # token-padded for FULL graph replay, but the GDN state/query/accepted
         # metadata below is indexed by request.
@@ -472,6 +502,12 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             )
             num_accepted_tokens = self.num_accepted_tokens[:batch_size]
             num_accepted_tokens[num_spec_decodes:].fill_(1)
+            if g122_slots is not None:  # [Genesis PN122: rollback GDN con cinta]
+                self._g122_slots[:num_spec_decodes].copy_(
+                    g122_slots, non_blocking=True
+                )
+                g122_slots = self._g122_slots[:batch_size]
+                g122_slots[num_spec_decodes:].fill_(0)
 
         if (
             self.use_full_cuda_graph
@@ -520,6 +556,10 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
             batch_ptr=batch_ptr,
             token_chunk_offset_ptr=token_chunk_offset_ptr,
         )
+        attn_metadata.g122_slots = g122_slots  # [Genesis PN122: rollback GDN con cinta]
+        _g122.debug_builder(num_spec_decodes, num_accepted_tokens, g122_slots,
+                            spec_state_indices_tensor, spec_query_start_loc,
+                            m.seq_lens)
         return attn_metadata
 
     def build_for_cudagraph_capture(
@@ -546,3 +586,7 @@ class GDNAttentionMetadataBuilder(AttentionMetadataBuilder[GDNAttentionMetadata]
         num_decode_draft_tokens_cpu = (num_accepted_tokens - 1).cpu()
 
         return self.build(0, m, num_accepted_tokens, num_decode_draft_tokens_cpu)
+
+
+from vllm._genesis import gdn_meta as _g151  # [Genesis PN151: metadata GDN en un kernel]
+_g151.instalar(GDNAttentionMetadataBuilder)  # [Genesis PN151: metadata GDN en un kernel]

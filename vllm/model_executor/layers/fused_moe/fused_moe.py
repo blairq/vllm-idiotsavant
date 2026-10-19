@@ -1,3 +1,4 @@
+# [Genesis wiring marker: Genesis P24 fused_moe num_warps/num_stages v7.0]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Fused MoE Triton kernels."""
@@ -1351,6 +1352,20 @@ def get_default_config(
             "num_warps": 4,
             "num_stages": num_stages,
         }
+        # [Genesis P24] per-SM / env override for num_warps + num_stages
+        try:
+            from vllm._genesis.kernels.marlin_tuning import (
+                get_num_warps_override as _genesis_num_warps_override,
+                get_num_stages_override as _genesis_num_stages_override,
+            )
+            _nw = _genesis_num_warps_override()
+            _ns = _genesis_num_stages_override()
+            if _nw is not None:
+                config["num_warps"] = _nw
+            if _ns is not None:
+                config["num_stages"] = _ns
+        except Exception:
+            pass
     elif dtype in ["int4_w4a16", "int8_w8a16"] and block_shape is not None:
         # moe wna16 kernels
         # only set BLOCK_SIZE_M
@@ -1416,6 +1431,20 @@ def get_default_config(
             "num_warps": num_warps,
             "num_stages": num_stages,
         }
+        # [Genesis P24] per-SM / env override for num_warps + num_stages
+        try:
+            from vllm._genesis.kernels.marlin_tuning import (
+                get_num_warps_override as _genesis_num_warps_override,
+                get_num_stages_override as _genesis_num_stages_override,
+            )
+            _nw = _genesis_num_warps_override()
+            _ns = _genesis_num_stages_override()
+            if _nw is not None:
+                config["num_warps"] = _nw
+            if _ns is not None:
+                config["num_stages"] = _ns
+        except Exception:
+            pass
     return config
 
 

@@ -1,3 +1,6 @@
+# [Genesis wiring marker: [Genesis PN156: norma que escribe int8]]
+# [Genesis wiring marker: [Genesis PN126: rotacion qk]]
+# [Genesis wiring marker: [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Inference-only Qwen3Next model."""
@@ -7,6 +10,7 @@ from itertools import islice
 
 import torch
 from torch import nn
+from vllm._genesis import rot_qk as _g126  # [Genesis PN126: rotacion qk]
 
 from vllm.compilation.decorators import support_torch_compile
 from vllm.config import CacheConfig, ModelConfig, VllmConfig
@@ -24,6 +28,8 @@ from vllm.model_executor.layers.fused_moe.utils import (
     resolve_layer_fused_shared_expert,
 )
 from vllm.model_executor.layers.fused_qk_norm_rope import fused_qk_rmsnorm_rope_gate
+from vllm._genesis import norma_q8 as _g156  # [Genesis PN156: norma que escribe int8]
+from vllm._genesis import had_salidas as _g154  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
 from vllm.model_executor.layers.layernorm import (
     GemmaRMSNorm as Qwen3NextRMSNorm,
 )
@@ -321,6 +327,7 @@ class Qwen3NextAttention(nn.Module):
             quant_config=quant_config,
             prefix=f"{prefix}.o_proj",
         )
+        _g154.marcar(self.o_proj, "o_proj")  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
 
         self.rotary_emb = get_rope(
             head_size=self.head_dim,
@@ -447,13 +454,14 @@ class Qwen3NextAttention(nn.Module):
         self,
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
+        _q156=None,  # [Genesis PN156: norma que escribe int8]
     ) -> torch.Tensor:
-        qkv, _ = self.qkv_proj(hidden_states)
+        qkv = _g156.lineal(self.qkv_proj, hidden_states, _q156)
         q, k, v, gate = self._project_qkv_gate(qkv, positions)
+        if _g126.activo(self.head_dim):  # [Genesis PN126: rotacion qk]
+            _g126.rotar(q, k, self.attn.layer_name, self.num_kv_heads, self.head_dim)
         attn_output = self.attn(q, k, v)
-        if gate is not None:
-            attn_output = attn_output * torch.sigmoid(gate)
-        output, _ = self.o_proj(attn_output)
+        output = _g154.salida_atencion(self, attn_output, gate)  # [Genesis PN154: Hadamard en la entrada de o_proj/out_proj]
         return output
 
 
@@ -552,22 +560,24 @@ class Qwen3NextDecoderLayer(nn.Module):
     ):
         full_num_tokens = positions.shape[-1]
 
+        _q156 = None  # [Genesis PN156: norma que escribe int8]
         if residual is None:
             residual = hidden_states
             hidden_states = self.input_layernorm(hidden_states)
         else:
-            hidden_states, residual = self.input_layernorm(hidden_states, residual)
+            hidden_states, residual, _q156 = _g156.norma(self, 0, hidden_states, residual)
 
         if self.use_attn_reduce_scatter_for_moe:
             hidden_states = tensor_model_parallel_all_gather(hidden_states, 0)
             hidden_states = hidden_states[:full_num_tokens]
 
         if self.layer_type == "linear_attention":
-            hidden_states = self.linear_attn(hidden_states=hidden_states)
+            hidden_states = self.linear_attn(hidden_states=hidden_states, _q156=_q156)  # [Genesis PN156: norma que escribe int8]
         elif self.layer_type == "full_attention":
             hidden_states = self.self_attn(
                 hidden_states=hidden_states,
                 positions=positions,
+                _q156=_q156,  # [Genesis PN156: norma que escribe int8]
             )
         else:
             raise ValueError("Invalid layer_type")
@@ -591,14 +601,14 @@ class Qwen3NextDecoderLayer(nn.Module):
             hidden_states = tensor_model_parallel_reduce_scatter(hidden_states, 0)
 
         # Fully Connected
-        hidden_states, residual = self.post_attention_layernorm(hidden_states, residual)
+        hidden_states, residual, _q156 = _g156.norma(self, 1, hidden_states, residual)  # [Genesis PN156: norma que escribe int8]
         if self.use_attn_reduce_scatter_for_moe:
             hidden_states = self.mlp(
                 hidden_states,
                 already_sequence_parallel=True,
             )
         else:
-            hidden_states = self.mlp(hidden_states)
+            hidden_states = self.mlp(hidden_states, _q156=_q156)  # [Genesis PN156: norma que escribe int8]
 
         if self.layer_scale:
             if len(hidden_states.shape) == 2:

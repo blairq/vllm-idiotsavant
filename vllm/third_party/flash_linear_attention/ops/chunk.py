@@ -1,3 +1,4 @@
+# [Genesis wiring marker: Genesis PN59 streaming GDN orchestrator (Variant D Phase 2)]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 # SPDX-FileCopyrightText: Songlin Yang, Yu Zhang
@@ -34,6 +35,33 @@ def chunk_gated_delta_rule_fwd(
     chunk_offsets: torch.Tensor | None = None,
     core_attn_out: torch.Tensor | None = None,
 ):
+    # [Genesis PN59 Variant D Phase 2] streaming-GDN dispatch.
+    # When GENESIS_ENABLE_PN59_STREAMING_GDN=1 AND eligible single-seq
+    # long-T prefill, route through window-iterative driver to avoid
+    # full (B, NT, H, V, K) materialization (Cliff 2b OOM trigger).
+    # Strict no-regression: any failure → vanilla fallback below.
+    try:
+        from vllm._genesis.kernels.streaming_gdn_driver import (
+            streaming_chunk_gated_delta_rule_fwd as _genesis_pn59_streaming,
+        )
+        return _genesis_pn59_streaming(
+            q=q, k=k, v=v, g=g, beta=beta, scale=scale,
+            initial_state=initial_state,
+            output_final_state=output_final_state,
+            cu_seqlens=cu_seqlens,
+            chunk_indices=chunk_indices,
+            chunk_offsets=chunk_offsets,
+            chunk_local_cumsum=chunk_local_cumsum,
+            chunk_scaled_dot_kkt_fwd=chunk_scaled_dot_kkt_fwd,
+            solve_tril=solve_tril,
+            recompute_w_u_fwd=recompute_w_u_fwd,
+            chunk_gated_delta_rule_fwd_h=chunk_gated_delta_rule_fwd_h,
+            chunk_fwd_o=chunk_fwd_o,
+            SUPPRESS_LEVEL=SUPPRESS_LEVEL,
+        )
+    except Exception:
+        # Defensive: fall through to vanilla original code below
+        pass
     g = chunk_local_cumsum(
         g, chunk_size=FLA_CHUNK_SIZE, cu_seqlens=cu_seqlens, chunk_indices=chunk_indices
     )

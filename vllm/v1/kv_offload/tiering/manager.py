@@ -1,3 +1,4 @@
+# [Genesis wiring marker: [Genesis PN90 kv disk write gating & tiered demotion]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """
@@ -116,6 +117,112 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
         self.complete_write = self.complete_store
 
         self._kv_memoryview = mmap_region.create_kv_memoryview()
+
+    # [Genesis PN90 kv disk write gating & tiered demotion]
+    @override
+    def touch(self, keys: Collection[OffloadKey], req_context: ReqContext) -> None:
+        """Taguea por USO, no por primer escritor.
+
+        Un bloque de KV es compartido. Decidir la persistencia solo en
+        prepare_store lo ata a quien lo escribio primero: un bloque que un
+        agente efimero guardo primero no se persistia nunca, aunque un
+        agente persistente lo reutilizara en cada turno.
+
+        Se filtra por residencia en L2 (`self._policy.get`) porque solo un
+        bloque residente puede ser desalojado, y sin ese filtro el set de
+        tags crece con cada clave de cada request.
+        """
+        from vllm._genesis import kv_disk_gate as _g90
+        if _g90.should_persist_to_secondary_tiers(
+            getattr(req_context, 'kv_transfer_params', None)
+        ):
+            _g90.note_persistent_use(
+                k for k in keys if self._policy.get(k) is not None
+            )
+        self._policy.touch(keys, req_context)
+
+    # [Genesis PN90 kv disk write gating & tiered demotion]
+    @override
+    def prepare_store(
+        self,
+        keys: Collection[OffloadKey],
+        req_context: ReqContext,
+    ) -> PrepareStoreOutput | None:
+        """Igual que CPUOffloadingManager.prepare_store, mas dos cosas:
+
+        - copia la fila del mmap de cada bloque desalojado ANTES de liberar el
+          slot (el slot se reutiliza en esta misma llamada);
+        - marca las claves nuevas como persistibles si el agente lo permite.
+        """
+        from vllm._genesis import kv_disk_gate as _g90
+        should_persist = _g90.should_persist_to_secondary_tiers(
+            getattr(req_context, 'kv_transfer_params', None)
+        )
+        if self.counts is not None:
+            keys = [k for k in keys if self.counts.get(k, 0) >= self.store_threshold]
+        keys_to_store = [k for k in keys if self._policy.get(k) is None]
+        if not keys_to_store:
+            return PrepareStoreOutput(
+                keys_to_store=[],
+                store_spec=self._get_load_store_spec([], []),
+                evicted_keys=[],
+            )
+        num_blocks_to_evict = len(keys_to_store) - self._get_num_free_blocks()
+        to_evict: list[OffloadKey] = []
+        if num_blocks_to_evict > 0:
+            protected = set(keys)
+            evicted = self._policy.evict(num_blocks_to_evict, protected)
+            if evicted is None:
+                return None
+            _region = self._mmap_region
+            _mm = getattr(_region, 'mmap_obj', None)
+            for key, block in evicted:
+                if _mm is not None and _g90.take_demotion_snapshot(key):
+                    _stride = _region._row_stride
+                    _off = int(block.block_id) * _stride
+                    _g90.record_demotion(key, bytes(_mm[_off : _off + _stride]))
+                self._free_block(block)
+                to_evict.append(key)
+            # [Genesis PN95: desalojos de L2]
+            # Va ACA y no en CPUOffloadingManager.prepare_store porque
+            # este override lo reemplaza: el hook de la clase base nunca
+            # se ejecuta con el tiering manager activo. El desalojo de L2
+            # es lo que las lineas de arriba convierten en escritura al
+            # SSD, asi que es el contador que cierra la cadena.
+            if to_evict:
+                try:
+                    from vllm._genesis import kv_sparse_gdn as _g95_gdn
+                    from vllm._genesis import kv_tier_metrics as _g95_m
+
+                    _g95_bb = _g95_gdn.block_write_bytes()
+                    _g95_m.note_eviction(
+                        'ram',
+                        'capacity',
+                        count=len(to_evict),
+                        freed_bytes=len(to_evict) * _g95_bb,
+                    )
+                except Exception:
+                    pass
+        if to_evict and self.events is not None:
+            self.events.append(
+                OffloadingEvent(
+                    keys=to_evict,
+                    medium=self.medium,
+                    removed=True,
+                )
+            )
+        blocks = self._allocate_blocks(keys_to_store)
+        assert len(blocks) == len(keys_to_store)
+        for key, block in zip(keys_to_store, blocks):
+            self._policy.insert(key, block)
+        if should_persist:
+            _g90.tag_keys_persistence(keys_to_store)
+        store_spec = self._get_load_store_spec(keys_to_store, blocks)
+        return PrepareStoreOutput(
+            keys_to_store=keys_to_store,
+            store_spec=store_spec,
+            evicted_keys=to_evict,
+        )
 
     def get_kv_memoryview(self) -> memoryview:
         """Return the memoryview over the primary tier's KV cache buffer.
@@ -308,8 +415,15 @@ class TieringOffloadingManager(OffloadingManager):
            to make blocks available
         """
         for i, tier in enumerate(self.secondary_tiers):
+            # [Genesis PN90 kv disk write gating & tiered demotion]
+            # Los jobs de democion usan ids NEGATIVOS y no tienen JobMetadata
+            # (no tomaron ref_cnt: el bloque ya no esta en primary). Se filtran
+            # por signo para no perder el assert de los jobs reales.
+            from vllm._genesis import kv_disk_gate as _g90
             for completed_job in tier.get_finished_jobs():
                 job_id = completed_job.job_id
+                if _g90.is_demote_job_id(job_id):
+                    continue
                 job_metadata = self._pop_job(job_id)
                 assert job_metadata is not None, (
                     f"Finished job_id {job_id} from tier #{i}"
@@ -581,6 +695,12 @@ class TieringOffloadingManager(OffloadingManager):
         # completes.
         primary_result = self.primary_tier.prepare_store(keys, req_context)
 
+        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # Se drena SIEMPRE, incluso si primary_result es None: los snapshots
+        # ya fueron tomados y el slot de L2 ya se reutilizo.
+        from vllm._genesis import kv_disk_gate as _g90
+        _g90.submit_pending_demotions(self.secondary_tiers, req_context)
+
         if primary_result is None:
             return None
 
@@ -622,6 +742,15 @@ class TieringOffloadingManager(OffloadingManager):
         what makes parking HIT_PENDING safe, so it is rejected rather than
         guessed at.
         """
+        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # Este camino tambien escribe a un tier secundario, asi que pasa por
+        # el mismo gate. Esta dormido para el tier fs (politica BLOCK_LEVEL),
+        # pero dejarlo sin gatear era una via de escritura sin control.
+        from vllm._genesis import kv_disk_gate as _g90
+        if not _g90.should_persist_to_secondary_tiers(
+            getattr(req_context, 'kv_transfer_params', None)
+        ):
+            return
         state = self._req_state[req_context.req_id]
         ready_keys = []
         for key in keys:
@@ -687,14 +816,13 @@ class TieringOffloadingManager(OffloadingManager):
         self.primary_tier.complete_store(keys, req_context, success)
 
         if success:
-            # Step 2: Cascade to ALL secondary tiers
-            # For each secondary tier, call primary.prepare_read() to get the
-            # LoadStoreSpec AND to increment ref_cnt (protecting blocks from
-            # eviction during the async transfer). One prepare_read() call per
-            # secondary tier.
-            for tier_idx, tier in enumerate(self.secondary_tiers):
-                job_metadata = self.create_store_job(keys, req_context, tier_idx)
-                tier.submit_store(job_metadata)
+            # [Genesis PN90 kv disk write gating & tiered demotion]
+            # Democion por desalojo: NO hay cascada al guardar. El bloque baja
+            # a L3 SSD unicamente cuando lo desalojan de L2 RAM (ver el override
+            # de CPUPrimaryTierOffloadingManager.prepare_store). El cuerpo de la
+            # cascada se elimina pero el metodo sigue: abajo queda la contabilidad
+            # de pending_primary_stores y _maybe_finalize_request.
+            pass
 
         # Note: The async transfers are now in flight. Their completion is
         # tracked via get_finished_jobs() / _maybe_process_finished_jobs().
@@ -820,6 +948,13 @@ class TieringOffloadingManager(OffloadingManager):
 
         # Reset the per-step gate AFTER serve_external_requests so that
         # lookup() calls within it skip redundant _process_finished_jobs().
+        # [Genesis PN90 kv disk write gating & tiered demotion]
+        # Red de seguridad: _initiate_promotion llama a
+        # primary_tier.prepare_write() directamente, sin pasar por
+        # TieringOffloadingManager.prepare_store. Las evicciones de ese camino
+        # dejan snapshots que nadie drenaria.
+        from vllm._genesis import kv_disk_gate as _g90
+        _g90.submit_pending_demotions(self.secondary_tiers, None)
         self._processed_jobs_this_step = False
 
         self._flush_pending_promotions()

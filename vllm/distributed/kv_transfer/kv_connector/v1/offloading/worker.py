@@ -1,3 +1,4 @@
+# [Genesis wiring marker: [Genesis PN170: L2 con estado GDN]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from collections import defaultdict
@@ -62,6 +63,8 @@ class OffloadingConnectorWorker:
 
     def _init_worker(self, kv_caches: CanonicalKVCaches) -> None:
         self.worker = self.spec.get_worker(kv_caches)
+        from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+        _g170.registrar_kv(kv_caches)
 
     def register_kv_caches(self, kv_caches: dict[str, torch.Tensor]):
         kv_cache_config = self.kv_cache_config
@@ -225,6 +228,8 @@ class OffloadingConnectorWorker:
         # Submit deferred stores from previous step (and jobs_to_flush above).
         for job_id, src_spec, dst_spec in self._unsubmitted_store_jobs:
             assert isinstance(src_spec, GPULoadStoreSpec)
+            from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+            _g170.al_guardar(job_id, src_spec)
             success = self.worker.submit_store(job_id, src_spec, dst_spec)
             assert success
         self._unsubmitted_store_jobs.clear()
@@ -234,12 +239,15 @@ class OffloadingConnectorWorker:
 
     def start_kv_transfers(self, metadata: OffloadingConnectorMetadata):
         assert self.worker is not None
+        from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
         for job_id, src_spec, dst_spec in self._unsubmitted_store_jobs:
+            _g170.al_guardar(job_id, src_spec)
             success = self.worker.submit_store(job_id, src_spec, dst_spec)
             assert success
         self._unsubmitted_store_jobs.clear()
 
         for job_id, entry in metadata.load_jobs.items():
+            _g170.al_cargar(job_id, entry.dst_spec)
             self._load_jobs[job_id] = entry.req_id
             assert isinstance(entry.dst_spec, GPULoadStoreSpec)
             success = self.worker.submit_load(job_id, entry.src_spec, entry.dst_spec)
@@ -290,6 +298,8 @@ class OffloadingConnectorWorker:
                 )
 
             self._connector_worker_meta.mark_completed(job_id)
+            from vllm._genesis import l2_gdn as _g170  # [Genesis PN170: L2 con estado GDN]
+            _g170.carga_lista(job_id)
             req_id = self._load_jobs.pop(job_id, None)
             if req_id is not None:
                 finished_recving.add(req_id)

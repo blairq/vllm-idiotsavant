@@ -1,3 +1,4 @@
+# [Genesis wiring marker: [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -221,8 +222,8 @@ class Qwen3_5Model(Qwen3NextModel):
         orig_to_new_stacked={
             ".in_proj_qkv": (".in_proj_qkvz", (0, 1, 2)),
             ".in_proj_z": (".in_proj_qkvz", 3),
-            ".in_proj_b": (".in_proj_ba", 0),
-            ".in_proj_a": (".in_proj_ba", 1),
+            ".in_proj_b": __import__("vllm._genesis.gdn_ba_qkvz", fromlist=["x"]).destino("b"),  # [Genesis PN155: in_proj_ba dentro de in_proj_qkvz]
+            ".in_proj_a": __import__("vllm._genesis.gdn_ba_qkvz", fromlist=["x"]).destino("a"),
         }
     )
 

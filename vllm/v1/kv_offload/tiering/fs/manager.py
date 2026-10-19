@@ -1,3 +1,5 @@
+# [Genesis wiring marker: [Genesis PN90 kv disk write gating & tiered demotion]]
+# [Genesis wiring marker: [Genesis PN81 kv disk tier quota]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """
@@ -268,6 +270,37 @@ class FileSystemTierManager(SecondaryTierManager):
 
         self._pool.enqueue_load(job_id, 1, [load_task])
 
+    # [Genesis PN90 kv disk write gating & tiered demotion]
+    def submit_demote(
+        self,
+        key: OffloadKey,
+        snapshot: bytes,
+        req_context: ReqContext | None = None,
+    ) -> None:
+        """Baja a disco un bloque ya desalojado de L2, desde una copia suelta.
+
+        A diferencia de submit_store, el dato NO vive mas en el primary tier:
+        el slot ya fue reutilizado. Por eso se escribe desde `snapshot`.
+        """
+        from vllm._genesis import kv_disk_gate as _g90
+        dest_path = self.file_mapper.get_file_name(key)
+        # El bloque ya esta en el SSD: reescribirlo es amplificacion de
+        # escritura pura. GDN es ~75% del trafico de este tier.
+        if os.path.exists(dest_path):
+            return
+        buf = memoryview(snapshot)
+        from vllm.v1.kv_offload.tiering.fs.io import _store_block as store_block
+        task = functools.partial(store_block, dest_path, buf, 0, len(buf))
+        _job_id = _g90.next_demote_job_id()
+        from vllm._genesis import kv_tier_metrics as _g88
+        if _g88.enabled():
+            try:
+                _params = getattr(req_context, 'kv_transfer_params', None)
+                _g88.note_demote(self, _job_id, len(buf), _g88.agent_label(_params))
+            except Exception:
+                pass
+        self._pool.enqueue_store(_job_id, 1, [task])
+
     @override
     def get_finished_jobs(self) -> Iterable[JobResult]:
         """Collect finished jobs; a failed promotion marks only its failed keys
@@ -327,9 +360,197 @@ class FileSystemTierManager(SecondaryTierManager):
     def on_request_finished(self, req_context: ReqContext) -> None:
         self._lookup_manager.cleanup(req_context.req_id)
 
+    # [Genesis PN81 kv disk tier quota]
+    # Extiende el on_schedule_end de upstream (que solo hace flush del
+    # lookup manager) con la cuota de disco. Sin esto root_dir crece sin
+    # techo: el tier fs no tiene poda propia.
+    # Ver wiring/hybrid/patch_N81_kv_disk_tier_quota.py
     @override
     def on_schedule_end(self, context: ScheduleEndContext) -> None:
         self._lookup_manager.flush()
+        import os as _g81_os
+        if _g81_os.environ.get('GENESIS_ENABLE_PN81_KV_DISK_QUOTA') != '1':
+            return
+        try:
+            # GATE POR TIEMPO, no por pasos del scheduler.
+            # El gate viejo era `paso % GENESIS_KV_DISK_CHECK_EVERY`, y
+            # on_schedule_end sube un paso por iteracion del scheduler: si el
+            # engine esta ocioso, los pasos no se acumulan y la cuota NUNCA
+            # corre. Medido: 22 min sirviendo 61 requests cortos no alcanzaron
+            # los 2000 pasos, y el directorio llego a 31,4 GiB con limite de 30
+            # sin una sola poda. Con reloj, la cuota corre haya o no trafico.
+            import time as _g81_time
+            _secs = float(_g81_os.environ.get('GENESIS_KV_DISK_CHECK_SECS', '60'))
+            _now = _g81_time.monotonic()
+            _last = getattr(self, '_genesis_pn81_last', 0.0)
+            if _now - _last < _secs:
+                return
+            self._genesis_pn81_last = _now
+
+            def _do_pn81_quota():
+                try:
+                    _max = float(_g81_os.environ.get('GENESIS_KV_DISK_MAX_GB', '30'))
+                    _ratio = float(_g81_os.environ.get(
+                        'GENESIS_KV_DISK_TARGET_RATIO', '0.85'))
+                    # El directorio real NO es base_path: FileMapper escribe en
+                    # f'{base_path}_r{rank}' (ver get_file_name). Cada rank poda el
+                    # SUYO, asi que la cuota es POR RANK: con TP=2 el total en disco
+                    # es 2 x GENESIS_KV_DISK_MAX_GB.
+                    _bp = getattr(self.file_mapper, 'base_path', None)
+                    _rk = getattr(self.file_mapper, 'rank', 0)
+                    _root = f'{_bp}_r{_rk}' if _bp else None
+                    if not _root or not _g81_os.path.isdir(_root):
+                        return
+                    # PURGA DE DIRECTORIOS ABANDONADOS. La cuota de arriba solo mira
+                    # el directorio del modelo ACTUAL. Cada modelo que se prueba deja
+                    # el suyo, y nadie los borra nunca: medido, 54 GiB de un modelo que
+                    # ya ni estaba descargado, y 142 GiB en total en /kv-offload.
+                    # Se borran por ANTIGUEDAD (no por 'no es el mio'): un modelo que
+                    # usaste ayer conserva su cache, que es justamente para lo que
+                    # existe el tier de disco.
+                    #
+                    # PERIODICA, NO UNA SOLA VEZ (2026-08-21). El gate viejo era un
+                    # booleano `_genesis_pn81_orphans` que se prendia en la primera
+                    # pasada y no se apagaba nunca: la purga corria al arrancar y
+                    # listo. Un directorio que queda huerfano DESPUES del arranque no
+                    # se revisaba jamas mientras el engine siguiera vivo.
+                    # Medido: al arrancar el 08-19, orcarouter_..._3ef784eef730_r0
+                    # llevaba 1,6 dias sin uso -- por debajo de los 3 del umbral, asi
+                    # que se salteo con razon. Dos dias despues ya calificaba y sus
+                    # 25,47 GiB seguian ahi, porque la purga no volvia a correr.
+                    # Despistaba que su hermano sin datos (solo config.json, 0 GiB) SI
+                    # se borro: nadie le escribe despues de crearlo, asi que su mtime
+                    # ya tenia 3,2 dias. Se borro la cascara y quedo el contenido.
+                    # Ahora corre cada GENESIS_KV_DISK_ORPHAN_CHECK_SECS (default una
+                    # hora). Cadencia propia y no la de la cuota (60s) porque este
+                    # barrido recorre TODOS los directorios de /kv-offload y no solo
+                    # el del modelo actual: son miles de stat() en vez de cientos.
+                    # La primera pasada sigue siendo al arranque (_olast is None).
+                    _dias = float(_g81_os.environ.get('GENESIS_KV_DISK_ORPHAN_DAYS', '0'))
+                    _osecs = float(_g81_os.environ.get(
+                        'GENESIS_KV_DISK_ORPHAN_CHECK_SECS', '3600'))
+                    _olast = getattr(self, '_genesis_pn81_orphan_last', None)
+                    if _dias > 0 and (_olast is None or _now - _olast >= _osecs):
+                        self._genesis_pn81_orphan_last = _now
+                        import sys as _g81_s3
+                        _padre = _g81_os.path.dirname(_root.rstrip('/'))
+                        _mio = _g81_os.path.basename(_root.rstrip('/'))
+                        _corte = _g81_time.time() - _dias * 86400
+                        for _d in sorted(_g81_os.listdir(_padre)):
+                            if _d == _mio or _d.startswith(_mio.rsplit('_r', 1)[0]):
+                                continue
+                            _dp2 = _g81_os.path.join(_padre, _d)
+                            if not _g81_os.path.isdir(_dp2):
+                                continue
+                            _reciente = 0.0
+                            _peso = 0
+                            for _r2, _dn2, _fn2 in _g81_os.walk(_dp2):
+                                for _f2 in _fn2:
+                                    try:
+                                        _st2 = _g81_os.stat(_g81_os.path.join(_r2, _f2))
+                                    except OSError:
+                                        continue
+                                    _reciente = max(_reciente, _st2.st_mtime)
+                                    _peso += _st2.st_size
+                            if _peso and _reciente < _corte:
+                                import shutil as _g81_sh
+                                try:
+                                    _g81_sh.rmtree(_dp2)
+                                    # PN88: sacar el desalojo a metricas. Best-effort
+                                    # y con import local: si PN88 no esta, no pasa nada.
+                                    try:
+                                        from vllm._genesis import kv_tier_metrics as _g88
+                                        _g88.note_eviction('disk', 'orphan', 1, _peso)
+                                    except Exception:
+                                        pass
+                                    print('[PN81] cache abandonada borrada: %s '
+                                          '(%.2f GiB, sin usar hace %.1f dias)'
+                                          % (_d, _peso / (1 << 30),
+                                             (_g81_time.time() - _reciente) / 86400.0),
+                                          file=_g81_s3.stderr, flush=True)
+                                except OSError as _e2:
+                                    print('[PN81] no pude borrar %s: %r' % (_d, _e2),
+                                          file=_g81_s3.stderr, flush=True)
+
+                    _limit = int(_max * (1 << 30))
+                    _files = []
+                    _total = 0
+                    for _dp, _dn, _fn in _g81_os.walk(_root):
+                        for _f in _fn:
+                            _p = _g81_os.path.join(_dp, _f)
+                            try:
+                                _st = _g81_os.stat(_p)
+                            except OSError:
+                                continue
+                            _files.append((_st.st_mtime, _st.st_size, _p))
+                            _total += _st.st_size
+                    if not getattr(self, '_genesis_pn81_visto', False):
+                        self._genesis_pn81_visto = True
+                        import sys as _g81_s0
+                        print('[PN81] cuota activa sobre %s: %.2f GiB de %.2f GiB '
+                              '(chequeo cada %.0fs)'
+                              % (_root, _total / (1 << 30), _max, _secs),
+                              file=_g81_s0.stderr, flush=True)
+                    # PN88: ocupacion del tier como gauge. Va ANTES del early return
+                    # para que se publique en cada chequeo, se pode o no.
+                    try:
+                        from vllm._genesis import kv_tier_metrics as _g88
+                        _g88.set_occupancy('disk', _total, _limit)
+                    except Exception:
+                        pass
+                    if _total <= _limit:
+                        return
+                    # podar del mas viejo al mas nuevo hasta el ratio objetivo
+                    _target = int(_limit * _ratio)
+                    _files.sort()
+                    _freed = 0
+                    _n = 0
+                    for _mt, _sz, _p in _files:
+                        if _total - _freed <= _target:
+                            break
+                        try:
+                            _g81_os.remove(_p)
+                            _freed += _sz
+                            _n += 1
+                        except OSError:
+                            continue
+                    try:
+                        from vllm._genesis import kv_tier_metrics as _g88
+                        _g88.note_eviction('disk', 'quota', _n, _freed)
+                        _g88.set_occupancy('disk', _total - _freed, _limit)
+                    except Exception:
+                        pass
+                    import sys as _g81_sys
+                    print('[PN81] cuota del tier de disco: %.2f GiB > limite %.2f GiB '
+                          '-> borrados %d bloques mas viejos, liberados %.2f GiB '
+                          '(queda %.2f GiB)'
+                          % (_total / (1 << 30), _max, _n, _freed / (1 << 30),
+                             (_total - _freed) / (1 << 30)),
+                          file=_g81_sys.stderr, flush=True)
+                finally:
+                    self._genesis_pn81_running = False
+
+            if _g81_os.environ.get('GENESIS_PN81_ASYNC', '1') == '1':
+                if getattr(self, '_genesis_pn81_running', False):
+                    return
+                self._genesis_pn81_running = True
+                import threading as _g81_th
+                _t = _g81_th.Thread(
+                    target=_do_pn81_quota,
+                    name='pn81_quota',
+                    daemon=True,
+                )
+                self._genesis_pn81_worker = _t
+                _t.start()
+            else:
+                _do_pn81_quota()
+        except Exception as _g81_err:
+            # la poda NUNCA debe tumbar el scheduler; se avisa una sola vez
+            if not getattr(self, '_genesis_pn81_failed', False):
+                self._genesis_pn81_failed = True
+                import sys as _g81_s2
+                print('[PN81] la poda fallo y se desactiva (el engine sigue '
+                      'normal): %r' % (_g81_err,), file=_g81_s2.stderr, flush=True)
 
     @override
     def shutdown(self) -> None:

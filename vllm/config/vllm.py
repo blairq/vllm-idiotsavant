@@ -1,3 +1,4 @@
+# [Genesis wiring marker: Genesis P66 cudagraph_capture_sizes spec-decode divisibility filter v7.14]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
@@ -2154,6 +2155,59 @@ class VllmConfig:
                 cudagraph_capture_sizes = self.update_sizes_for_sequence_parallelism(
                     cudagraph_capture_sizes
                 )
+
+            # [Genesis P66] Filter cudagraph_capture_sizes for spec-decode
+            # uniform_decode_query_len divisibility. Without this filter,
+            # capture phase produces mixed-q_len batches (e.g. [4,4,2]) where
+            # the tail request gets misclassified as prefill, baking a prefill
+            # branch into the captured uniform decode graph. At runtime real
+            # decode batches replay that wrong path → degenerate output.
+            # Mirrors vllm-project/vllm#23679 (closed/stale) + #28015 (bug).
+            if self.speculative_config is not None and getattr(
+                self.speculative_config, 'num_speculative_tokens', 0
+            ):
+                _p66_uniform_q_len = 1 + self.speculative_config.num_speculative_tokens
+                if _p66_uniform_q_len > 1:
+                    _p66_orig = list(cudagraph_capture_sizes)
+                    _p66_env = __import__('os').environ
+                    if _p66_env.get('GENESIS_P66_GENERAR_TALLAS', '0') == '1':
+                        # Generar (K+1)*n en vez de filtrar una lista pensada para otro K.
+                        _p66_n = int(_p66_env.get('GENESIS_P66_MAX_REQS', '0') or 0)
+                        if _p66_n <= 0:
+                            _p66_n = int(self.scheduler_config.max_num_seqs)
+                        cudagraph_capture_sizes = [
+                            _p66_uniform_q_len * _i for _i in range(1, _p66_n + 1)
+                            if _p66_uniform_q_len * _i <= max_num_tokens
+                        ]
+                        logger.info(
+                            '[Genesis P66] cudagraph_capture_sizes GENERADAS para '
+                            'uniform_query_len=%d, hasta %d pedidos: %s (se ignora la lista '
+                            'del usuario %s)', _p66_uniform_q_len, _p66_n,
+                            cudagraph_capture_sizes, _p66_orig,
+                        )
+                    cudagraph_capture_sizes = [
+                        _s for _s in cudagraph_capture_sizes
+                        if _s % _p66_uniform_q_len == 0
+                    ]
+                    # Always retain at least uniform_q_len itself if it fits
+                    if (
+                        _p66_uniform_q_len not in cudagraph_capture_sizes
+                        and _p66_uniform_q_len <= max_num_tokens
+                    ):
+                        cudagraph_capture_sizes.append(_p66_uniform_q_len)
+                    cudagraph_capture_sizes.sort()
+                    _p66_removed = sorted(
+                        set(_p66_orig) - set(cudagraph_capture_sizes)
+                    )
+                    if _p66_removed:
+                        logger.info(
+                            '[Genesis P66] Filtered cudagraph_capture_sizes for '
+                            'spec-decode uniform_query_len=%d: removed %d '
+                            'non-divisible sizes %s; kept %s. Prevents mixed-q_len '
+                            'capture (vllm#28015 mechanism).',
+                            _p66_uniform_q_len, len(_p66_removed),
+                            _p66_removed, cudagraph_capture_sizes,
+                        )
 
             # user-specific compilation_config.max_cudagraph_capture_size get
             # truncated to valid_max_size when they are inconsistent.

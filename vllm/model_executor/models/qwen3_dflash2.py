@@ -1,7 +1,11 @@
+# [Genesis wiring marker: [Genesis PN159: vocabulario recortado del borrador]]
+# [Genesis wiring marker: [Genesis PN157: borrador en Marlin]]
+# [Genesis wiring marker: [Genesis PN149: borrador sobre target rotado]]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import torch
+from vllm._genesis import rot_borrador as _g149  # [Genesis PN149: borrador sobre target rotado]
 import torch.nn.functional as F
 from torch import nn
 
@@ -18,6 +22,8 @@ from .qwen3_dflash import (
     DFlashQwen3Model,
 )
 from .utils import maybe_prefix
+from vllm._genesis import vocab_borrador as _g159  # [Genesis PN159: vocabulario recortado del borrador]
+from vllm._genesis import borrador_marlin as _g157  # [Genesis PN157: borrador en Marlin]
 
 
 def _grouped_conv(
@@ -90,7 +96,7 @@ class DFlashGroupedConv(nn.Module):
         )
 
     def prepare(self, hidden_states: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        coefficients = self.kernel_projection(hidden_states).reshape(
+        coefficients = _g157.proyectar(self.kernel_projection, hidden_states).reshape(  # [Genesis PN157: borrador en Marlin]
             hidden_states.shape[0], 2, self.taps, self.num_groups
         )
         return self._convolve(hidden_states, coefficients[:, 0], 0), coefficients[:, 1]
@@ -282,8 +288,8 @@ class DFlash2Qwen3ForCausalLM(DFlashQwen3ForCausalLM):
     def compute_candidates(
         self, hidden_states: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        return self.candidate_logits_processor.get_top_k_tokens(
-            self.lm_head, hidden_states, self.model.candidate_selector.top_k
+        return _g159.top_k(self.candidate_logits_processor,  # [Genesis PN159: vocabulario recortado del borrador]
+            self.lm_head, _g149.rotar(self.model, hidden_states), self.model.candidate_selector.top_k  # [Genesis PN149: borrador sobre target rotado]
         )
 
 

@@ -1,3 +1,4 @@
+# [Genesis wiring marker: Genesis PN35 inputs_embeds optional for text-only (vllm#35975) v7.69 part2]
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 import dataclasses
@@ -236,11 +237,17 @@ class SpecDecodeBaseProposer:
                 (self.max_num_tokens,), dtype=torch.bool, device=device
             )
 
-        self.inputs_embeds = torch.zeros(
-            (self.max_num_tokens, self.inputs_embeds_size),
-            dtype=self.dtype,
-            device=device,
-        )
+        # [Genesis PN35 v7.69 inputs_embeds_optional] vllm#35975 by
+        # AjAnubolu — same pattern for spec-decode proposer's
+        # inputs_embeds tensor. Saves ~64 MiB GPU on text-only spec-
+        # decode methods (MTP, ngram, draft-model w/o prompt embeds).
+        self.inputs_embeds = None
+        if self.supports_mm_inputs:
+            self.inputs_embeds = torch.zeros(
+                (self.max_num_tokens, self.inputs_embeds_size),
+                dtype=self.dtype,
+                device=device,
+            )
 
         self.backup_next_token_ids = CpuGpuBuffer(
             self.max_batch_size,
