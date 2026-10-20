@@ -38,6 +38,7 @@ class Opciones:
     draft_residual_scale: int
     max_num_seqs: int
     max_model_len: int
+    max_num_batched_tokens: int
     prefix_cache_retention_interval: int
     kv_metric_agents: tuple[str, ...]
     # Del checkpoint target (ver rotacion()): 0 / {} / False si no lo declara.
@@ -59,6 +60,7 @@ def configurar(vllm_config: VllmConfig) -> None:
         draft_residual_scale=spec.draft_residual_scale if spec is not None else 0,
         max_num_seqs=vllm_config.scheduler_config.max_num_seqs,
         max_model_len=vllm_config.model_config.max_model_len,
+        max_num_batched_tokens=vllm_config.scheduler_config.max_num_batched_tokens,
         prefix_cache_retention_interval=(
             vllm_config.cache_config.prefix_cache_retention_interval or 0
         ),
