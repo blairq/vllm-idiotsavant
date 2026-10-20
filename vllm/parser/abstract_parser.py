@@ -47,7 +47,6 @@ class StreamState:
 
     reasoning_ended: bool = False
     tool_call_text_started: bool = False
-    prompt_reasoning_checked: bool = False
     previous_text: str = ""
     previous_token_ids: list[int] = field(default_factory=list)
     history_tool_call_cnt: int = 0
@@ -814,19 +813,50 @@ class DelegatingParser(Parser):
         self._initialize_history_tool_call_cnt(request)
         state = self._stream_state
 
-        if not state.prompt_reasoning_checked and prompt_token_ids is not None:
-            state.prompt_reasoning_checked = True
-            if self._reasoning_parser is None or self.is_reasoning_end(
-                prompt_token_ids
-            ):
+        # [PN66 multiturn think leak fix vllm#41696] Removed
+        # the prompt_token_ids walk that prematurely set reasoning_ended
+        # from a PRIOR turn's </think> in the prompt history. The block
+        # conflated 'prompt contains </think>' with 'current generation
+        # already ended reasoning' — wrong on multi-turn chat.
+        # [Fix] Scan reversed prompt_token_ids for end_token_id but stop
+        # if we hit im_start_id (which starts the current assistant turn).
+        if not getattr(
+            self, "_prompt_reasoning_checked", False
+        ) and prompt_token_ids is not None:
+            self._prompt_reasoning_checked = True
+            if self._reasoning_parser is None:
                 state.reasoning_ended = True
             else:
-                # Reasoning is still open at the end of the prompt; let the
-                # reasoning parser adjust its initial parsing state so the
-                # first generated tokens are classified correctly.
-                self._reasoning_parser.adjust_initial_state_from_prompt(
-                    prompt_token_ids
+                _pn66_end_id = getattr(
+                    self._reasoning_parser, "end_token_id", None
                 )
+                _pn66_im_start_id = self._reasoning_parser.vocab.get(
+                    "<|im_start|>"
+                )
+                _pn66_open_in_current_turn = False
+                if _pn66_end_id is not None:
+                    for token_id in reversed(prompt_token_ids):
+                        if token_id == _pn66_end_id:
+                            # </think> after the last turn boundary:
+                            # current turn's prompt already closed its
+                            # reasoning (pre-baked empty think block).
+                            _pn66_open_in_current_turn = True
+                            break
+                        if (
+                            _pn66_im_start_id is not None
+                            and token_id == _pn66_im_start_id
+                        ):
+                            break
+                if _pn66_open_in_current_turn:
+                    state.reasoning_ended = True
+                else:
+                    # Reasoning is still open at the end of the prompt;
+                    # let the reasoning parser adjust its initial parsing
+                    # state so the first generated tokens are classified
+                    # correctly.
+                    self._reasoning_parser.adjust_initial_state_from_prompt(
+                        prompt_token_ids
+                    )
 
         current_text, current_token_ids = state.advance(delta_text, delta_token_ids)
         delta_message: DeltaMessage | None = None

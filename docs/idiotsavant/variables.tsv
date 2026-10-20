@@ -1,0 +1,402 @@
+variable	valor_compose	estado	archivos
+GENESIS_ADMIN_API_KEY		compose	api_auth.py
+GENESIS_ANALISIS_AGENTE		default	analisis_arranque.py
+GENESIS_ANALISIS_HILO_PRINCIPAL		default	analisis_arranque.py
+GENESIS_ARBOL_CERRADA	0	compose	gdn_cinta.py
+GENESIS_ARBOL_DEBUG		default	arbol_runner.py
+GENESIS_ARBOL_INT8		default	gdn_cinta.py
+GENESIS_ARBOL_PRUEBA_DUPLICADO		default	arbol_runner.py
+GENESIS_ARBOL_RHEO		default	arbol_runner.py
+GENESIS_ARBOL_SALIDAS_PAR	ptx	compose	arbol_conv.py
+GENESIS_B3_CAPTURA		default	(text-patch),wiring/communication/patch_B3_custom_ar.py
+GENESIS_B3_MAX_SIZE_MIB		default	wiring/communication/patch_B3_custom_ar.py
+GENESIS_B7		default	wiring/perf_hotfix/patch_B7_lm_head.py
+GENESIS_B7_MARKER		default	wiring/perf_hotfix/patch_B7_lm_head.py
+GENESIS_CAPTURA_BORRADOR		default	plugins_arranque.py
+GENESIS_CAPTURA_BORRADOR_DIR		default	captura_borrador.py
+GENESIS_DIAG_CAPAS_DUMP		default	diag_capas_dump.py,plugins_arranque.py
+GENESIS_DIAG_CAPAS_N		default	diag_capas_dump.py
+GENESIS_DIAG_DDTREE_DUMP		default	diag_ddtree_dump.py,plugins_arranque.py
+GENESIS_DIAG_DFLASH		default	plugins_arranque.py
+GENESIS_DIAG_DFLASH_NAN		default	diag_dflash.py
+GENESIS_DIAG_DFLASH_PASOS		default	diag_dflash.py
+GENESIS_DIAG_DFLASH_TRAZA		default	diag_dflash.py
+GENESIS_DIAG_DRAFTER_A16		default	plugins_arranque.py
+GENESIS_DIAG_DRAFTER_PREFIJOS		default	diag_drafter_a16.py
+GENESIS_DIAG_GDN_CRESTA		default	gdn_cinta.py
+GENESIS_DIAG_KV		default	diag_kv.py,plugins_arranque.py
+GENESIS_DIAG_LMHEAD	0	compose	diag_lm_head.py,plugins_arranque.py
+GENESIS_DIAG_OFFLOAD		default	diag_offload.py,plugins_arranque.py
+GENESIS_DIAG_OFFLOAD_LOOKUPS		default	diag_offload.py
+GENESIS_DISABLE_PN100		default	wiring/hybrid/patch_N100_staging_ring.py
+GENESIS_DISABLE_PN101		default	wiring/hybrid/patch_N101_shared_prefix_probe.py
+GENESIS_DISABLE_PN103		default	wiring/hybrid/patch_N103_auto_prefix_limit.py
+GENESIS_DISABLE_PN33_SPEC_DECODE_WARMUP_K		default	(text-patch),wiring/spec_decode/patch_N33_spec_decode_warmup_k.py
+GENESIS_DISABLE_PN82		default	wiring/hybrid/patch_N82_host_register_sticky_error.py
+GENESIS_DISABLE_PN83		default	analisis_arranque.py,wiring/hybrid/patch_N83_analisis_arranque.py
+GENESIS_DISABLE_PN87		default	(text-patch),wiring/hybrid/patch_N87_offload_hybrid_alloc_boundary.py
+GENESIS_DISABLE_PN94		default	wiring/hybrid/patch_N94_per_rank_host_register.py
+GENESIS_DISABLE_PN95		default	wiring/hybrid/patch_N95_l2_occupancy_metrics.py
+GENESIS_DISABLE_PN97	1	huerfana	
+GENESIS_DISABLE_PN98		default	wiring/hybrid/patch_N98_l2_sizing_advisory.py
+GENESIS_ENABLE_ARBOL	1	compose	arbol_runner.py,gdn_cinta.py,plugins_arranque.py,sk18_attn.py
+GENESIS_ENABLE_B2_FULL_CG	0	compose	dispatcher.py
+GENESIS_ENABLE_B3_CUSTOM_AR	1	compose	dispatcher.py,wiring/communication/patch_B3_custom_ar.py
+GENESIS_ENABLE_B5_REJECTION_SAMPLER	1	compose	dispatcher.py,wiring/spec_decode/patch_B5_rejection_sampler.py
+GENESIS_ENABLE_B7_LM_HEAD	0	compose	dispatcher.py,wiring/perf_hotfix/patch_B7_lm_head.py
+GENESIS_ENABLE_MTP_QUANT_CACHE		default	(text-patch),dispatcher.py
+GENESIS_ENABLE_P100	0	compose	dispatcher.py
+GENESIS_ENABLE_P101		default	dispatcher.py
+GENESIS_ENABLE_P102		default	dispatcher.py
+GENESIS_ENABLE_P103		default	dispatcher.py
+GENESIS_ENABLE_P107_MTP_TRUNCATION_DETECTOR	1	compose	dispatcher.py
+GENESIS_ENABLE_P110_MTP_GPTQ_FIX		default	dispatcher.py
+GENESIS_ENABLE_P15B_FA_VARLEN_CLAMP		default	dispatcher.py
+GENESIS_ENABLE_P37		default	dispatcher.py
+GENESIS_ENABLE_P38B_COMPILE_SAFE		default	dispatcher.py
+GENESIS_ENABLE_P40		default	dispatcher.py
+GENESIS_ENABLE_P56_SPEC_DECODE_GUARD		default	dispatcher.py
+GENESIS_ENABLE_P57_SPEC_DECODE_CAPTURE_SAFE		default	dispatcher.py
+GENESIS_ENABLE_P58_ASYNC_PLACEHOLDER_FIX	0	compose	dispatcher.py
+GENESIS_ENABLE_P59_QWEN3_TOOL_RECOVERY	1	compose	dispatcher.py
+GENESIS_ENABLE_P5B	1	compose	dispatcher.py
+GENESIS_ENABLE_P60B_TRITON_KERNEL		default	dispatcher.py
+GENESIS_ENABLE_P60_GDN_NGRAM_FIX		default	dispatcher.py
+GENESIS_ENABLE_P61B_STREAMING_OVERLAP	1	compose	dispatcher.py
+GENESIS_ENABLE_P61_QWEN3_MULTI_TOOL		default	dispatcher.py
+GENESIS_ENABLE_P62_STRUCT_OUT_SPEC_TIMING	1	compose	dispatcher.py
+GENESIS_ENABLE_P63_MTP_GDN_STATE_RECOVERY		default	dispatcher.py
+GENESIS_ENABLE_P64_QWEN3CODER_MTP_STREAMING		default	dispatcher.py
+GENESIS_ENABLE_P65_TURBOQUANT_SPEC_CG_DOWNGRADE		default	dispatcher.py
+GENESIS_ENABLE_P66_CUDAGRAPH_SIZE_FILTER	1	compose	dispatcher.py
+GENESIS_ENABLE_P67_SPARSE_V		default	dispatcher.py
+GENESIS_ENABLE_P67_TQ_MULTI_QUERY_KERNEL		default	dispatcher.py
+GENESIS_ENABLE_P68_AUTO_FORCE_TOOL		default	dispatcher.py,middleware/long_ctx_tool_adherence.py
+GENESIS_ENABLE_P69_LONG_CTX_TOOL_REMINDER	1	compose	dispatcher.py,middleware/long_ctx_tool_adherence.py
+GENESIS_ENABLE_P70_AUTO_STRICT_NGRAM		default	dispatcher.py
+GENESIS_ENABLE_P71_BLOCK_VERIFY		default	dispatcher.py
+GENESIS_ENABLE_P72_PROFILE_RUN_CAP		default	dispatcher.py
+GENESIS_ENABLE_P74_CHUNK_CLAMP		default	dispatcher.py
+GENESIS_ENABLE_P75_SUFFIX_DECODING		default	dispatcher.py
+GENESIS_ENABLE_P77_ADAPTIVE_NGRAM_K		default	dispatcher.py
+GENESIS_ENABLE_P78_TOLIST_CAPTURE_GUARD		default	dispatcher.py
+GENESIS_ENABLE_P79B_ASYNC_PROPOSER_SYNC		default	dispatcher.py
+GENESIS_ENABLE_P79C_STALE_SPEC_TOKEN_CLEANUP		default	dispatcher.py
+GENESIS_ENABLE_P79D_PREEMPT_ASYNC_DISCARD		default	dispatcher.py
+GENESIS_ENABLE_P7B		default	dispatcher.py
+GENESIS_ENABLE_P81_FP8_BLOCK_SCALED_M_LE_8		default	dispatcher.py
+GENESIS_ENABLE_P82	1	compose	dispatcher.py
+GENESIS_ENABLE_P83		default	dispatcher.py
+GENESIS_ENABLE_P84		default	dispatcher.py
+GENESIS_ENABLE_P85		default	dispatcher.py
+GENESIS_ENABLE_P86		default	dispatcher.py
+GENESIS_ENABLE_P87		default	dispatcher.py
+GENESIS_ENABLE_P91		default	dispatcher.py
+GENESIS_ENABLE_P94		default	dispatcher.py
+GENESIS_ENABLE_P95		default	dispatcher.py
+GENESIS_ENABLE_P98		default	dispatcher.py
+GENESIS_ENABLE_P99		default	dispatcher.py
+GENESIS_ENABLE_PN100_STAGING_RING		default	dispatcher.py
+GENESIS_ENABLE_PN101_SHARED_PREFIX_PROBE		default	dispatcher.py
+GENESIS_ENABLE_PN102_BLOCK_SCORE_PATCH		default	dispatcher.py
+GENESIS_ENABLE_PN103_AUTO_PREFIX		default	kv_prefix_auto.py
+GENESIS_ENABLE_PN103_AUTO_PREFIX_PATCH		default	dispatcher.py
+GENESIS_ENABLE_PN104_EXACT_TIER_ATTRIBUTION		default	dispatcher.py
+GENESIS_ENABLE_PN105_TIERING_RESET_CACHE		default	dispatcher.py
+GENESIS_ENABLE_PN106_MARLIN_REPACK_CACHE		default	dispatcher.py
+GENESIS_ENABLE_PN108_DRAFT_FP8_LM_HEAD	0	compose	dispatcher.py
+GENESIS_ENABLE_PN109_SPEC_DECODE_PERSISTENT_METADATA		default	dispatcher.py
+GENESIS_ENABLE_PN110_INT8_PHASE_DISPATCH		default	dispatcher.py
+GENESIS_ENABLE_PN114_MAMBA_ALIGN_BOUNDS_GUARD	1	compose	dispatcher.py,wiring/spec_decode/patch_PN114_mamba_align_bounds_guard.py
+GENESIS_ENABLE_PN115_PID_GATING	1	compose	dispatcher.py,dynamic_pid_gating.py
+GENESIS_ENABLE_PN116_PREFILL_MLP_SK	0	compose	dispatcher.py
+GENESIS_ENABLE_PN118_INT8_MLP	0	compose	dispatcher.py
+GENESIS_ENABLE_PN119_SK12_MLP	0	compose	dispatcher.py
+GENESIS_ENABLE_PN11_GDN_AB_CONTIGUOUS		default	dispatcher.py
+GENESIS_ENABLE_PN120_AR_INT8	1	compose	ar_int8.py,dispatcher.py
+GENESIS_ENABLE_PN121_PREEMPT_GUARD	1	compose	dispatcher.py
+GENESIS_ENABLE_PN122_GDN_CINTA	1	compose	arbol_runner.py,dispatcher.py,gdn_cinta.py,kv_formato.py
+GENESIS_ENABLE_PN123_VOLCADO_QKV		default	dispatcher.py
+GENESIS_ENABLE_PN124_TRITON_AMPERE	1	compose	dispatcher.py,triton_attn_ampere.py
+GENESIS_ENABLE_PN125_MARLIN_W4A8_ESCALAS	1	compose	dispatcher.py
+GENESIS_ENABLE_PN126_ROT_QK	1	compose	dispatcher.py,kv_formato.py,rot_qk.py
+GENESIS_ENABLE_PN127_MAMBA_DROP_EAGLE	1	compose	dispatcher.py
+GENESIS_ENABLE_PN128_GDN_MTP_ASYNC_ORDER	1	compose	dispatcher.py
+GENESIS_ENABLE_PN129_FLASHINFER_DECODE_UNPIN	0	compose	dispatcher.py
+GENESIS_ENABLE_PN12_FFN_INTERMEDIATE_POOL	1	compose	dispatcher.py,kernels/ffn_intermediate_cache.py
+GENESIS_ENABLE_PN130_MARLIN_S16	1	compose	dispatcher.py,marlin_s16.py
+GENESIS_ENABLE_PN131_SK18	1	compose	dispatcher.py,kv_formato.py,plugins_arranque.py,rot_qk.py,sk18_attn.py
+GENESIS_ENABLE_PN132_VOCAB		default	dispatcher.py
+GENESIS_ENABLE_PN133_MTP_INT8		default	dispatcher.py
+GENESIS_ENABLE_PN134_QUANT		default	dispatcher.py
+GENESIS_ENABLE_PN135_NORM_QUANT	0	compose	dispatcher.py
+GENESIS_ENABLE_PN136_MLP_SOLAPADO	0	compose	dispatcher.py
+GENESIS_ENABLE_PN137_SUAVE		default	dispatcher.py
+GENESIS_ENABLE_PN139_LM_HEAD_INT4	1	compose	dispatcher.py,lm_head_int4.py
+GENESIS_ENABLE_PN13_CUDA_GRAPH_LAMBDA_ARITY		default	dispatcher.py
+GENESIS_ENABLE_PN142_DFLASH2	1	compose	dispatcher.py
+GENESIS_ENABLE_PN143_ENGANCHE_PLUGINS		default	dispatcher.py
+GENESIS_ENABLE_PN144_DFLASH2_ESCALA		default	kv_formato.py
+GENESIS_ENABLE_PN145_SW_BLOCK_SIZE	1	compose	dispatcher.py
+GENESIS_ENABLE_PN146_GROUP_SIZE	1	compose	dispatcher.py
+GENESIS_ENABLE_PN147_SANEO_SPEC	1	compose	dispatcher.py
+GENESIS_ENABLE_PN148_ROT_DOWN	1	compose	dispatcher.py
+GENESIS_ENABLE_PN149_ROT_BORRADOR	1	compose	dispatcher.py
+GENESIS_ENABLE_PN14_TQ_DECODE_OOB_CLAMP		default	dispatcher.py
+GENESIS_ENABLE_PN150_GRAFO_BORRADOR	1	compose	dispatcher.py,grafo_borrador.py
+GENESIS_ENABLE_PN151_GDN_META	1	compose	dispatcher.py,gdn_meta.py
+GENESIS_ENABLE_PN152_AR_P2P	1	compose	ar_p2p.py
+GENESIS_ENABLE_PN153_LOGITS_RANGO	1	compose	logits_rango.py
+GENESIS_ENABLE_PN154_HAD_SALIDAS	1	compose	dispatcher.py
+GENESIS_ENABLE_PN155_BA_EN_QKVZ	1	compose	dispatcher.py,gdn_ba_qkvz.py
+GENESIS_ENABLE_PN156_NORMA_Q8	1	compose	dispatcher.py,norma_q8.py
+GENESIS_ENABLE_PN157_BORRADOR_MARLIN	1	compose	borrador_marlin.py,dispatcher.py
+GENESIS_ENABLE_PN158_EMBED_P2P	1	compose	ar_int8.py,dispatcher.py
+GENESIS_ENABLE_PN159_VOCAB_BORRADOR	1	compose	dispatcher.py,vocab_borrador.py
+GENESIS_ENABLE_PN160_BORRADOR_FUSION	0	compose	dispatcher.py
+GENESIS_ENABLE_PN161_BORRADOR_QKKV	0	compose	dispatcher.py
+GENESIS_ENABLE_PN162_BORRADOR_NORMA	0	compose	dispatcher.py
+GENESIS_ENABLE_PN163_GDN_SALIDA	1	compose	dispatcher.py,gdn_salida.py
+GENESIS_ENABLE_PN164_GDN_VISTAS	1	compose	dispatcher.py,gdn_vistas.py
+GENESIS_ENABLE_PN165_DIAG_PREFIJO	1	compose	diag_prefijo.py,dispatcher.py
+GENESIS_ENABLE_PN166_CAPTURA_PEDIDOS	0	compose	dispatcher.py
+GENESIS_ENABLE_PN168_RETENCION_EAGLE	1	compose	dispatcher.py
+GENESIS_ENABLE_PN169_SESION	1	compose	dispatcher.py,sesion.py
+GENESIS_ENABLE_PN16_LAZY_REASONER		default	dispatcher.py
+GENESIS_ENABLE_PN170_L2_GDN	1	compose	dispatcher.py,l2_gdn.py
+GENESIS_ENABLE_PN171_BORRADOR_RECORTADO	1	compose	l2_gdn.py
+GENESIS_ENABLE_PN172_DESALOJO_SESION	0	compose	dispatcher.py
+GENESIS_ENABLE_PN173_CHUNK_DINAMICO	1	compose	chunk_dinamico.py,dispatcher.py
+GENESIS_ENABLE_PN174_UNLINK_L2	1	compose	dispatcher.py
+GENESIS_ENABLE_PN175_CIERRE_FORZADO	1	compose	dispatcher.py
+GENESIS_ENABLE_PN176_RECORTE_MM	1	compose	dispatcher.py
+GENESIS_ENABLE_PN17_FA2_LSE_CLAMP		default	dispatcher.py
+GENESIS_ENABLE_PN19_SCOPED_MAX_SPLIT	1	compose	dispatcher.py
+GENESIS_ENABLE_PN21_DFLASH_SWA		default	dispatcher.py
+GENESIS_ENABLE_PN22_LOCAL_ARGMAX_TP		default	dispatcher.py
+GENESIS_ENABLE_PN23_DFLASH_DTYPE_FIX		default	dispatcher.py
+GENESIS_ENABLE_PN24_DFLASH_AUX_LAYER_FIX		default	dispatcher.py
+GENESIS_ENABLE_PN25_SILU_INDUCTOR_SAFE	1	compose	dispatcher.py,kernels/silu_and_mul_customop.py
+GENESIS_ENABLE_PN26_SPARSE_V		default	dispatcher.py
+GENESIS_ENABLE_PN26_TQ_UNIFIED		default	dispatcher.py
+GENESIS_ENABLE_PN27_REVERT_PLUGGABLE_MOE		default	dispatcher.py
+GENESIS_ENABLE_PN28_MERGE_ATTN_NAN_GUARD		default	dispatcher.py
+GENESIS_ENABLE_PN29_GDN_SCALE_FOLD		default	dispatcher.py
+GENESIS_ENABLE_PN30_DS_LAYOUT_SPEC_DECODE		default	dispatcher.py
+GENESIS_ENABLE_PN31_FA_VARLEN_PERSISTENT_OUT		default	dispatcher.py
+GENESIS_ENABLE_PN32_GDN_CHUNKED_PREFILL		default	dispatcher.py
+GENESIS_ENABLE_PN33_SPEC_DECODE_WARMUP_K		default	dispatcher.py
+GENESIS_ENABLE_PN348_MTP_BACKBONE_DEDUP		default	dispatcher.py
+GENESIS_ENABLE_PN34_WORKSPACE_LOCK_RELAX		default	dispatcher.py
+GENESIS_ENABLE_PN35_INPUTS_EMBEDS_OPTIONAL		default	dispatcher.py
+GENESIS_ENABLE_PN38_DFLASH_QUANT_DRAFTER		default	dispatcher.py
+GENESIS_ENABLE_PN40_DFLASH_OMNIBUS		default	dispatcher.py
+GENESIS_ENABLE_PN50_GDN_FUSED_PROJ	1	compose	dispatcher.py,wiring/hybrid/patch_N50_gdn_fused_proj.py
+GENESIS_ENABLE_PN51_QWEN3_STREAMING_THINKING_DISABLED	1	compose	dispatcher.py
+GENESIS_ENABLE_PN52_PROMPT_LOGPROBS_EVICTION		default	dispatcher.py
+GENESIS_ENABLE_PN54_GDN_CONTIGUOUS_DEDUP	1	compose	dispatcher.py,wiring/hybrid/patch_N54_gdn_contiguous_dedup.py
+GENESIS_ENABLE_PN55_WAKE_UP_HYBRID_KV		default	dispatcher.py
+GENESIS_ENABLE_PN56_QWEN3CODER_XML_FALLBACK	1	compose	dispatcher.py
+GENESIS_ENABLE_PN57_TQ_CENTROIDS_DISK_CACHE	1	compose	dispatcher.py,wiring/perf_hotfix/patch_N57_tq_centroids_disk_cache.py
+GENESIS_ENABLE_PN58_SPEC_REASONING_BOUNDARY		default	dispatcher.py
+GENESIS_ENABLE_PN59_STREAMING_GDN	1	compose	dispatcher.py,kernels/gdn_scratch_pool.py,wiring/hybrid/patch_N59_streaming_gdn.py
+GENESIS_ENABLE_PN60		default	dispatcher.py
+GENESIS_ENABLE_PN61		default	dispatcher.py
+GENESIS_ENABLE_PN62		default	dispatcher.py
+GENESIS_ENABLE_PN63		default	dispatcher.py
+GENESIS_ENABLE_PN64		default	dispatcher.py,kernels/marlin_tuning.py
+GENESIS_ENABLE_PN65		default	dispatcher.py
+GENESIS_ENABLE_PN66	1	compose	dispatcher.py
+GENESIS_ENABLE_PN67		default	dispatcher.py
+GENESIS_ENABLE_PN70_TOOL_SCHEMA_FILTER		default	dispatcher.py
+GENESIS_ENABLE_PN77_FP8_LM_HEAD	1	compose	dispatcher.py,kernels_legacy/lm_head_fp8_compressor.py,kernels_legacy/lm_head_fp8_method.py,wiring/perf_hotfix/patch_N77_fp8_lm_head.py
+GENESIS_ENABLE_PN80_GDN_H_BUDGET_PROBE	0	compose	dispatcher.py
+GENESIS_ENABLE_PN81_KV_DISK_QUOTA	1	compose	(text-patch),analisis_arranque.py,dispatcher.py,wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_ENABLE_PN82_HOST_REGISTER_STICKY		default	dispatcher.py
+GENESIS_ENABLE_PN83_ANALISIS_ARRANQUE		default	dispatcher.py
+GENESIS_ENABLE_PN84_HYBRID_EAGLE_HIT		default	dispatcher.py
+GENESIS_ENABLE_PN85_THINKING_BUDGET_MESSAGE		default	dispatcher.py
+GENESIS_ENABLE_PN87_OFFLOAD_HYBRID_BOUNDARY		default	dispatcher.py
+GENESIS_ENABLE_PN88_KV_TIER_METRICS	1	compose	dispatcher.py,kv_tier_metrics.py,wiring/hybrid/patch_N88_kv_tier_metrics.py
+GENESIS_ENABLE_PN89_KV_OFFLOAD_REQUESTS_ENDPOINT		default	dispatcher.py
+GENESIS_ENABLE_PN8_MTP_DRAFT_ONLINE_QUANT	0	compose	dispatcher.py
+GENESIS_ENABLE_PN90_KV_DISK_WRITE_GATING	1	compose	dispatcher.py
+GENESIS_ENABLE_PN91_KV_LAZY_STREAMING	1	compose	dispatcher.py,kv_lazy_streaming.py
+GENESIS_ENABLE_PN92_KV_FP4_COMPRESSION	0	compose	dispatcher.py
+GENESIS_ENABLE_PN93_SPARSE_GDN	0	compose	(text-patch),dispatcher.py,kv_sparse_gdn.py,wiring/hybrid/patch_N98_l2_sizing_advisory.py
+GENESIS_ENABLE_PN94_PER_RANK_HOST_REGISTER		default	dispatcher.py
+GENESIS_ENABLE_PN95_L2_OCCUPANCY		default	dispatcher.py
+GENESIS_ENABLE_PN96_SCAN_RESISTANT_ADMISSION		default	dispatcher.py
+GENESIS_ENABLE_PN97_PROMOTION_NEVER_EVICTS		default	dispatcher.py
+GENESIS_ENABLE_PN98_L2_SIZING_ADVISORY		default	dispatcher.py
+GENESIS_ENABLE_PN99_GPU_COMPRESSED_L2	0	huerfana	
+GENESIS_ENABLE_PN99_GPU_COMPRESSED_L2_PATCH		default	dispatcher.py
+GENESIS_ENABLE_PN9_INDEPENDENT_DRAFTER_ATTN		default	dispatcher.py
+GENESIS_GDN_MAX_BATCHED_TOKENS		default	kernels/gdn_core_attn_manager.py
+GENESIS_KV_AGENTS	coach,primary,primary_low,primary_high,primary_nothink,planner,planner_nothink,coder,verifier,utility,explorer,vision,art	compose	kv_tier_metrics.py
+GENESIS_KV_DISK_CHECK_SECS	60	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_KV_DISK_MAX_GB	20	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_KV_DISK_ORPHAN_CHECK_SECS	3600	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_KV_DISK_ORPHAN_DAYS	3	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_KV_DISK_TARGET_RATIO	0.85	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_KV_DISK_WRITERS		default	kv_disk_gate.py
+GENESIS_LEGACY_P1		default	dispatcher.py
+GENESIS_LEGACY_P12		default	dispatcher.py
+GENESIS_LEGACY_P14		default	dispatcher.py
+GENESIS_LEGACY_P15		default	dispatcher.py
+GENESIS_LEGACY_P17		default	dispatcher.py
+GENESIS_LEGACY_P18B		default	dispatcher.py
+GENESIS_LEGACY_P20		default	dispatcher.py
+GENESIS_LEGACY_P22		default	dispatcher.py
+GENESIS_LEGACY_P23		default	dispatcher.py
+GENESIS_LEGACY_P24		default	dispatcher.py
+GENESIS_LEGACY_P26		default	dispatcher.py
+GENESIS_LEGACY_P27		default	dispatcher.py
+GENESIS_LEGACY_P28		default	dispatcher.py
+GENESIS_LEGACY_P29		default	dispatcher.py
+GENESIS_LEGACY_P3		default	dispatcher.py
+GENESIS_LEGACY_P31		default	dispatcher.py
+GENESIS_LEGACY_P32		default	dispatcher.py
+GENESIS_LEGACY_P34		default	dispatcher.py
+GENESIS_LEGACY_P36		default	dispatcher.py
+GENESIS_LEGACY_P38		default	dispatcher.py
+GENESIS_LEGACY_P39A		default	dispatcher.py
+GENESIS_LEGACY_P4		default	dispatcher.py
+GENESIS_LEGACY_P44		default	dispatcher.py
+GENESIS_LEGACY_P46		default	dispatcher.py
+GENESIS_LEGACY_P5		default	dispatcher.py
+GENESIS_LEGACY_P51		default	dispatcher.py
+GENESIS_LEGACY_P6		default	dispatcher.py
+GENESIS_LEGACY_P7		default	dispatcher.py
+GENESIS_LEGACY_P8		default	dispatcher.py
+GENESIS_LINEINFO		default	kernels/ptx_lab.py
+GENESIS_LOG_LEVEL	INFO	huerfana	
+GENESIS_MARLIN_S16_BUILD		default	marlin_s16.py
+GENESIS_MTP_QUANT_FORMAT		default	(text-patch)
+GENESIS_P107_RAISE_ERROR		default	(text-patch)
+GENESIS_P113_MLP_FUSED_SILU		default	dispatcher.py
+GENESIS_P66_GENERAR_TALLAS	1	compose	(text-patch)
+GENESIS_P66_MAX_REQS	4	compose	(text-patch)
+GENESIS_P68_FORCE		default	middleware/long_ctx_tool_adherence.py
+GENESIS_P68_P69_LONG_CTX_THRESHOLD_CHARS	1000	compose	middleware/long_ctx_tool_adherence.py
+GENESIS_P69_REMINDER_STYLE	qwen3_coder	compose	middleware/long_ctx_tool_adherence.py
+GENESIS_P69_TOOL_TAIL		default	middleware/long_ctx_tool_adherence.py
+GENESIS_PID_BASELINE_DECAY		default	dynamic_pid_gating.py
+GENESIS_PID_HEADROOM_RATIO	0.10	compose	dynamic_pid_gating.py
+GENESIS_PID_HIGH_PRIO_THRESHOLD	0	compose	dynamic_pid_gating.py
+GENESIS_PID_KD		default	dynamic_pid_gating.py
+GENESIS_PID_KP		default	dynamic_pid_gating.py
+GENESIS_PID_LATENCY_SLACK		default	dynamic_pid_gating.py
+GENESIS_PID_MAX_CONCURRENCY		default	dynamic_pid_gating.py
+GENESIS_PID_MIN_CONCURRENCY	2	compose	dynamic_pid_gating.py
+GENESIS_PID_MIN_SAMPLES		default	dynamic_pid_gating.py
+GENESIS_PID_TARGET_STEP_MS		default	dynamic_pid_gating.py
+GENESIS_PN100_RING_BLOCKS	32	compose	kv_staging_ring.py
+GENESIS_PN103_MARGIN_BLOCKS		default	kv_prefix_auto.py
+GENESIS_PN103_MIN_OBS		default	kv_prefix_auto.py
+GENESIS_PN114_GUARD_BLOCK_TABLE	0	compose	wiring/spec_decode/patch_PN114_mamba_align_bounds_guard.py
+GENESIS_PN115_FALTAN_TOKENS	8192	compose	dynamic_pid_gating.py
+GENESIS_PN115_KV_GATING	1	compose	dynamic_pid_gating.py
+GENESIS_PN115_LATENCY_PID	0	compose	dynamic_pid_gating.py
+GENESIS_PN115_MAX_CONCURRENT_PREFILLS	1	compose	dynamic_pid_gating.py
+GENESIS_PN115_PROMPT_CORTO_TOKENS	2000	compose	dynamic_pid_gating.py
+GENESIS_PN120_GRUPO	64	compose	ar_int8.py
+GENESIS_PN120_MARKER		default	wiring/communication/patch_PN120_ar_int8.py
+GENESIS_PN120_M_MIN	512	compose	ar_int8.py
+GENESIS_PN121_MARKER		default	wiring/kv_cache/patch_PN121_preempt_cascade_guard.py
+GENESIS_PN122_ARBOL_PTX	1	compose	gdn_cinta.py
+GENESIS_PN122_DEBUG		default	gdn_cinta.py
+GENESIS_PN122_ESCRIBIR_PAR	ptx	compose	gdn_cinta.py
+GENESIS_PN122_SIN_LIBERAR		default	gdn_cinta.py
+GENESIS_PN124_APLANAR_SPEC		default	triton_attn_ampere.py
+GENESIS_PN124_Q3D	16	compose	triton_attn_ampere.py
+GENESIS_PN124_Q_MAX	16	compose	triton_attn_ampere.py
+GENESIS_PN124_SK31	0	compose	borrador_attn.py
+GENESIS_PN124_SK31_BMAX		default	borrador_attn.py
+GENESIS_PN124_SK31_GMAX		default	borrador_attn.py
+GENESIS_PN124_VERIFICAR	0	compose	triton_attn_ampere.py
+GENESIS_PN125_BUSQUEDA		default	marlin_w4a8_escalas.py
+GENESIS_PN125_MARKER		default	wiring/kernels/patch_PN125_marlin_w4a8_escalas.py
+GENESIS_PN126_DAMP		default	kv_formato.py,rot_qk.py
+GENESIS_PN126_DFLASH		default	kv_formato.py,wiring/hybrid/patch_PN126_rot_qk.py
+GENESIS_PN126_ROT	hadamard	compose	kv_formato.py,rot_qk.py
+GENESIS_PN131_		default	kv_formato.py
+GENESIS_PN131_BMAX	11	compose	kv_formato.py,sk18_attn.py
+GENESIS_PN131_CLIP		default	sk18_attn.py
+GENESIS_PN131_CPG		default	kv_formato.py,sk18_attn.py
+GENESIS_PN131_DIAG		default	kv_formato.py,sk18_attn.py
+GENESIS_PN131_DIAG4		default	sk18_attn.py
+GENESIS_PN131_ESPERA		default	sk18_attn.py
+GENESIS_PN131_EXCLUIR		default	sk18_attn.py
+GENESIS_PN131_INT4		default	sk18_attn.py
+GENESIS_PN131_MARGEN4		default	sk18_attn.py
+GENESIS_PN131_MARGENK4		default	sk18_attn.py
+GENESIS_PN131_MAXTOK		default	kv_formato.py,sk18_attn.py
+GENESIS_PN131_MIXTO	1	compose	sk18_attn.py
+GENESIS_PN131_MIXTO_VERIFICAR	0	compose	sk18_attn.py
+GENESIS_PN131_NATIVO	1	compose	kv_formato.py,plugins_arranque.py,wiring/hybrid/patch_PN131_sk18_decode.py
+GENESIS_PN131_NIV		default	sk18_attn.py
+GENESIS_PN131_PLANOSA		default	sk18_attn.py
+GENESIS_PN131_PREFILL		default	kv_formato.py,sk18_attn.py
+GENESIS_PN131_QPLANOS		default	sk18_attn.py
+GENESIS_PN131_ROT		default	rot_qk.py,sk18_attn.py
+GENESIS_PN131_ROTV	0	compose	sk18_attn.py
+GENESIS_PN131_SCH		default	sk18_attn.py
+GENESIS_PN131_SK30	1	compose	sk18_attn.py
+GENESIS_PN131_SK30_GMAX	41	compose	sk18_attn.py
+GENESIS_PN131_UNION_BLOQUES	2400	compose	sk18_attn.py
+GENESIS_PN131_VENTANA		default	sk18_attn.py
+GENESIS_PN131_WCAP		default	sk18_attn.py
+GENESIS_PN131_ZSH4		default	sk18_attn.py
+GENESIS_PN139_A8	1	compose	lm_head_int4.py
+GENESIS_PN139_SOLO_BORRADOR		default	lm_head_int4.py
+GENESIS_PN142_DIAG		default	(text-patch),wiring/spec_decode/patch_PN142_dflash2_v029.py
+GENESIS_PN144_ESCALA_RESIDUAL	32	compose	dflash2_escala.py,kv_formato.py
+GENESIS_PN146_GROUP_SIZE	8	compose	(text-patch),wiring/kv_cache/patch_PN146_group_size.py
+GENESIS_PN148_BLOQUE		default	rot_down.py
+GENESIS_PN148_FUSIONADO		default	rot_down.py
+GENESIS_PN148_INT8		default	rot_down.py
+GENESIS_PN148_VERIFICAR		default	rot_down.py
+GENESIS_PN151_VERIFICAR	0	compose	gdn_meta.py
+GENESIS_PN152_BLOQUES		default	ar_p2p.py
+GENESIS_PN152_BLOQUES_I8		default	ar_p2p.py
+GENESIS_PN152_MAX_BYTES		default	ar_p2p.py
+GENESIS_PN152_MIN_I8	1	compose	ar_p2p.py
+GENESIS_PN153_VERIFICAR	0	compose	logits_rango.py
+GENESIS_PN154_APAGAR		default	had_salidas.py
+GENESIS_PN154_FUSIONADO		default	had_salidas.py
+GENESIS_PN157_BITS_CONV	0	compose	borrador_marlin.py
+GENESIS_PN157_GRUPO_CONV	-1	compose	borrador_marlin.py
+GENESIS_PN159_DINAMICO	0	compose	vocab_borrador.py
+GENESIS_PN159_SK28	0	compose	vocab_borrador.py
+GENESIS_PN159_VERIFICAR	0	compose	vocab_borrador.py
+GENESIS_PN159_VOCAB	65536	compose	vocab_borrador.py
+GENESIS_PN165_TOKENIZER		default	diag_prefijo.py
+GENESIS_PN168_DIAG	0	compose	(text-patch),wiring/hybrid/patch_PN168_retencion_eagle.py
+GENESIS_PN170_DIAG	0	compose	l2_gdn.py
+GENESIS_PN170_SUMAS	0	compose	l2_gdn.py
+GENESIS_PN171_SEGMENTO	14080	compose	l2_gdn.py
+GENESIS_PN172_TTL_S	1200	huerfana	
+GENESIS_PN173_CHUNK_CON_DECODE	880	compose	chunk_dinamico.py
+GENESIS_PN173_CHUNK_SOLO	2640	compose	chunk_dinamico.py
+GENESIS_PN173_FALTA_POCO		default	chunk_dinamico.py
+GENESIS_PN175_MAX_TOKENS		default	cierre_forzado.py
+GENESIS_PN176_POR_TURNO	2	compose	recorte_mm.py
+GENESIS_PN59_DEBUG		default	kernels/streaming_gdn_driver.py
+GENESIS_PN59_MIN_T	256	compose	kernels/streaming_gdn_driver.py
+GENESIS_PN59_STRICT_NO_METADATA		default	kernels/streaming_gdn_driver.py
+GENESIS_PN81_ASYNC	1	compose	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_PN90_MAX_PENDING_MB	256	compose	kv_disk_gate.py
+GENESIS_PN91_MAX_DEFER_SECONDS	15.0	compose	kv_lazy_streaming.py
+GENESIS_PN91_MAX_DEFER_STEPS	400	compose	kv_lazy_streaming.py
+GENESIS_PN93_GDN_CHECKPOINT_STRIDE		default	(text-patch),kv_sparse_gdn.py,wiring/hybrid/patch_N98_l2_sizing_advisory.py
+GENESIS_PREALLOC_TOKEN_BUDGET		default	prealloc_budget.py
+GENESIS_SHM_ORPHAN_MIN_AGE_S		default	(text-patch),wiring/hybrid/patch_N81_kv_disk_tier_quota.py
+GENESIS_SK18H_NW	8	compose	sk18_attn.py
+GENESIS_VARIANT_D_WINDOW_NT		default	kernels/gdn_scratch_pool.py
+GENESIS_VERBOSE	0	huerfana	
+GENESIS_VLLM_PIN_POLICY		default	guards.py
+GENESIS_VOLCADO	1	compose	volcado.py
+GENESIS_VOLCADO_DIR	/root/.cache/vllm/genesis_volcados	compose	volcado.py
+GENESIS_VOLCADO_MAX		default	volcado.py
+VLLM_API_KEY		compose	api_auth.py

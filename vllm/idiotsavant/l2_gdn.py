@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: Apache-2.0
+"""PN170 — L2 (offload a RAM) para el hibrido con DFlash: sin esto el offload no acierta NUNCA.
+
+Con EAGLE (DFlash cuenta como EAGLE) y ningun grupo marcado como de borrador, el connector de vLLM 0.29 declara EAGLE a
+TODOS los grupos. Para los grupos GDN (ventana de 1 estado) eso suma la ventana extra de EAGLE: el lookup pide 2 estados
+consecutivos y despues descarta uno. Con retencion rala (y PN168) los estados estan en P-3 y P-1, nunca consecutivos,
+asi que el GDN daba 0 y el acierto externo era 0 aunque la atencion estuviera entera en L2 (medido 06-10: 5 GB
+guardados, 0 aciertos). Los grupos GDN del target no tienen la volatilidad de la KV del borrador: sin EAGLE.
+
+Medido despues (06-10): turno de 100k rescatado de L2 con 95920 tokens, TTFT 55,9 s -> 4,3 s; sumas por bloque de los
+9 grupos en las dos GPUs identicas entre lo guardado y lo cargado. La salida difiere de la del acierto local solo por el
+reparto en chunks del prefill que sigue (igual que local contra desde cero).
+
+Diagnosticos (apagados): DIAG (handoffs, prepare_store) y SUMAS (checksum por bloque al guardar y cargar).
+"""
+from __future__ import annotations
+
+
+ACTIVO = True
+
+
+import logging
+
+log = logging.getLogger("idiotsavant.pn170")
+
+
+def tras_prepare(req, nuevas: list, store_output) -> None:
+    pass
+
+
+def sin_eagle_en_mamba(eagle_groups: set, kv_cache_config) -> set:
+    """Los grupos GDN del target no son de borrador: sin la ventana extra de EAGLE (pide 2 estados consecutivos,
+    y con retencion rala no los hay). vLLM los marca eagle solo porque ningun grupo esta marcado como borrador."""
+    from vllm.v1.kv_cache_interface import MambaSpec
+    return {i for i in eagle_groups if not isinstance(kv_cache_config.kv_cache_groups[i].kv_cache_spec, MambaSpec)}
+
+
+def handoff(req, group_idx: int, block_id: int, boundary: int) -> None:
+    pass
+
+
+_kv = {"cajas": None}
+_cargas: dict = {}
+
+
+def registrar_kv(canonical_kv_caches) -> None:
+    pass
+
+
+def al_guardar(job_id, src_spec) -> None:
+    pass
+
+
+def al_cargar(job_id, dst_spec) -> None:
+    pass
+
+
+def carga_lista(job_id) -> None:
+    pass
+
+
+# Segmento = --prefix-cache-retention-interval.
+
+
+def saltear_ventana(req, group_config, c: int) -> bool:
+    """True = no guardar el chunk c de un grupo de ventana deslizante (no lo pide ningun lookup).
+    Un acierto de H chunks consulta la ventana en los indices [H-w-e+1, H] (la consulta de EAGLE llega a H); se
+    guarda [H-w-e-1, H] con un chunk de margen. H = multiplos del segmento, P-2 y la junction."""
+    if group_config.sliding_window_size_in_chunks is None or group_config.requires_cow_source:
+        return False
+    tpc = group_config.tokens_per_chunk
+    margen = group_config.sliding_window_size_in_chunks + int(group_config.is_eagle_group) + 1
+    puntos = [req.num_prompt_tokens // tpc - 2]
+    spb = getattr(req, "shared_prefix_boundary", 0) or 0
+    if spb:
+        puntos.append(spb // tpc - 1)
+    if any(h - margen <= c <= h for h in puntos):
+        return False
+    from vllm.idiotsavant import opciones
+    segmento = opciones.actual().prefix_cache_retention_interval
+    seg = segmento // tpc if segmento else 0
+    if seg > 0:
+        h = (c + margen) // seg * seg                 # el primer multiplo del segmento >= c (si esta a menos de margen)
+        if h >= c and h > 0:
+            return False
+    return True

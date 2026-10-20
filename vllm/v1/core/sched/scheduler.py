@@ -25,6 +25,7 @@ from vllm.distributed.kv_transfer.kv_connector.v1 import (
 from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorMetadata
 from vllm.distributed.kv_transfer.kv_connector.v1.metrics import KVConnectorStats
 from vllm.logger import init_logger
+from vllm.idiotsavant import diag_prefijo as _g165  # [PN165: diagnostico de prefijo]
 from vllm.model_executor.layers.fused_moe.routed_experts_capturer import (
     RoutedExpertsManager,
 )
@@ -255,6 +256,8 @@ class Scheduler(SchedulerInterface):
         )
         speculative_config = vllm_config.speculative_config
         self.use_eagle = False
+        # [PN142: DFlash2 en v0.29.0] acota el retroceso de la ultima pagina de mamba.
+        self.use_eagle_preserves_target_kv_cache = False
         self.num_spec_tokens = vllm_config.num_speculative_tokens
         self.num_lookahead_tokens = vllm_config.num_lookahead_tokens
         # Positions past the computed tokens that the drafter reads mid-prefill.
@@ -273,6 +276,10 @@ class Scheduler(SchedulerInterface):
                     vllm_num_speculative_tokens=self.num_spec_tokens,
                 )
             self.use_eagle = speculative_config.use_eagle()
+            # [PN142: DFlash2 en v0.29.0]
+            self.use_eagle_preserves_target_kv_cache = (
+                speculative_config.use_eagle_preserves_target_kv_cache()
+            )
             if self.use_eagle:
                 self.num_prefill_lookahead = (
                     self.num_spec_tokens
@@ -414,7 +421,9 @@ class Scheduler(SchedulerInterface):
         # Eagle, FullAttn prunes the last matching block, so back off one
         # block to avoid a Mamba cache miss.
         last_cache_position = request.num_tokens - request.num_tokens % block_size
-        if self.use_eagle:
+        # [PN142: DFlash2 en v0.29.0] solo la familia eagle poda el ultimo bloque que matchea;
+        # DFlash/DSpark no, y retroceder les mata todo hit de prefix-cache y de offload.
+        if self.use_eagle_preserves_target_kv_cache:
             last_cache_position = max(last_cache_position - block_size, 0)
 
         end = start + num_new_tokens
@@ -444,6 +453,9 @@ class Scheduler(SchedulerInterface):
             else 0
         )
         stops = (
+            (request.num_prompt_tokens // block_size - 2) * block_size if self.use_eagle else 0,  # [PN168: borde de reuso con EAGLE]
+            (request.shared_prefix_boundary // block_size - 2) * block_size
+            if self.use_eagle and request.shared_prefix_boundary else 0,
             # Same invariant: a chunk starting mid-block stops at the boundary
             # rather than running past it.
             next_block_boundary if start % block_size != 0 else 0,
@@ -500,6 +512,7 @@ class Scheduler(SchedulerInterface):
 
     def schedule(self, throttle_prefills: bool = False) -> SchedulerOutput:
         self.current_step += 1
+        __import__('vllm.idiotsavant.chunk_dinamico', fromlist=['x']).ajustar(self)  # [PN173: chunk de prefill dinamico]
         # NOTE(woosuk) on the scheduling algorithm:
         # There's no "decoding phase" nor "prefill phase" in the scheduler.
         # Each request just has the num_computed_tokens and
@@ -538,6 +551,13 @@ class Scheduler(SchedulerInterface):
 
         # For logging.
         scheduled_timestamp = time.monotonic()
+        # [PN115: KV headroom gating & priority bypass v2]
+        from vllm.idiotsavant import dynamic_pid_gating as _g115
+        _g115.update_step_with_scheduler(
+            scheduler=self,
+            step_duration_ms=(scheduled_timestamp - getattr(self, '_g115_last_step_start', scheduled_timestamp)) * 1000.0,
+        )
+        self._g115_last_step_start = scheduled_timestamp
 
         self.kv_cache_manager.new_step_starts()
 
@@ -704,6 +724,8 @@ class Scheduler(SchedulerInterface):
                     else:
                         preempted_req = self.running.pop()
 
+                    # [PN121: guard de cascada de preempcion]
+                    _g121_def = len(self.deferred_frees)
                     self._preempt_request(
                         preempted_req,
                         scheduled_timestamp,
@@ -712,6 +734,12 @@ class Scheduler(SchedulerInterface):
                     preempted_reqs.append(preempted_req)
                     if preempted_req == request:
                         # No more request to preempt. Cannot schedule this request.
+                        break
+                    # Los bloques de la victima quedaron diferidos: reintentar
+                    # allocate_slots fallaria igual y preemptaria a otra.
+                    # Se corta aca; el paso siguiente ya los tiene drenados.
+                    if len(self.deferred_frees) > _g121_def:
+                        new_blocks = None
                         break
 
             if new_blocks is None:
@@ -774,6 +802,9 @@ class Scheduler(SchedulerInterface):
         # Next, schedule the WAITING requests.
         if not preempted_reqs and self._pause_state == PauseState.UNPAUSED:
             step_skipped_waiting = create_request_queue(self.policy)
+            # [PN115: KV headroom gating & priority bypass v2] — import izado: una vez por
+            # schedule(), no una vez por request en el bucle caliente.
+            from vllm.idiotsavant import dynamic_pid_gating as _g115
 
             while (self.waiting or self.skipped_waiting) and token_budget > 0:
                 if input_budget <= draft_slots:
@@ -782,6 +813,28 @@ class Scheduler(SchedulerInterface):
                 # in `running` but still hold a model-runner request slot.
                 num_running = len(self.running) + self.num_waiting_for_streaming_input
                 if num_running >= self.max_num_running_reqs:
+                    # [PN115: KV headroom gating & priority bypass v2] Bypass de prioridad:
+                    # libera UN slot para el head de la cola si es de
+                    # prioridad alta, deshaciendo el estado que la victima
+                    # ya tenia agendado en este paso (mismo rollback que el
+                    # camino de preemption de upstream), y corta el paso.
+                    # Upstream ya define que un paso que preempta no admite
+                    # trabajo nuevo: este bloque entero vive bajo
+                    # `if not preempted_reqs:`. Sin bypass el delta es 0 y
+                    # esto es exactamente el `break` original.
+                    _g115_tok, _g115_enc, _g115_idx = _g115.try_priority_preempt(
+                        scheduler=self,
+                        timestamp=scheduled_timestamp,
+                        preempted_reqs=preempted_reqs,
+                        scheduled_running_reqs=scheduled_running_reqs,
+                        num_scheduled_tokens=num_scheduled_tokens,
+                        req_to_new_blocks=req_to_new_blocks,
+                        scheduled_spec_decode_tokens=scheduled_spec_decode_tokens,
+                        scheduled_encoder_inputs=scheduled_encoder_inputs,
+                    )
+                    token_budget += _g115_tok
+                    encoder_compute_budget += _g115_enc
+                    req_index += _g115_idx
                     break
 
                 request_queue = self._select_waiting_queue_for_scheduling()
@@ -789,6 +842,12 @@ class Scheduler(SchedulerInterface):
 
                 request = request_queue.peek_request()
                 request_id = request.request_id
+
+                # [PN115: KV headroom gating & priority bypass v2] Admision por headroom de KV.
+                if _g115.should_gate_waiting(request, self):
+                    request_queue.pop_request()
+                    step_skipped_waiting.prepend_request(request)
+                    continue
 
                 # try to promote blocked statuses while traversing skipped queue.
                 if self._is_blocked_waiting_status(
@@ -843,6 +902,7 @@ class Scheduler(SchedulerInterface):
                         request.shared_prefix_boundary,
                         hit_diverged,
                     ) = self._get_local_prefix_cache_hit(request)
+                    _g165.registrar(request, num_new_local_computed_tokens)  # [PN165: diagnostico de prefijo]
 
                     # Get externally-cached tokens if using a KVConnector.
                     if self.connector is not None:

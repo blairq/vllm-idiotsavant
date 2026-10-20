@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "idiotsavant": {
+      "format": "%(asctime)s %(levelname)-7s [pid %(process)d] %(name)s: %(message)s",
+      "datefmt": "%H:%M:%S"
+    }
+  },
+  "handlers": {
+    "consola": {
+      "class": "logging.StreamHandler",
+      "formatter": "idiotsavant",
+      "stream": "ext://sys.stdout",
+      "level": "INFO"
+    },
+    "archivo": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "formatter": "idiotsavant",
+      "filename": "/var/log/vllm-idiotsavant/vllm.log",
+      "maxBytes": 67108864,
+      "backupCount": 3,
+      "level": "DEBUG"
+    }
+  },
+  "loggers": {
+    "vllm": {"handlers": ["consola", "archivo"], "level": "INFO", "propagate": false},
+    "idiotsavant": {"handlers": ["consola", "archivo"], "level": "DEBUG", "propagate": false}
+  },
+  "root": {"handlers": ["archivo"], "level": "INFO"}
+}

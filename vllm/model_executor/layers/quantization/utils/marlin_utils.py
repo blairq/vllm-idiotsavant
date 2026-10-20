@@ -11,6 +11,7 @@ import vllm.envs as envs
 from vllm import _custom_ops as ops
 from vllm.distributed.utils import verify_group_size_divides_partition
 from vllm.logger import init_logger
+from vllm.idiotsavant import marlin_s16 as _g130  # [PN130: Marlin W4A8 con escalas int16 con signo]
 from vllm.model_executor.layers.fused_moe import RoutedExperts
 from vllm.model_executor.layers.fused_moe.config import FusedMoEConfig
 from vllm.model_executor.layers.linear import LinearBase
@@ -488,6 +489,8 @@ def marlin_permute_bias(s: torch.Tensor) -> torch.Tensor:
 
 
 def marlin_act_int8_process_scales(s: torch.Tensor):
+    if _g130.ACTIVO_Y_CARGADO:  # [PN130: Marlin W4A8 con escalas int16 con signo]
+        return _g130.procesar_escalas(s)
     a_scales_scale_factor = 1 / 4096 * s.max().float()
     s = s / s.max() * 4096
     s = s.round().to(torch.int16).view(s.dtype)
@@ -740,7 +743,11 @@ def apply_gptq_marlin_linear(
 
         reshaped_x, a_scales = marlin_quant_input(reshaped_x, input_dtype)
 
-    output = ops.marlin_gemm(
+    # [PN130: Marlin W4A8 con escalas int16 con signo]
+    _gemm = (_g130.marlin_gemm
+             if (_g130.ACTIVO_Y_CARGADO and input_dtype == torch.int8)
+             else ops.marlin_gemm)
+    output = _gemm(
         reshaped_x,
         None,
         weight,

@@ -1,5 +1,84 @@
 <!-- markdownlint-disable MD001 MD041 -->
 <p align="center">
+  <a href="https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86">
+    <img alt="Idiot Savant" src="https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86/resolve/main/idiotsavant.png" width="300">
+  </a>
+</p>
+
+<h1 align="center">vllm-idiotsavant</h1>
+
+<p align="center">
+vLLM v0.29.0 con las optimizaciones para servir
+<a href="https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86"><b>qwen3.8_27b_idiotSavant_sm_86</b></a>
+en 2× RTX 3090 (sm_86), configurado solo con flags de vLLM.
+</p>
+
+---
+
+## Para qué sirve (y para qué no)
+
+Este fork existe para un único modelo:
+**[BlairQ/qwen3.8_27b_idiotSavant_sm_86](https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86)**
+(Qwen3.8-27B sin censura en W4, con el residuo rotado) y su borrador
+**[BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2](https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2)**.
+No es un vLLM de uso general: con otro checkpoint, en el mejor caso no aporta nada; en el peor, da
+basura. Las razones:
+
+- **Los pesos viven en una base rotada.** El checkpoint se cuantizó con el residuo rotado por
+  Hadamard (estilo QuaRot): `down_proj` espera su entrada multiplicada por un Hadamard de bloques de
+  512, y `o_proj` / `out_proj` por uno de una cabeza (256 / 128). Las compuertas del GDN van dentro
+  de `in_proj_qkvz`. Este fork aplica esas rotaciones en línea en el forward; un vLLM normal carga
+  el modelo sin error y genera basura. Se activan solas a partir del `config.json` del checkpoint
+  (`residual_rotation`), así que otro modelo no las recibe, pero el resto del fork asume sus formas.
+- **Los kernels están hechos para esta combinación exacta**, todos en PTX para sm_86:
+  - lineales W4A8 (pesos int4 × activaciones int8 por token) en Marlin con escalas int16;
+  - decode de atención entero sobre KV `int8_per_token_head`, que con el residuo rotado da más
+    calidad, no solo más capacidad;
+  - Hadamards fusionados con la cuantización de activaciones;
+  - GDN (Gated DeltaNet) del híbrido Qwen3.8.
+
+  Las formas (cabezas, grupos, bloques, TP=2) son las de este modelo.
+- **La especulación está ajustada a su borrador.** DFlash2 en árbol, con el vocabulario de
+  candidatos y la escala del residual del borrador entrenados contra este modelo.
+- **La cache y el scheduler están medidos con su carga real.** Retención rala de los checkpoints
+  GDN en la prefix cache, offload de KV a RAM, admisión de prefills y chunk dinámico, ajustados para
+  sesiones de agentes de 60–100k tokens en 2×24 GB.
+
+La calidad (KL 0,0178 contra BF16, la mitad que el int4 habitual) y los benchmarks están en la
+[tarjeta del modelo](https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86) y en el
+[informe técnico](https://huggingface.co/spaces/BlairQ/idiotSavant-sm86-report).
+
+## Uso
+
+```bash
+docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
+cd docker/idiotsavant
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+```
+
+La compose [`docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml`](docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml)
+es la configuración de producción, comentada flag por flag. Las optimizaciones fijas están en el
+código; las que dependen del checkpoint se leen de su `config.json`; las ajustables son flags de
+vLLM (`--max-concurrent-prefills`, `--kv-admission-headroom`, `--limit-mm-per-turn`,
+`"tree_drafting"` en `--speculative-config`, …). Para limpiar las caches JIT, con el servidor parado:
+
+```bash
+docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm limpiar-caches
+```
+
+El inventario de cambios respecto de vLLM v0.29.0 está en [`docs/idiotsavant/`](docs/idiotsavant/).
+
+## Origen y créditos
+
+Integra en el árbol de vLLM los parches de
+[blairq/genesis-vllm-patches](https://github.com/blairq/genesis-vllm-patches), derivado de Genesis
+(Sandermage, Apache-2.0); ver [`vllm/idiotsavant/NOTICE`](vllm/idiotsavant/NOTICE). Con caches
+equivalentes, la salida greedy es idéntica token por token a la del contenedor con los parches
+Genesis. Todo lo demás es [vLLM](https://github.com/vllm-project/vllm), cuyo README sigue abajo.
+
+---
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/vllm-project/vllm/main/docs/assets/logos/vllm-logo-text-dark.png">
     <img alt="vLLM" src="https://raw.githubusercontent.com/vllm-project/vllm/main/docs/assets/logos/vllm-logo-text-light.png" width=55%>

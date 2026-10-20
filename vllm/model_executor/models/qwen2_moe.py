@@ -38,6 +38,8 @@ from vllm.compilation.decorators import support_torch_compile
 from vllm.config import CacheConfig, VllmConfig
 from vllm.distributed import get_pp_group, get_tensor_model_parallel_world_size
 from vllm.logger import init_logger
+from vllm.idiotsavant import norma_q8 as _g156  # [PN156: norma que escribe int8]
+from vllm.idiotsavant import rot_down as _g148  # [PN148: Hadamard antes de down_proj]
 from vllm.model_executor.layers.activation import SiluAndMul
 from vllm.model_executor.layers.attention import Attention
 from vllm.model_executor.layers.fused_moe import FusedMoEFactory
@@ -108,11 +110,16 @@ class Qwen2MoeMLP(nn.Module):
             )
         self.act_fn = SiluAndMul()
         self.expert_gate = expert_gate
+        self._g148 = _g148.activo()  # [PN148: Hadamard antes de down_proj]
+        if self._g148:
+            self.register_buffer('_g148_h', _g148.hadamard(), persistent=False)
 
-    def forward(self, x):
-        gate_up, _ = self.gate_up_proj(x)
-        out = self.act_fn(gate_up)
-        out, _ = self.down_proj(out)
+    def forward(self, x, _q156=None):  # [PN156: norma que escribe int8]
+        gate_up = _g156.lineal(self.gate_up_proj, x, _q156)
+        if self._g148:  # [PN148: Hadamard antes de down_proj]
+            out = _g148.act_had_down(self, gate_up)
+        else:
+            out, _ = self.down_proj(self.act_fn(gate_up))
 
         if self.expert_gate is not None:
             out = F.sigmoid(self.expert_gate(x)[0]) * out

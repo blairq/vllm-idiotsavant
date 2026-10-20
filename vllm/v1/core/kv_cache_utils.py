@@ -1309,6 +1309,24 @@ def _get_kv_cache_groups_uniform_page_size(
     # sw, where the group size should be 10).
     min_num_layers = min([len(layers) for layers in layer_buckets])
     group_size = min_num_layers
+    # [PN146: tamano de grupo de KV] ver el modulo del parche para la aritmetica.
+    # bytes_per_block lo fija el grupo MAS GRANDE (un max, no una suma), asi que un
+    # group_size mas chico da mas bloques totales aunque haya mas grupos por request.
+    _g146 = '8'
+    if _g146:
+        try:
+            _g146_v = int(_g146)
+        except ValueError:
+            _g146_v = 0
+        if _g146_v > 0:
+            logger.warning('[PN146] group_size %d -> %d (buckets %s)',
+                           group_size, _g146_v,
+                           [len(x) for x in layer_buckets])
+            _g146_forzado = _g146_v
+        else:
+            _g146_forzado = None
+    else:
+        _g146_forzado = None
     max_num_layers = max([len(layers) for layers in layer_buckets])
     if max_num_layers < min_num_layers * 1.5:
         # If the number of layers is not much larger than the minimum number of
@@ -1319,6 +1337,8 @@ def _get_kv_cache_groups_uniform_page_size(
         # layers while accommodating speculative decoding drafters that add
         # extra layers to one attention type.
         group_size = max_num_layers
+    if _g146_forzado:  # [PN146: tamano de grupo de KV] la ultima palabra es del operador
+        group_size = _g146_forzado
     grouped_layers = []
     for layers in layer_buckets:
         num_padding_layers = group_size - len(layers) % group_size
@@ -2036,6 +2056,18 @@ def update_kv_cache_capacity(
         f"{max_model_len:,}",
         max_concurrency,
     )
+    # Ultimo punto del arranque donde ya se sabe TODO: config completa mas el tamaño
+    # real de la cache en tokens. Aca se junta con el desglose de memoria que dejo el
+    # worker y se escribe el informe para humanos. El loop es por-rank: el guard emite
+    # UNA vez.
+    try:
+        from vllm.idiotsavant import analisis_arranque as _g83
+
+        if not getattr(_g83, "_informe_emitido", False):
+            _g83._informe_emitido = True
+            _g83.emitir_informe(vllm_config, num_tokens)
+    except Exception:
+        pass  # el informe es opcional; nunca puede tumbar el arranque
 
 
 def _max_memory_usage_bytes_from_groups(

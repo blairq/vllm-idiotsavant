@@ -203,7 +203,83 @@ def pin_mmap_region(region: SharedOffloadRegion) -> None:
     rank = region.rank
 
     base_ptr = region._base.data_ptr()
-    result = torch.cuda.cudart().cudaHostRegister(base_ptr, region.total_size_bytes, 0)
+    # vLLM registra la region ENTERA desde todos los ranks. Con TP>1 los dos
+    # mapean el mismo /dev/shm, asi que el segundo registra paginas fisicas ya
+    # registradas y falla con cudaErrorInvalidValue: ese rank se queda con DMA
+    # no-pinneado (staging buffer del driver, sin solape con computo).
+    # El layout ya es disjunto por rank -- _worker_offset = rank * cpu_page_size
+    # dentro de cada fila, y el madvise(MADV_POPULATE_WRITE) de mas arriba ya
+    # recorre solo los slots propios. Hacemos lo mismo con el registro.
+    _g94_slots = None
+    _g94_rank = getattr(region, "rank", None)
+    _g94_cps = 0
+    try:
+        if _g94_rank is not None:
+            _g94_cps = region._worker_area_end // (_g94_rank + 1)
+            _g94_stride = region._row_stride
+            _g94_pagesz = region.page_size
+            # cudaHostRegister exige puntero alineado a pagina. Sin esto los
+            # rangos de dos ranks vecinos compartirian la pagina de la frontera
+            # y volveriamos al mismo choque que estamos arreglando.
+            if (
+                _g94_cps > 0
+                and _g94_cps % _g94_pagesz == 0
+                and _g94_stride % _g94_pagesz == 0
+                and _g94_cps * (_g94_rank + 1) <= _g94_stride
+            ):
+                _g94_base = base_ptr + _g94_rank * _g94_cps
+                _g94_slots = [
+                    (_g94_base + _b * _g94_stride, _g94_cps)
+                    for _b in range(region.num_blocks)
+                ]
+    except Exception as _g94_exc:  # nunca puede tumbar el arranque
+        logger.warning(
+            "PN94: no pude derivar los slots del rank (%s); registro la "
+            "region entera como upstream",
+            _g94_exc,
+        )
+        _g94_slots = None
+
+    if _g94_slots is None:
+        result = torch.cuda.cudart().cudaHostRegister(
+            base_ptr, region.total_size_bytes, 0
+        )
+    else:
+        _g94_done = 0
+        result = torch.cuda.cudart().cudaHostRegister(*_g94_slots[0], 0)
+        if result.value == 0:
+            _g94_done = 1
+            for _g94_ptr, _g94_len in _g94_slots[1:]:
+                result = torch.cuda.cudart().cudaHostRegister(_g94_ptr, _g94_len, 0)
+                if result.value != 0:
+                    break
+                _g94_done += 1
+        if result.value == 0:
+            logger.info(
+                "PN94: rank=%d pinneo %d slots de %.2f MB (%.2f GB, solo sus "
+                "paginas). Upstream registraba la region entera y el segundo "
+                "rank fallaba, quedandose con DMA no-pinneado.",
+                _g94_rank,
+                _g94_done,
+                _g94_cps / 1e6,
+                _g94_done * _g94_cps / 1e9,
+            )
+        else:
+            # Revertir lo parcial: una region a medio pinnear es peor que una
+            # sin pinnear, porque el driver decide por rango y el resultado
+            # pasa a depender de que bloque toque cada transferencia.
+            for _g94_ptr, _g94_len in _g94_slots[:_g94_done]:
+                try:
+                    torch.cuda.cudart().cudaHostUnregister(_g94_ptr)
+                except Exception:
+                    pass
+            logger.warning(
+                "PN94: fallo el registro por slots en %d/%d (code=%d); revertido. "
+                "Sigue el camino original de vLLM.",
+                _g94_done,
+                len(_g94_slots),
+                result,
+            )
     if result.value != 0:
         logger.warning(
             "cudaHostRegister failed for rank=%d (code=%d) — "
@@ -211,6 +287,66 @@ def pin_mmap_region(region: SharedOffloadRegion) -> None:
             rank,
             result,
         )
+        # El runtime de CUDA deja el ultimo error LATCHEADO en el contexto
+        # hasta que alguien lo consume. Chequear el valor de retorno no lo
+        # limpia. PyTorch consulta ese estado en cada op, asi que la primera
+        # op de este rank hereda el error y explota lejos de aca -- en la
+        # practica, en la captura de CUDA graphs:
+        #     gpu_model_runner._dummy_run -> sm.fill_(-1)
+        #     torch.AcceleratorError: CUDA error: invalid argument
+        # Con TP>1 esto es el caso NORMAL, no una rareza: los dos ranks
+        # mapean el mismo archivo de /dev/shm y los dos lo registran, asi
+        # que el segundo siempre falla sobre las mismas paginas fisicas.
+        # Consumimos el error para que la decision de vLLM (seguir sin
+        # pinnear) sea la que realmente pasa.
+        #
+        # OJO: torch.cuda.cudart() NO expone cudaGetLastError (verificado en
+        # torch 2.11.0+cu130: dir(cudart) solo trae cudaError y
+        # cudaGetErrorString). Hay que llamarlo por ctypes sobre libcudart.
+        try:
+            import ctypes as _g82_ct
+            import ctypes.util as _g82_ctu
+            import glob as _g82_glob
+
+            _g82_lib = None
+            _g82_cands = sorted(
+                _g82_glob.glob(
+                    "/usr/local/lib/python3*/dist-packages/nvidia/**/libcudart.so*",
+                    recursive=True,
+                )
+            )
+            _g82_found = _g82_ctu.find_library("cudart")
+            if _g82_found:
+                _g82_cands.append(_g82_found)
+            _g82_cands += ["libcudart.so", "libcudart.so.13", "libcudart.so.12"]
+            for _g82_c in _g82_cands:
+                try:
+                    _g82_probe = _g82_ct.CDLL(_g82_c)
+                    _g82_probe.cudaGetLastError.restype = _g82_ct.c_int
+                    _g82_lib = _g82_probe
+                    break
+                except Exception:
+                    continue
+
+            if _g82_lib is None:
+                logger.error(
+                    "PN82: no encontre libcudart para limpiar el error de CUDA. "
+                    "El proximo kernel de rank=%d va a morir con 'invalid "
+                    "argument' durante la captura de CUDA graphs.",
+                    rank,
+                )
+            else:
+                _g82_code = _g82_lib.cudaGetLastError()
+                logger.warning(
+                    "PN82: error pegajoso de CUDA limpiado tras el "
+                    "cudaHostRegister fallido de rank=%d (era code=%d). Sin "
+                    "esto el proximo kernel de este rank muere con 'invalid "
+                    "argument' durante la captura de CUDA graphs.",
+                    rank,
+                    _g82_code,
+                )
+        except Exception as _g82_exc:  # nunca puede tumbar el arranque
+            logger.error("PN82: no se pudo limpiar el error de CUDA: %s", _g82_exc)
     else:
         logger.debug(
             "cudaHostRegister rank=%d %.2f GB",

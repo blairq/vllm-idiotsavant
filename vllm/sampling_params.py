@@ -356,6 +356,16 @@ class SamplingParams(
     skip_reading_prefix_cache: bool | None = None
     thinking_token_budget: int | None = None
     """Maximum number of tokens allowed for thinking operations."""
+    # [PN85 thinking budget message]
+    thinking_budget_message: str | None = None
+    """Texto a inyectar dentro del bloque de razonamiento cuando se agota
+    thinking_token_budget, justo antes de los tokens de cierre. Sin esto el
+    corte es en seco y el modelo suele rehacer el analisis en el content.
+    Lo tokeniza el input processor. Ver wiring/hybrid/patch_N85_*."""
+    thinking_budget_message_token_ids: list[int] | None = None
+    """Version tokenizada de thinking_budget_message. La llena el input
+    processor (es el unico punto del camino que tiene tokenizer Y ya valida
+    thinking_token_budget). No setear a mano."""
 
     repetition_detection: RepetitionDetectionParams | None = None
     """Parameters for detecting repetitive N-gram patterns in output tokens.
@@ -393,6 +403,8 @@ class SamplingParams(
         stop_token_ids: list[int] | None = None,
         bad_words: list[str] | None = None,
         thinking_token_budget: int | None = None,
+        # [PN85 thinking budget message]
+        thinking_budget_message: str | None = None,
         include_stop_str_in_output: bool = False,
         ignore_eos: bool = False,
         max_tokens: int | None = 16,
@@ -458,6 +470,8 @@ class SamplingParams(
             stop_token_ids=stop_token_ids,
             bad_words=bad_words,
             thinking_token_budget=thinking_token_budget,
+            # [PN85 thinking budget message]
+            thinking_budget_message=thinking_budget_message,
             include_stop_str_in_output=include_stop_str_in_output,
             ignore_eos=ignore_eos,
             max_tokens=max_tokens,
@@ -1017,11 +1031,21 @@ class SamplingParams(
             return
 
         # Some sampling parameters are not yet compatible with spec decoding.
+        # [PN147: saneo para spec decode] anularlos en vez de rechazar el pedido entero (lo que hacia
+        # el proxy j-space). En streaming el rechazo llegaba con HTTP 200 y cuerpo vacio.
         if self.min_p > _SAMPLING_EPS or self.logit_bias:
-            raise VLLMValidationError(
-                "The min_p and logit_bias sampling parameters "
-                "are not yet supported with speculative decoding."
-            )
+            global _ISV_PN147_AVISADO
+            try:
+                _ISV_PN147_AVISADO
+            except NameError:
+                _ISV_PN147_AVISADO = False
+            if not _ISV_PN147_AVISADO:
+                logger.warning('[PN147] min_p=%s / logit_bias no van con '
+                               'decodificacion especulativa: se anulan (aviso unico)',
+                               self.min_p)
+                _ISV_PN147_AVISADO = True
+            self.min_p = 0.0
+            self.logit_bias = None
 
     def _validate_diffusion(self, model_config: ModelConfig) -> None:
         if not model_config.is_diffusion:

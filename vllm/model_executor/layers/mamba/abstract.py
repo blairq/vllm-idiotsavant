@@ -13,6 +13,7 @@ from vllm.v1.attention.backend import AttentionBackend
 from vllm.v1.attention.backends.registry import MambaAttentionBackendEnum
 from vllm.v1.attention.selector import get_mamba_attn_backend
 from vllm.v1.kv_cache_interface import KVCacheSpec, MambaSpec
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 
 
 class MambaBase(AttentionLayerBase):
@@ -41,6 +42,8 @@ class MambaBase(AttentionLayerBase):
             states.append(state.view(-1, *shape))
             offset += nbytes
         self.kv_cache = tuple(states)
+        if _g122.activo():  # [PN122: rollback GDN con cinta]
+            _g122.enlazar(self, pages.device)
 
     @abstractmethod
     def get_state_shape(self) -> Iterable[tuple[int, ...]]:
@@ -78,11 +81,9 @@ class MambaBase(AttentionLayerBase):
             mamba_cache_mode=vllm_config.cache_config.mamba_cache_mode,
             # RecoverSSM verifies the whole window off one checkpoint, so it
             # never writes the baseline's per-draft-token state slots.
-            num_speculative_blocks=(
-                0
-                if vllm_config.cache_config.use_kda_recoverssm
-                else vllm_config.num_speculative_tokens
-            ),
+            # [PN122: rollback GDN con cinta] 0 con la cinta activa: el rollback del MTP
+            # ya no necesita K copias del estado en el pool.
+            num_speculative_blocks=_g122.num_speculative_blocks(vllm_config),
         )
 
     def get_attn_backend(self) -> type[AttentionBackend]:

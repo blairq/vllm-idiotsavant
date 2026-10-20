@@ -117,12 +117,12 @@ class CustomAllreduce:
     _DEFAULT_REDUCE_SCATTER_MAX_SIZE = 16 * 1024 * 1024
     _DEFAULT_MNNVL_REDUCE_SCATTER_MAX_SIZE = 16 * 1024 * 1024
 
-    # max_size: max supported allreduce size
+    # [B3] max_size: 32 MiB buffer for TP=2 P2P custom all-reduce
     def __init__(
         self,
         group: ProcessGroup,
         device: int | str | torch.device,
-        max_size=8192 * 1024,
+        max_size=32 * 1024 * 1024,
         max_all_gather_size=_DEFAULT_ALL_GATHER_MAX_SIZE,
         max_mnnvl_all_gather_size=None,
         max_reduce_scatter_size=_DEFAULT_REDUCE_SCATTER_MAX_SIZE,
@@ -385,6 +385,9 @@ class CustomAllreduce:
 
     def register_graph_buffers(self):
         handle, offset = ops.get_graph_buffer_ipc_meta(self._ptr)
+        # [B3] If no graph buffers registered (bypassed for CUDA graphs), skip C++ call
+        if not offset:
+            return
         logger.debug("Registering %d cuda graph addresses", len(offset))
         # We cannot directly use `dist.all_gather_object` here
         # because it is incompatible with `gloo` backend under inference mode.
@@ -404,6 +407,12 @@ class CustomAllreduce:
 
     def should_custom_ar(self, inp: torch.Tensor):
         if self.disabled or self.world_size > 8:
+            return False
+        # [B3] Bypass custom AR during CUDA graph capture to prevent CuMem IPC crash.
+        # Capturarlo en un grafo esta deshabilitado (en produccion tampoco se hacia):
+        # en decode TODAS las all-reduce van dentro del grafo, asi que con el bypass NCCL
+        # se queda con el 100% (141 lanzamientos, 4,0 ms por paso, 25,6 us cada uno).
+        if getattr(self, '_IS_CAPTURING', False):
             return False
         if inp.dtype not in (torch.float32, torch.float16, torch.bfloat16):
             return False

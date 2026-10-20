@@ -59,14 +59,19 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     if handler is None:
         raise NotImplementedError("The model does not support Chat Completions API")
 
+    # [PN89 kv offload requests endpoint]
+    from vllm.idiotsavant import kv_offload_tracker as _g89
+    _tracker = _g89.create_tracker(request)
     generator = await handler.create_chat_completion(request, raw_request)
 
     if isinstance(generator, ErrorResponse):
+        _g89.finish_request(_tracker, None, status=generator.error.code)
         return JSONResponse(
             content=generator.model_dump(), status_code=generator.error.code
         )
 
     elif isinstance(generator, ChatCompletionResponse):
+        _g89.finish_request(_tracker, generator, status=200)
         return JSONResponse(
             content=generator.model_dump(),
             headers=metrics_header(metrics_header_format),
@@ -75,7 +80,10 @@ async def create_chat_completion(request: ChatCompletionRequest, raw_request: Re
     args = getattr(raw_request.app.state, "args", None)
     keep_alive_interval = getattr(args, "sse_keep_alive_interval", 0)
     return StreamingResponse(
-        content=with_sse_keep_alive(generator, float(keep_alive_interval)),
+        content=with_sse_keep_alive(
+            _g89.wrap_streaming_generator(generator, _tracker),
+            float(keep_alive_interval),
+        ),
         media_type="text/event-stream",
     )
 
@@ -109,4 +117,7 @@ async def create_batch_chat_completion(
 
 
 def attach_router(app: FastAPI):
+    # [PN89 kv offload requests endpoint]
+    from vllm.idiotsavant import kv_offload_tracker as _g89
+    app.include_router(_g89.router)
     app.include_router(router)

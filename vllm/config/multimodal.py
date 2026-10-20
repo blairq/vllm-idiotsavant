@@ -118,6 +118,13 @@ class MultiModalConfig:
         {"image": 16, "video": {"count": 1, "num_frames": 32, "width": 512,
         "height": 512}}
     """
+    limit_per_turn: int = Field(default=0, ge=0)
+    """In chat requests, the maximum number of new items of each modality
+    per user turn. Older items of a turn beyond it are replaced by a text
+    note instead of rejecting the request, and so are the oldest items of
+    the conversation beyond `limit_per_prompt`. Earlier turns are left as
+    they were, so the cached prefix is kept. 0 applies only the
+    conversation-wide limit."""
     enable_mm_embeds: bool = False
     """If `True`, enables passing multimodal embeddings:
     for `LLM` class, this refers to tensor inputs under `multi_modal_data`;

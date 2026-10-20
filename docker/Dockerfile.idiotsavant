@@ -1,0 +1,30 @@
+# vllm-idiotsavant: vLLM v0.29.0 con las optimizaciones idiotSavant en el árbol.
+#
+# Etapa de línea base: parte de la imagen oficial v0.29.0 y superpone el
+# paquete vllm/ de este repo. Es válido porque los .py de la wheel oficial son
+# idénticos a los del tag v0.29.0; los .so compilados se conservan.
+#
+#   docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:base .
+#
+# Cuando los kernels propios pasen a csrc/ esta imagen se construye desde fuente.
+ARG BASE_IMAGE=vllm/vllm-openai:v0.29.0
+FROM ${BASE_IMAGE}
+
+ARG SITE=/usr/local/lib/python3.12/dist-packages
+
+# Lo instalaba el entrypoint del compose en cada arranque.
+RUN pip install --no-cache-dir pandas scipy xxhash
+
+COPY vllm/ ${SITE}/vllm/
+
+# Marlin W4A8 con escalas int16 (PN130): extensión propia, compilada acá para sm_86.
+RUN TORCH_CUDA_ARCH_LIST=8.6 python3 -c \
+    "from vllm.idiotsavant import marlin_s16; print(marlin_s16.construir())"
+
+# Reemplaza al `python3 -m vllm._genesis.volcado` del entrypoint: el dictConfig
+# ahora es un archivo fijo de la imagen.
+COPY docker/idiotsavant/logging.json /etc/vllm-idiotsavant/logging.json
+RUN mkdir -p /var/log/vllm-idiotsavant
+ENV VLLM_LOGGING_CONFIG_PATH=/etc/vllm-idiotsavant/logging.json
+
+ENTRYPOINT ["vllm", "serve"]

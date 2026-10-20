@@ -8,6 +8,7 @@ from typing import ClassVar
 
 from vllm.utils.math_utils import cdiv
 from vllm.v1.core.block_pool import BlockPool
+from vllm.idiotsavant import gdn_cinta as _g122  # [PN122: rollback GDN con cinta]
 from vllm.v1.core.kv_cache_utils import (
     BlockHashList,
     BlockHashListWithBlockSize,
@@ -449,6 +450,14 @@ class SingleTypeKVCacheManager(ABC):
         """
         num_cached_blocks = self.num_cached_block.get(request.request_id, 0)
         num_full_blocks = num_tokens // self.block_size
+        # [PN127: MambaManager drop_eagle_block] no se puede cachear un bloque sin hash.
+        try:
+            _g127_hashes = resolve_block_hashes(
+                request.block_hashes, self.block_pool.hash_block_size, self.block_size
+            )
+            num_full_blocks = min(num_full_blocks, len(_g127_hashes))
+        except Exception:
+            pass
 
         if num_cached_blocks >= num_full_blocks:
             return
@@ -1063,7 +1072,7 @@ class SlidingWindowManager(SingleTypeKVCacheManager):
             for boundary_tokens in reachable_boundaries:
                 aligned = boundary_tokens // alignment_tokens * alignment_tokens
                 end = aligned // block_size + shift
-                for j in range(max(start_block, end - need), min(end_block, end)):
+                for j in range(max(start_block, end - need - (2 if use_eagle else 0)), min(end_block, end)):  # [PN168: borde de reuso con EAGLE]
                     mask[j - start_block] = True
 
         return mask
@@ -1428,6 +1437,9 @@ class MambaManager(SingleTypeKVCacheManager):
             max_num_partial_units = min(
                 max_length // hash_block_size, len(block_hashes)
             )
+            # [PN127: MambaManager drop_eagle_block] rama fina: bajar una pagina entera.
+            if drop_eagle_block:
+                max_num_partial_units = max(0, max_num_partial_units - scale_factor)
             for fine_idx in range(max_num_partial_units - 1, -1, -1):
                 num_tokens = (fine_idx + 1) * hash_block_size
                 block_hash = block_hashes[fine_idx]
@@ -1443,6 +1455,10 @@ class MambaManager(SingleTypeKVCacheManager):
             return computed_blocks, hit_length
 
         max_num_blocks = max_length // block_size
+        # [PN127: MambaManager drop_eagle_block] EAGLE/MTP: la ultima pagina puede tener el estado
+        # recurrente tomado sobre tokens de borrador rechazados (vllm#48375).
+        if drop_eagle_block and max_num_blocks > 0:
+            max_num_blocks -= 1
         # Search from right to left and early stop when a match is found.
         for i in range(max_num_blocks - 1, -1, -1):
             if cached_block := block_pool.get_cached_block(
@@ -1521,8 +1537,9 @@ class MambaManager(SingleTypeKVCacheManager):
         for boundary_tokens in reachable_boundaries:
             aligned = boundary_tokens // alignment_tokens * alignment_tokens
             boundary_block = aligned // block_size - 1
-            if start_block <= boundary_block < end_block:
-                mask[boundary_block - start_block] = True
+            for _b168 in ((boundary_block, boundary_block - 1, boundary_block - 2) if use_eagle else (boundary_block,)):  # [PN168: borde de reuso con EAGLE]
+                if start_block <= _b168 < end_block:
+                    mask[_b168 - start_block] = True
 
         return mask
 
@@ -1689,7 +1706,8 @@ class MambaManager(SingleTypeKVCacheManager):
             # `num_required_blocks` might be less than `len(req_blocks)` if blocks are
             # over-allocated at last round.
             if num_required_blocks <= len(req_blocks) and not has_partial_hit:
-                self._allocated_block_reqs.add(request_id)
+                if not _g122.activo():  # [PN122: rollback GDN con cinta]
+                    self._allocated_block_reqs.add(request_id)
                 return []
             else:
                 prev_block_len = len(req_blocks)

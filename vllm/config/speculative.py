@@ -463,6 +463,18 @@ class SpeculativeConfig:
     requires the speculative model be trained to support parallel drafting.
     Only compatible with EAGLE and draft model methods."""
 
+    tree_drafting: bool = False
+    """Draft a tree of candidates per step instead of a single chain and
+    verify it in one forward pass. Only used with the dflash method."""
+
+    draft_vocab_size: int = Field(default=0, ge=0)
+    """Restrict the drafter's candidates to the most frequent tokens of this
+    vocabulary size (FR-Spec). 0 keeps the full vocabulary."""
+
+    draft_residual_scale: int = Field(default=0, ge=0)
+    """Divide the drafter's residual stream by this factor at load time so it
+    stays within fp16 range. 0 disables the scaling."""
+
     # required configuration params passed from engine
     target_model_config: SkipValidation[ModelConfig] = None  # type: ignore
     """The configuration of the target model."""
@@ -626,6 +638,10 @@ class SpeculativeConfig:
             if layer_ids is not None:
                 # Convert to tuple to make it hashable
                 factors.append(tuple(layer_ids))
+
+        factors.append(
+            (self.tree_drafting, self.draft_vocab_size, self.draft_residual_scale)
+        )
 
         if self.method == "mtp" and self.draft_model_config is not None:
             factors.append(
@@ -1845,6 +1861,13 @@ class SpeculativeConfig:
         # target model hidden states"
         # TODO(ben): Refactor this so the naming is clearer
         return self.method in ("eagle", "eagle3", "mtp", "dflash", "dspark")
+
+    def use_eagle_preserves_target_kv_cache(self) -> bool:
+        # [PN142: DFlash2 en v0.29.0] port de fa5017a5 (no esta en v0.29.0).
+        # Solo los borradores de la familia eagle comparten —y miran hacia adelante en—
+        # los grupos de atencion completa del target. DFlash y DSpark dibujan de su
+        # PROPIA KV y nunca escriben bloques del target (vllm#53505).
+        return self.method in ("eagle", "eagle3", "mtp")
 
     def use_dflash(self) -> bool:
         return self.method == "dflash"

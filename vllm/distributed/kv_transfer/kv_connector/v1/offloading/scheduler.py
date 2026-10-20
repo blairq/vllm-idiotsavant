@@ -27,9 +27,11 @@ from vllm.distributed.kv_transfer.kv_connector.v1.offloading.metrics import (
     _TransferMetricName,
 )
 from vllm.logger import init_logger
+from vllm.idiotsavant import diag_prefijo as _g165  # [PN165: diagnostico de prefijo]
 from vllm.utils.math_utils import cdiv, round_down
 from vllm.v1.core.kv_cache_manager import KVCacheBlocks
 from vllm.v1.core.sched.output import SchedulerOutput
+from vllm.idiotsavant import l2_gdn as _g170  # [PN170: L2 con estado GDN]
 from vllm.v1.kv_cache_interface import (
     ChunkedLocalAttentionSpec,
     FullAttentionSpec,
@@ -229,6 +231,8 @@ class SchedulerOffloadConfig(NamedTuple):
         )
         if use_eagle and not eagle_groups:
             eagle_groups = set(range(len(kv_cache_config.kv_cache_groups)))
+        if _g170.ACTIVO:  # [PN170: L2 con estado GDN]
+            eagle_groups = _g170.sin_eagle_en_mamba(eagle_groups, kv_cache_config)
 
         if eagle_groups:
             logger.info(
@@ -352,6 +356,26 @@ class RequestOffloadState:
             logger.warning(
                 "max_offload_tokens must be a non-negative int, got %r; ignoring", raw
             )
+        # Si el cliente no mando un limite, se usa el que PN101 MIDIO para
+        # este agente. Un valor explicito siempre gana. Sin observaciones
+        # suficientes se deja sin limite, que es lo que permite aprender
+        # cual es el prefijo: limitar antes de saber seria profecia
+        # autocumplida.
+        if self.max_offload_tokens is None:
+            try:
+                from vllm.idiotsavant import kv_prefix_auto as _g103
+
+                from vllm.idiotsavant.sesion import agente as _g103_agente
+
+                _g103_a = _g103_agente(params or {})
+                _g103_v = _g103.limite_para(
+                    _g103_a,
+                    self.config.kv_group_configs[0].offloaded_block_size,
+                )
+                if _g103_v:
+                    self.max_offload_tokens = _g103_v
+            except Exception:  # nunca puede romper una request
+                pass
 
     def update_offload_keys(self) -> None:
         for group_config, group_state in zip(
@@ -620,6 +644,13 @@ class OffloadingConnectorScheduler:
                     )
                     hit_count += 1
                 case LookupResult.HIT_PENDING:
+                    # [PN91: bounded promotion deferral]
+                    # En modo estricto un bloque en vuelo corta el prefijo: lo que
+                    # se devuelve contiene SOLO bloques listos, que es lo que
+                    # prepare_load exige (assert block.is_ready).
+                    from vllm.idiotsavant import kv_lazy_streaming as _g91
+                    if _g91.is_strict(req_context.req_id):
+                        break
                     defer_lookup = True
                     hit_count += 1
                 case LookupResult.RETRY:
@@ -646,11 +677,13 @@ class OffloadingConnectorScheduler:
                 case LookupResult.HIT:
                     consecutive_hits += 1
                 case LookupResult.HIT_PENDING:
-                    # Block is in cache, just not readable yet — counts
-                    # as hit for the consecutive streak. Don't break:
-                    # keep scanning to let manager kick off async lookups.
-                    defer_lookup = True
-                    consecutive_hits += 1
+                    # [PN91: bounded promotion deferral]
+                    from vllm.idiotsavant import kv_lazy_streaming as _g91
+                    if _g91.is_strict(req_context.req_id):
+                        consecutive_hits = 0
+                    else:
+                        defer_lookup = True
+                        consecutive_hits += 1
                 case LookupResult.RETRY:
                     # Block location uncertain — does not count as hit.
                     # Don't break: keep scanning to let manager kick off
@@ -789,6 +822,9 @@ class OffloadingConnectorScheduler:
                         required_window,
                         req_status.req_context,
                     )
+                _g165.offload_grupo(req_status.req.request_id, group_idx, sliding_window_size_in_chunks,  # [PN165: diagnostico de prefijo]
+                                    start_chunk_idx, len(offload_keys), num_hit_chunks, num_computed_tokens,
+                                    max_hit_size_tokens)
                 if num_hit_chunks == 0:
                     return 0
 
@@ -826,6 +862,9 @@ class OffloadingConnectorScheduler:
                 num_hit_tokens = new_num_hit_tokens
 
         if defer_lookup:
+            # [PN91: bounded promotion deferral]
+            from vllm.idiotsavant import kv_lazy_streaming as _g91
+            _g91.note_deferral(req_status.req.request_id)
             logger.debug(
                 "Offloading manager delayed request %s as backend requested",
                 req_status.req.request_id,
@@ -967,6 +1006,31 @@ class OffloadingConnectorScheduler:
             return None, False
 
         req_status.update_offload_keys()
+        # Las claves son hashes de contenido alineados a bloque, asi que
+        # las iniciales en comun con la request anterior del mismo agente
+        # SON el prefijo compartido. Es el numero que hay que usar para
+        # max_offload_tokens, medido en vez de estimado.
+        try:
+            from vllm.idiotsavant import kv_prefix_probe as _g101
+
+            _g101_p = (
+                getattr(req_status.req_context, 'kv_transfer_params', None) or {}
+            )
+            from vllm.idiotsavant.sesion import agente as _g101_agente
+
+            _g101_a = _g101_agente(_g101_p)
+            if _g101_a and req_status.group_states:
+                _g101_n = _g101.observar(
+                    _g101_a, req_status.group_states[0].offload_keys
+                )
+                if _g101_n is not None:
+                    _g101.publicar(
+                        _g101_a,
+                        _g101_n,
+                        self.config.kv_group_configs[0].offloaded_block_size,
+                    )
+        except Exception:  # observacion pura: nunca puede romper nada
+            pass
         req_status.num_locally_computed_tokens = num_computed_tokens
 
         num_hit_tokens: int | None
@@ -1031,10 +1095,20 @@ class OffloadingConnectorScheduler:
                     num_locally_computed_gpu_blocks = i
                     break
 
-            assert (
-                num_locally_computed_tokens
-                <= num_locally_computed_gpu_blocks * tokens_per_block
+            # [PN87 offloading hybrid alloc boundary]
+            # En modelos hibridos (GDN/Mamba) o con padding/placeholders nulos,
+            # la busqueda lineal de block_hash is None puede dar un indice menor
+            # al prefijo local global (num_locally_computed_tokens), o saltar un
+            # AssertionError pelado que mata el EngineCore en vez de transferir
+            # limpiamente. PN87 alinea num_locally_computed_gpu_blocks con la cota
+            # real de tokens locales para el grupo, evitando el crash fatal.
+            # Ver wiring/hybrid/patch_N87_offload_hybrid_alloc_boundary.py
+            _g87_expected_local_blocks = min(
+                num_gpu_blocks,
+                num_locally_computed_tokens // tokens_per_block,
             )
+            if num_locally_computed_gpu_blocks < _g87_expected_local_blocks:
+                num_locally_computed_gpu_blocks = _g87_expected_local_blocks
             num_pending_gpu_blocks = num_gpu_blocks - num_locally_computed_gpu_blocks
 
             if group_config.sliding_window_size_in_chunks is not None:
@@ -1174,6 +1248,7 @@ class OffloadingConnectorScheduler:
                 ):
                     continue
 
+                _g170.handoff(req, group_idx, block_id, boundary)  # [PN170: L2 con estado GDN]
                 key = self._make_boundary_key(req, group_idx, boundary)
                 store_output = self.manager.prepare_store([key], req_status.req_context)
                 if store_output is None:
@@ -1394,6 +1469,8 @@ class OffloadingConnectorScheduler:
                         group_config.is_eagle_group,
                     ):
                         continue
+                    if _g170.saltear_ventana(req, group_config, abs_chunk_idx):  # [PN170: L2 con estado GDN]
+                        continue
                     new_offload_keys.append(offload_key)
 
             if not new_offload_keys:
@@ -1403,6 +1480,7 @@ class OffloadingConnectorScheduler:
             store_output = self.manager.prepare_store(
                 new_offload_keys, req_status.req_context
             )
+            _g170.tras_prepare(req, new_offload_keys, store_output)  # [PN170: L2 con estado GDN]
             if store_output is None:
                 self._connector_stats.increase_counter(
                     _ConnectorMetricName.ALLOCATION_FAILURE
@@ -1690,6 +1768,9 @@ class OffloadingConnectorScheduler:
             Optional KVTransferParams to be included in the request outputs
             returned by the engine.
         """
+        # [PN91: bounded promotion deferral]
+        from vllm.idiotsavant import kv_lazy_streaming as _g91
+        _g91.clear_request(request.request_id)
         req_status = self._req_status.get(request.request_id)
 
         if req_status is None:

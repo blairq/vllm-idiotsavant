@@ -137,6 +137,10 @@ class BaseFrontendArgs:
     """If set to True, enable tracking server_load_metrics in the app state."""
     enable_force_include_usage: bool = False
     """If set to True, including usage on every request."""
+    reasoning_force_close: bool = False
+    """If a chat completion with reasoning ends without closing it, append the
+    reasoning end token and continue so the model writes its answer, instead of
+    returning the whole output as reasoning. Requires `--reasoning-parser`."""
     sse_keep_alive_interval: int = 0
     """Send an SSE keep-alive comment line every this many seconds when a
     `/v1/chat/completions` or `/v1/completions` streaming response is idle
@@ -298,6 +302,10 @@ class FrontendArgs(BaseFrontendArgs):
     see
     https://docs.vllm.ai/en/latest/usage/security.html#api-key-authentication-limitations
     for what it does and does not protect."""
+    admin_api_key: str | None = None
+    """If provided, the admin endpoints (cache resets, admission control
+    config) require this key instead of `--api-key`. It is also accepted on
+    the regular endpoints. Can be set with `VLLM_ADMIN_API_KEY`."""
     ssl_keyfile: str | None = None
     """The file path to the SSL key file."""
     ssl_certfile: str | None = None

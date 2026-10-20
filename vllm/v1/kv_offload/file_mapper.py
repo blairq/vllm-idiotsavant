@@ -74,6 +74,11 @@ class FileMapper:
         # identity participates in the storage namespace.
         if canonical_format is not None:
             self.fields["canonical_format"] = canonical_format
+        # [PN81 kv disk tier quota] un directorio por FORMATO de KV
+        # Sin esto, cambiar --kv-cache-dtype, la rotacion de k, PN131 o PN122 dejaba el
+        # mismo directorio y los bloques viejos se restauraban con el significado nuevo.
+        from vllm.idiotsavant import kv_formato as _g81fmt
+        self.fields["kv_format"] = _g81fmt.huella()
         self.base_path: str = self._compute_base_path(root_dir, self.fields)
 
     @classmethod

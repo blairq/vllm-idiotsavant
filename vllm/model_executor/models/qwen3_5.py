@@ -228,6 +228,12 @@ class Qwen3_5Model(Qwen3NextModel):
 
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
         super(Qwen3NextModel, self).__init__()
+        from vllm.idiotsavant import gdn_ba_qkvz as _g155  # [PN155: in_proj_ba dentro de in_proj_qkvz]
+
+        if _g155.activo():
+            self.hf_to_vllm_mapper = type(self).hf_to_vllm_mapper | WeightsMapper(
+                orig_to_new_stacked=_g155.mapeo_ba()
+            )
 
         config: Qwen3_5TextConfig | Qwen3_5MoeTextConfig = (
             vllm_config.model_config.hf_text_config

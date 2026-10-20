@@ -169,6 +169,7 @@ async def init_generate_state(
         enable_log_outputs=args.enable_log_outputs,
         enable_log_deltas=args.enable_log_deltas,
         enable_per_request_metrics=args.enable_per_request_metrics,
+        reasoning_force_close=args.reasoning_force_close,
     )
     state.openai_serving_chat = (
         OpenAIServingChat(**_chat_kwargs) if "generate" in supported_tasks else None

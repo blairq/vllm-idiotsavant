@@ -188,6 +188,38 @@ class CPUOffloadingManager(OffloadingManager):
             )
 
         self.allocation_sizes_in_current_batch.append(len(keys_to_store))
+        # Un agente efimero (coder/explorer/...) no puede ocupar mas de K
+        # bloques de L2. Antes de calcular desalojos, el anillo recicla lo
+        # SUYO mas viejo para hacerse lugar; asi el excedente efimero nunca
+        # se cobra sobre el prefijo del hilo principal.
+        #
+        # K es un TOPE, no una reserva: no se inmoviliza memoria. Con
+        # trafico efimero en cero el cache se queda con todo L2.
+        #
+        # Mismo gate de PN90 (kv_disk_gate.should_persist_to_secondary_tiers)
+        # evaluado aca: cpu/manager.prepare_store no tiene ese nombre en
+        # scope, y la decision depende de kv_transfer_params de la request.
+        try:
+            from vllm.idiotsavant import kv_disk_gate as _g100_gate
+
+            _g100_persist = _g100_gate.should_persist_to_secondary_tiers(
+                getattr(req_context, 'kv_transfer_params', None)
+            )
+        except Exception:
+            _g100_persist = True
+        if not _g100_persist:
+            from vllm.idiotsavant import kv_staging_ring as _g100
+
+            _g100_lib = _g100.hacer_lugar(self, keys_to_store)
+            if _g100_lib:
+                try:
+                    from vllm.idiotsavant import kv_tier_metrics as _g100_m
+
+                    _g100_m.note_eviction(
+                        'ram', 'anillo', count=_g100_lib, freed_bytes=0
+                    )
+                except Exception:
+                    pass
         num_blocks_to_evict = len(keys_to_store) - self._get_num_free_blocks()
 
         to_evict: list[OffloadKey] = []
@@ -212,6 +244,24 @@ class CPUOffloadingManager(OffloadingManager):
             for key, block in evicted:
                 self._free_block(block)
                 to_evict.append(key)
+            # El desalojo de L2 ES la escritura al SSD: con PN90, un
+            # bloque solo baja a disco cuando lo echan de RAM. Sin este
+            # contador no se puede distinguir 'no hubo presion' de
+            # 'la carga fue chica'.
+            try:
+                from vllm.idiotsavant import kv_sparse_gdn as _g95_gdn
+                from vllm.idiotsavant import kv_tier_metrics as _g95_m
+
+                if to_evict:
+                    _g95_bb = _g95_gdn.block_write_bytes()
+                    _g95_m.note_eviction(
+                        "ram",
+                        "capacity",
+                        count=len(to_evict),
+                        freed_bytes=len(to_evict) * _g95_bb,
+                    )
+            except Exception:
+                pass
 
         if to_evict and self.events is not None:
             self.events.append(
@@ -266,6 +316,24 @@ class CPUOffloadingManager(OffloadingManager):
                     self._policy.remove(key)
                     self._free_block(block)
 
+        # Unico punto por el que pasan todas las altas y bajas del pool.
+        # Va ANTES del bloque de eventos a proposito: los eventos pueden
+        # estar apagados y la ocupacion cambia igual.
+        try:
+            from vllm.idiotsavant import kv_sparse_gdn as _g95_gdn
+            from vllm.idiotsavant import kv_tier_metrics as _g95_m
+
+            _g95_bb = _g95_gdn.block_write_bytes()
+            if _g95_bb:
+                _g95_libres = self._get_num_free_blocks()
+                _g95_usados = self._num_blocks - _g95_libres
+                _g95_m.set_occupancy(
+                    "ram",
+                    _g95_usados * _g95_bb,
+                    self._num_blocks * _g95_bb,
+                )
+        except Exception:
+            pass
         if stored_keys and self.events is not None:
             self.events.append(
                 OffloadingEvent(

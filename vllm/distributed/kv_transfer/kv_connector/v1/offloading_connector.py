@@ -192,10 +192,29 @@ class OffloadingConnector(KVConnectorBase_V1, SupportsHMA):
         self.connector_scheduler.reset_cache()
         return True
 
+    # [PN88 kv tier metrics]
+    # El tier de disco vive en el proceso scheduler. Se drena el sink de
+    # PN88 y se manda por el mismo canal de stats que ya viaja a /metrics,
+    # dentro del formato tipado que 0.27 espera (TYPES/DATA).
     def get_kv_connector_stats(self) -> KVConnectorStats | None:
-        if self.connector_scheduler is not None:
-            return self.connector_scheduler.get_stats()
-        return None
+        from vllm.idiotsavant import kv_tier_metrics as _g88
+        _g88_stats = (
+            self.connector_scheduler.get_stats()
+            if self.connector_scheduler is not None
+            else None
+        )
+        if _g88.enabled():
+            _payload = _g88.sink().drain()
+            if _payload is not None:
+                _bucket = OffloadingConnectorStats(data={
+                    'types': {_g88.TIERS_BUCKET: 'idiotsavant'},
+                    'data': {_g88.TIERS_BUCKET: {'': _payload}},
+                })
+                if _g88_stats is None:
+                    _g88_stats = _bucket
+                else:
+                    _g88_stats.aggregate(_bucket)
+        return _g88_stats
 
     @classmethod
     def build_kv_connector_stats(

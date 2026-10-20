@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from vllm.idiotsavant import grafo_borrador as _g150  # [PN150: borrador en grafo]
 import torch.nn as nn
 
 from vllm.config import VllmConfig, replace
@@ -343,13 +344,7 @@ class DFlashSpeculator(DraftModelSpeculator):
         # number of rejected tokens, we maintain the size of input_ids and
         # hidden_states the same as the target model's. This means, we pad each
         # request's query length to include any rejected positions.
-        if aux_hidden_states:
-            hidden_states = self.model.combine_hidden_states(
-                torch.cat(aux_hidden_states, dim=-1)
-            )
-        else:
-            hidden_states = last_hidden_states
-        self.hidden_states[:num_target_tokens].copy_(hidden_states[:num_target_tokens])
+        _g150.combinar(self, aux_hidden_states, last_hidden_states, num_target_tokens, dummy_run)  # [PN150: borrador en grafo]
 
         if dummy_run and skip_attn_for_dummy_run:
             # Memory profiling path: block_tables / kv_cache_config are not initialized.
@@ -423,11 +418,7 @@ class DFlashSpeculator(DraftModelSpeculator):
             ]
         else:
             context_slots = self._context_slot_mappings[0][:num_target_tokens]
-        self.model.precompute_and_store_context_kv(
-            self.hidden_states[:num_target_tokens],
-            self.context_positions[:num_target_tokens],
-            context_slots,
-        )
+        _g150.contexto(self, num_target_tokens, context_slots, dummy_run)  # [PN150: borrador en grafo]
 
         # Every DFlash step has exactly num_query_per_req tokens, so we can use FULL CGs
         batch_desc, batch_sync = dispatch_cg_and_sync_dp(

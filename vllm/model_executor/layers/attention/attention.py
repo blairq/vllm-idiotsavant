@@ -108,17 +108,34 @@ def _largest_kernel_block_within(
     """
     from vllm.v1.attention.backend import MultipleOf
 
+    # [PN145: bloque de la ventana deslizante]
+    # Upstream toma solo `s.base` de un MultipleOf, asi que no puede elegir un multiplo;
+    # y sin `page_budget` cae al mas chico, apostando a que `unify` despues escale el
+    # bloque. En un hibrido `unify` padea la PAGINA y deja el bloque como esta, y el
+    # grupo termina con bloques de 16 tokens en paginas de 880: paga una pagina entera
+    # cada 16 tokens. Con DFlash2 eso se comia el 58% de los bloques por request.
     sizes = attn_backend.get_supported_kernel_block_sizes()
-    candidates = [s for s in sizes if isinstance(s, int)]
-    if not candidates:
-        candidates = [s.base for s in sizes if isinstance(s, MultipleOf)]
-    if not candidates:
+    exactos = [s for s in sizes if isinstance(s, int)]
+    bases = [s.base for s in sizes if isinstance(s, MultipleOf)]
+    if not exactos and not bases:
         return fallback
-    smallest = min(candidates)
-    if not page_budget or per_token_bytes <= 0:
-        return smallest
-    fitting = [b for b in candidates if b * per_token_bytes <= page_budget]
-    return max(fitting) if fitting else smallest
+
+    # Techo: la pagina si la hay, y siempre el bloque de la atencion primaria — no tiene
+    # sentido que la ventana use un bloque mas grueso que el resto del modelo.
+    techo = fallback if fallback and fallback > 0 else None
+    if page_budget and per_token_bytes > 0:
+        cabe = page_budget // per_token_bytes
+        techo = min(techo, cabe) if techo else cabe
+
+    candidatos = list(exactos)
+    for base in bases:
+        # Un MultipleOf(base) habilita TODOS los multiplos, no solo el primero.
+        candidatos.append(base * (techo // base) if techo and techo >= base else base)
+    if not candidatos:
+        return fallback
+
+    admisibles = [b for b in candidatos if techo is None or b <= techo]
+    return max(admisibles) if admisibles else min(candidatos)
 
 
 def set_default_quant_scales(layer: nn.Module, register_buffer: bool = False) -> None:

@@ -40,6 +40,7 @@ from vllm.v1.attention.ops.triton_reshape_and_cache_flash import (
     triton_reshape_and_cache_flash_per_token_head_quant,
 )
 from vllm.v1.attention.ops.triton_unified_attention import unified_attention
+from vllm.idiotsavant import triton_attn_ampere as _g124  # [PN124: triton ampere]
 from vllm.v1.kv_cache_interface import (
     AttentionSpec,
     KVQuantMode,
@@ -649,7 +650,8 @@ class TritonAttentionImpl(AttentionImpl):
 
         mm_prefix_range_tensor = attn_metadata.mm_prefix_range_tensor
 
-        unified_attention(
+        _g124.llamar(  # [PN124: triton ampere] aplana el decode spec al kernel 3D
+            unified_attention,
             q=query[:num_actual_tokens],
             k=key_cache,
             v=value_cache,

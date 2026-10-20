@@ -20,6 +20,8 @@ from vllm.distributed import (
     tensor_model_parallel_all_reduce,
 )
 from vllm.logger import init_logger
+# [PN120: all-reduce INT8] import a nivel de modulo a proposito
+from vllm.idiotsavant import ar_int8 as _g120
 from vllm.model_executor.custom_op import PluggableLayer
 from vllm.model_executor.determinism.batch_invariant import (
     linear_batch_invariant,
@@ -1764,7 +1766,15 @@ class RowParallelLinear(LinearBase):
         output_parallel = self.quant_method.apply(self, input_parallel, bias_)
 
         if self.reduce_results and self.tp_size > 1:
-            output = tensor_model_parallel_all_reduce(output_parallel)
+            # [PN120: all-reduce INT8]
+            # Con M grande manda los parciales en int8 (la mitad de bytes)
+            # y suma en el dtype original. Debajo de ar_int8._M_MIN
+            # cae al all-reduce exacto: en decode el cuello es LATENCIA,
+            # no ancho de banda, y comprimir solo agregaria kernels.
+            if _g120.activo():
+                output = _g120.all_reduce_int8(output_parallel)
+            else:
+                output = tensor_model_parallel_all_reduce(output_parallel)
         else:
             output = output_parallel
 

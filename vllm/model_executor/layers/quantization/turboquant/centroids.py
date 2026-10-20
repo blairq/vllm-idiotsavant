@@ -79,8 +79,70 @@ def solve_lloyd_max(
     )
 
 
+# [PN57 vllm#41418-inspired] disk-persistent cache for centroids.
+# Lloyd-Max solver is fully deterministic given (d, bits) — same input
+# always gives bit-identical output. Pre-baked tables in upstream PR
+# #41418 are equivalent to disk cache populated lazily.
+# [Audit A-02 fix 2026-05-05] All `os.*` calls live inside helper bodies
+# with LOCAL `import os`. Module-level constants do NOT use `os` so we
+# never require `import os` at target module top level.
+_ISV_PN57_CACHE_PATH = None  # lazily resolved on first use
+_ISV_PN57_DISK = None  # lazily loaded
+
+def _isv_pn57_path():
+    import os as _os  # LOCAL — no top-level dependency
+    global _ISV_PN57_CACHE_PATH
+    if _ISV_PN57_CACHE_PATH is None:
+        _ISV_PN57_CACHE_PATH = _os.path.expanduser(
+            "~/.cache/vllm/idiotsavant/turboquant_centroids.pkl"
+        )
+    return _ISV_PN57_CACHE_PATH
+
+def _isv_pn57_load_disk():
+    import os as _os  # LOCAL
+    global _ISV_PN57_DISK
+    if _ISV_PN57_DISK is not None:
+        return _ISV_PN57_DISK
+    try:
+        import pickle
+        _path = _isv_pn57_path()
+        if _os.path.isfile(_path):
+            with open(_path, "rb") as _f:
+                _ISV_PN57_DISK = pickle.load(_f)
+        else:
+            _ISV_PN57_DISK = {}
+    except Exception:
+        _ISV_PN57_DISK = {}
+    return _ISV_PN57_DISK
+
+def _isv_pn57_save_disk():
+    try:
+        import os as _os  # LOCAL
+        import pickle, tempfile
+        _path = _isv_pn57_path()
+        _os.makedirs(_os.path.dirname(_path), exist_ok=True)
+        _dirn = _os.path.dirname(_path)
+        with tempfile.NamedTemporaryFile("wb", dir=_dirn, delete=False) as _tf:
+            pickle.dump(_ISV_PN57_DISK, _tf)
+            _tmp = _tf.name
+        _os.replace(_tmp, _path)
+    except Exception:
+        pass  # cache write failure non-fatal
+
 @lru_cache(maxsize=32)
 def get_centroids(d: int, bits: int) -> torch.Tensor:
-    """Get precomputed Lloyd-Max centroids (cached)."""
+    """Get precomputed Lloyd-Max centroids (in-memory + disk cached)."""
+    _disk = _isv_pn57_load_disk()
+    _key = (int(d), int(bits))
+    if _key in _disk:
+        try:
+            return torch.tensor(_disk[_key], dtype=torch.float32)
+        except Exception:
+            pass
     centroids, _ = solve_lloyd_max(d, bits)
+    try:
+        _disk[_key] = tuple(centroids.cpu().tolist())
+        _isv_pn57_save_disk()
+    except Exception:
+        pass
     return centroids

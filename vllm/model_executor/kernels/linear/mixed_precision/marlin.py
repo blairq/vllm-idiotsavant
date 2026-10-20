@@ -113,8 +113,9 @@ class MarlinLinearKernel(MPLinearKernel):
             padded_n, padded_k = marlin_padded_nk(size_n, size_k, c.group_size)
 
         # Allocate marlin workspace, reusing existing storage on reload.
-        self.workspace = marlin_make_workspace_new(
-            device, existing=getattr(self, "workspace", None)
+        self.workspace = marlin_make_workspace_new(  # [PN130: Marlin W4A8 con escalas int16 con signo]
+            device, max_blocks_per_sm=2,  # [PN130: Marlin W4A8 con escalas int16 con signo]
+            existing=getattr(self, "workspace", None)
         )
 
         # Default names since marlin requires empty parameters for these,
@@ -212,6 +213,9 @@ class MarlinLinearKernel(MPLinearKernel):
             )
         else:
             setattr(layer, self.w_zp_name, marlin_make_empty_g_idx(device))
+        # [PN125: escalas positivas para Marlin W4A8]
+        from vllm.idiotsavant.marlin_w4a8_escalas import positivizar as _g125
+        _g125(layer, self.w_q_name, self.w_s_name, c)
         self._transform_param(layer, self.w_q_name, transform_w_q)
         self._transform_param(layer, self.w_s_name, transform_w_s)
 

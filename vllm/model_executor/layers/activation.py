@@ -16,6 +16,20 @@ from vllm.utils.collection_utils import LazyDict
 
 logger = init_logger(__name__)
 
+# [PN25 v7.68] Register/cache the opaque silu_and_mul op
+# while activation.py is imported in each spawned worker, BEFORE
+# vLLM enters profile_run's aot_compile_fullgraph trace context.
+# The patched SiluAndMul.forward_native body below reads only this
+# cached global — never registers from inside a Dynamo trace, which
+# was the v7.66 failure mode on TP=1 spawn workers.
+try:
+    from vllm.idiotsavant.kernels.silu_and_mul_customop import (
+        get_op_callable as _isv_pn25_get_op_callable,
+    )
+    _ISV_PN25_SILU_AND_MUL_OP = _isv_pn25_get_op_callable()
+except Exception:
+    _ISV_PN25_SILU_AND_MUL_OP = None
+
 
 @triton.jit
 def _swiglustep_and_mul_kernel(
@@ -132,14 +146,44 @@ class SiluAndMul(CustomOp):
 
     @staticmethod
     def forward_native(x: torch.Tensor) -> torch.Tensor:
-        """PyTorch-native implementation equivalent to forward()."""
+        """PyTorch-native — PN25 v7.68 routes through an
+        opaque custom op cached at activation.py import time, BEFORE
+        vLLM's aot_compile_fullgraph trace. Do not register custom
+        ops here (would trigger Dynamo-Unsupported on spawn workers).
+        """
+        _isv_pn25_op = _ISV_PN25_SILU_AND_MUL_OP
+        if _isv_pn25_op is not None:
+            return _isv_pn25_op(x)
         d = x.shape[-1] // 2
         return F.silu(x[..., :d]) * x[..., d:]
 
     def forward_cuda(self, x: torch.Tensor) -> torch.Tensor:
+        # [PN12 FFN intermediate pool — Cliff 1 fix on TQ3]
+        # Pool the [M, d] BF16 transient across layers instead of
+        # torch.empty() per call. Single shared buffer per
+        # (intermediate_size, dtype, device); pointer-stable; safe
+        # because vLLM forward is strictly sequential (next layer's
+        # call runs only after current down_proj has consumed the out).
         d = x.shape[-1] // 2
         output_shape = x.shape[:-1] + (d,)
-        out = torch.empty(output_shape, dtype=x.dtype, device=x.device)
+        try:
+            from vllm.idiotsavant.kernels.ffn_intermediate_cache import (
+                FFNIntermediateCache as _ISV_PN12_Cache,
+            )
+            if _ISV_PN12_Cache.is_production_eligible() and x.dim() == 2:
+                out = _ISV_PN12_Cache.acquire_silu_out(
+                    num_tokens=x.shape[0],
+                    intermediate_size=d,
+                    dtype=x.dtype, device=x.device,
+                )
+            else:
+                out = torch.empty(
+                    output_shape, dtype=x.dtype, device=x.device
+                )
+        except Exception:  # pragma: no cover — defensive fallback
+            out = torch.empty(
+                output_shape, dtype=x.dtype, device=x.device
+            )
         self.op(out, x)
         return out
 

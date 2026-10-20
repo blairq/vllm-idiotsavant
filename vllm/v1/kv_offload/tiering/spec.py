@@ -306,6 +306,19 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                     cpu_page_size=self.cpu_page_size_per_worker,
                 )
                 self._scheduler_mmap = scheduler_mmap
+                # [PN174: unlink de la region L2] el scheduler abre la region ultimo (despues de todos los
+                # workers): sin nombre, ninguna muerte del motor deja los GB en /dev/shm.
+                if scheduler_mmap._creator:
+                    raise RuntimeError(
+                        'PN174: el scheduler creo la region L2; los workers tenian que '
+                        'haberla creado antes'
+                    )
+                import os as _g174_os
+                try:
+                    _g174_os.unlink(scheduler_mmap.mmap_path)
+                    logger.info('PN174: region L2 sin nombre: %s', scheduler_mmap.mmap_path)
+                except FileNotFoundError:
+                    pass
 
                 # Create primary tier (CPU-based)
                 primary_tier = CPUPrimaryTierOffloadingManager(
@@ -372,6 +385,37 @@ class TieringOffloadingSpec(CPUOffloadingSpec):
                 self.num_blocks,
                 len(secondary_tiers),
             )
+            # El numero de bloques solo no dice nada. Lo traducimos a
+            # tokens y lo comparamos con L1, que es la regla que importa.
+            try:
+
+                from vllm.idiotsavant import l2_sizing as _g98
+
+                _g98_grupos = len(self.kv_cache_config.kv_cache_groups)
+                _g98_rec = 0
+                for _g98_g in self.kv_cache_config.kv_cache_groups:
+                    if type(_g98_g.kv_cache_spec).__name__.startswith('Mamba'):
+                        _g98_rec += 1
+                _g98_stride = 1
+                _g98_cc = self.vllm_config.cache_config
+                _g98_tpb = _g98_cc.block_size * self.block_size_factor
+                _g98_l1 = int(
+                    (getattr(_g98_cc, 'num_gpu_blocks', 0) or 0)
+                    * _g98_cc.block_size
+                )
+                for _g98_ln in _g98.informe(
+                    num_blocks=self.num_blocks,
+                    bytes_por_bloque=self.kv_bytes_per_chunk,
+                    tokens_por_bloque=_g98_tpb,
+                    num_grupos=_g98_grupos,
+                    max_model_len=self.vllm_config.model_config.max_model_len,
+                    tokens_en_l1=_g98_l1,
+                    grupos_recurrentes=_g98_rec,
+                    stride=_g98_stride,
+                ):
+                    logger.info('%s', _g98_ln)
+            except Exception as _g98_exc:  # nunca puede tumbar el arranque
+                logger.warning('PN98: no pude calcular el informe: %s', _g98_exc)
 
         return self._manager
 

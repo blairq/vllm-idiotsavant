@@ -84,6 +84,13 @@ def load_general_plugins():
         return
     plugins_loaded = True
 
+    # [PN143: enganche de proceso] registros de idiotsavant que TIENEN que correr dentro de este proceso:
+    # apply_all corre aparte y hace exec, asi que lo que registre en memoria se pierde.
+    try:
+        from vllm.idiotsavant import plugins_arranque as _isv_plug
+        _isv_plug.cargar()
+    except Exception:
+        pass
     plugins = load_plugins_by_group(group=DEFAULT_PLUGINS_GROUP)
     # general plugins, we only need to execute the loaded functions
     for func in plugins.values():

@@ -1,0 +1,276 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# qwen3.8_27b_idiotSavant_sm_86 + qwen3.8_27b_idiotSavant_sm_86_dflash2
+# vllm-idiotsavant (vLLM v0.29.0 con las optimizaciones en el arbol), 2x RTX 3090 (sm_86), TP=2.
+#
+# Mismo servicio que genesis-vllm-patches/compose/docker-compose.qwen38-27b-idiotsavant-sm86.yml,
+# sin variables de entorno de parches: lo que era fijo esta en el codigo, lo que depende del
+# checkpoint lo lee de su config.json, y lo ajustable son flags de vLLM (ver `command`).
+#
+# El modelo: Qwen3.8-27B sin censura (orcarouter) en W4 GPTQ con el RESIDUO ROTADO
+# (Hadamard por bloques, estilo QuaRot), servido como W4A8: pesos int4 x activaciones
+# int8 por token en Marlin. KL sobre respuestas vs BF16: 0,0178 (pesos del 28-09; el int4 de
+# AutoRound de noon: 0,0385), misma velocidad.
+#   HF: https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86
+#       https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2
+#
+# Lo que pide el checkpoint rotado (Hadamard antes de down_proj, en la entrada de o_proj/out_proj,
+# compuertas del GDN dentro de in_proj_qkvz, borrador en la base original) se activa solo a partir
+# de su config.json. El armado del 25-09 (..._sm_86_2509) se sirve igual: no pide lo de las compuertas.
+# Lo unico que queda en el entorno es VLLM_MARLIN_INPUT_DTYPE=int8 (W4A8; sin esto corre W4A16).
+#
+# Estado al 06-10: KV en GPU 653 695 tokens (gpu-memory-utilization 0,95); prefix cache con
+# checkpoints GDN ralos + borde de reuso; L2 en RAM de 8 GiB SIN disco (12 -> 8 el 10-10: margen
+# del cgroup de 26 GB); chunk de prefill dinamico. Sesion real reproducida: 70% del prompt desde cache.
+#
+# Cosas a saber:
+#   * Mismo IP (172.20.0.228) y puerto (8360) que los compose de genesis-vllm-patches: no corren juntos.
+#   * El arranque tarda ~4 min (torch.compile, grafos y fijar los 8 GiB de L2). El primero con una
+#     cache vacia suma la compilacion de los kernels PTX, que quedan en /root/.cache/vllm/idiotsavant.
+#   * Caches JIT propias (vLLM, torch, Triton, Inductor), separadas de las de genesis-vllm-patches: el
+#     cambio de modelo o de codigo invalida torch.compile y los kernels; mezclarlas arrastraria artefactos.
+#     El estado de estas caches cambia la salida en los ultimos bits (autotune de Inductor): con caches
+#     vacias, esta imagen y la de Genesis dan el mismo texto greedy token por token (20-10).
+#   * Limpiar las caches (con el servidor PARADO; el proximo arranque recompila, ~4 min):
+#       docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm limpiar-caches
+#     Borra torch.compile, Inductor, Triton y los kernels PTX; deja los volcados de GPU.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  vllm-server:
+    image: ${VLLM_IDIOTSAVANT_IMAGE:-vllm-idiotsavant:latest}
+    container_name: vllm-idiotsavant-27b
+    # Sin swap (en cgroup v2 la perilla es memswap_limit == mem_limit) y con los nucleos
+    # fisicos de un solo socket para el proceso servidor.
+    mem_limit: 26g
+    memswap_limit: 26g
+    cpuset: "0-7,16-23"
+    ports:
+      - "8360:8320"
+    networks:
+      lanbridge:
+        ipv4_address: 172.20.0.228       # Traefik y los clientes (opencode, Hermes) apuntan aca
+        aliases:
+          - vllm-server
+    volumes:
+      - /home/usuario/Proyectos/models-cache:/root/.cache/huggingface     # modelo y borrador
+      - /home/usuario/Proyectos/kv-offload:/kv-offload                    # tier de disco de la KV (L3, apagado desde el 06-10)
+      - &cache_vllm /home/usuario/.cache/vllm/vllm-idiotsavant-27b-sm86:/root/.cache/vllm
+      - &cache_torch /home/usuario/.cache/torch/vllm-idiotsavant-27b-sm86:/root/.cache/torch
+      - &cache_triton /home/usuario/.cache/triton/vllm-idiotsavant-27b-sm86:/root/.cache/triton
+      - &cache_inductor /home/usuario/.cache/torchinductor/vllm-idiotsavant-27b-sm86:/root/.cache/torchinductor
+      - ./qwen-froggeric-chat-template.jinja:/etc/qwen-froggeric-chat-template.jinja:ro
+    environment:
+      # ── lineales W4A8 (Marlin) ──────────────────────────────────────────────
+      - VLLM_MARLIN_INPUT_DTYPE=int8             # activaciones int8 por token: W4A8
+      - VLLM_MARLIN_USE_ATOMIC_ADD=1
+      - VLLM_SERVER_DEV_MODE=${VLLM_SERVER_DEV_MODE:-0}   # 1 SOLO en una instancia aislada: /reset_prefix_cache sin clave
+      # ── diagnostico ─────────────────────────────────────────────────────────
+      # Coredump de GPU (10-10): el Xid 31 del 10-10 (escritura de un SM a una direccion sin mapear en TP1) paso
+      # una vez en ~20 h y el traceback de vLLM no dice que kernel fue (el error es asincrono). Con esto, en la
+      # proxima excepcion el driver vuelca kernel, PC e hilo; sin excepcion no cuesta nada. Leer con cuda-gdb 13.
+      - CUDA_ENABLE_COREDUMP_ON_EXCEPTION=${CUDA_ENABLE_COREDUMP_ON_EXCEPTION:-1}
+      - CUDA_ENABLE_LIGHTWEIGHT_COREDUMP=1
+      - CUDA_COREDUMP_FILE=/root/.cache/vllm/idiotsavant/volcados/gpu_core_%p_%t.nvcudmp
+      - VLLM_LOGGING_LEVEL=INFO
+      # ── vLLM / torch ────────────────────────────────────────────────────────
+      - VLLM_FLOAT32_MATMUL_PRECISION=high
+      - VLLM_MULTI_STREAM_GEMM_TOKEN_THRESHOLD=1024
+      - VLLM_USE_FUSED_MOE_GROUPED_TOPK=1
+      - VLLM_USE_FLASHINFER_SAMPLER=1
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+      - VLLM_NO_USAGE_STATS=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512
+      - CUDA_DEVICE_SCHEDULE=1
+      - OMP_NUM_THREADS=1
+      - PYTHONHASHSEED=0
+      - TORCHINDUCTOR_CACHE_DIR=/root/.cache/torchinductor
+      - TRITON_CACHE_DIR=/root/.cache/triton
+      # ── claves (del .env; nunca en el archivo) ──────────────────────────────
+      - VLLM_API_KEY=${VLLM_API_KEY:-}
+      - VLLM_ADMIN_API_KEY=${VLLM_ADMIN_API_KEY:-}   # rutas de admin (reset de caches, admision); vacia = vale VLLM_API_KEY
+      - HF_TOKEN=${HF_TOKEN:-}
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    # Sano = genera de verdad (no solo /health): 16 tokens con la clave.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          n=$$(curl -sf -m 120 http://localhost:8320/v1/completions
+          -H 'Content-Type: application/json'
+          -H "Authorization: Bearer $${VLLM_API_KEY}"
+          -d '{"model":"qwen3.8","prompt":"La capital de Francia es","max_tokens":16,"temperature":0}'
+          | python3 -c "import sys,json;print(json.load(sys.stdin)['usage']['completion_tokens'])"
+          2>/dev/null) && [ "$${n:-0}" -gt 5 ]
+      interval: 60s
+      timeout: 130s
+      retries: 2
+      start_period: 900s
+    restart: unless-stopped
+    shm_size: "16gb"
+    ipc: host
+    cap_add:
+      - SYS_PTRACE
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - /root/.cache/huggingface/${IDIOTSAVANT_MODELO:-qwen3.8_27b_idiotSavant_sm_86}   # actualizado el 28-09 (KL 0,0178); el armado del 25-09 quedo en ..._sm_86_2509
+      - --served-model-name
+      - qwen3.8_27b_idiotSavant_sm_86
+      - qwen3.8                        # alias que usan opencode, Hermes y el healthcheck
+      - qwen3.6
+      - qwen3.8-27b-uncensored
+      - --disable-access-log-for-endpoints
+      - "/metrics,/health"
+      - --enable-prompt-tokens-details
+      - --trust-remote-code
+      - --attention-backend
+      - TRITON_ATTN                    # el decode entero SK-18 corre sobre TRITON_ATTN
+      - --moe-backend
+      - flashinfer_trtllm
+      - --generation-config
+      - vllm
+      - --quantization
+      - compressed-tensors
+      - --chat-template
+      - /etc/qwen-froggeric-chat-template.jinja
+      - --dtype
+      - float16
+      - --mamba-ssm-cache-dtype
+      - "float16"
+      - --kv-cache-dtype
+      - "int8_per_token_head"          # KV int8: 4x menos error que fp8 y +30% decode a 50k
+      - --max-num-seqs
+      - "11"
+      - --tensor-parallel-size
+      - "2"
+      - --max-model-len
+      - "262144"
+      - --gpu-memory-utilization
+      - "${GPU_UTIL:-0.95}"            # 06-10: 0,92 -> 0,95 = KV 611k -> 654k; sesion real + 10x10k dejan >= 800 MiB libres por placa
+      # 16-10: techo de imagenes por CONVERSACION; el limite por TURNO es --limit-mm-per-turn. No cuesta KV:
+      # 653 695 tokens con 2 y con 16 (encoder: 8192 tokens fijos). 32 por RAM: reprocesar en frio (tras un
+      # reinicio) suma ~75 MB por imagen grande; 64 de 1400 px llevaron el contenedor a 25,2 de 26 GB con la L2
+      # llena (regimen ~20,4 GB). 32 deja ~3 GB de margen.
+      - --limit-mm-per-prompt
+      - '{"image":${MAX_IMAGENES:-32},"video":0}'
+      # Limite de imagenes por TURNO, no por pedido: las de turnos viejos ya estan en la cache (con 2 por pedido
+      # la conversacion quedaba en 400 desde la 3a imagen). Las de mas se reemplazan por una nota de texto.
+      - --limit-mm-per-turn
+      - "2"
+      - --mm-processor-kwargs
+      - '{"max_pixels":2000000,"min_pixels":65536}'
+      # cache del procesador multimodal: default 4 GiB y DUPLICADO (API server + EngineCore).
+      # Con la L2 (12 GB hasta el 10-10, hoy 8) el cgroup de 26 GB quedaba con ~5 GB de margen, y miles
+      # de imagenes distintas lo llenan: OOM del EngineCore el 10-10 (anon 1,4 -> 4,8 GB).
+      - --mm-processor-cache-gb
+      - "1"
+      - --enable-flashinfer-autotune
+      - --reasoning-parser
+      - qwen3
+      # Turno que termina sin </think>: se cierra y el modelo escribe la respuesta (HLE: 12% de las
+      # respuestas llegaban vacias).
+      - --reasoning-force-close
+      - --enable-auto-tool-choice
+      - --tool-call-parser
+      - qwen3_coder
+      - --enable-cumem-allocator
+      # offload de KV: solo L2 en RAM. L2 PRENDIDO (06-10): turno de 100k rescatado de RAM, TTFT 55,9 s ->
+      # 4,3 s, bytes exactos. Una conversacion de 100k ocupa ~5 GB en L2. KV_FLAG=--additional-config lo
+      # apaga (JSON inerte). `agents`: allowlist de la etiqueta de agente en las metricas.
+      # L3 a disco apagado el 06-10. Para volver, en "secondary_tiers":
+      #   [{"type": "fs", "root_dir": "/kv-offload", "max_size_gb": 20, "orphan_max_age_days": 3}]
+      # (max_size_gb 20 el 28-09: con el respaldo del modelo quedan ~64 GB libres y 40 llenaba el disco)
+      - ${KV_FLAG:---kv-transfer-config}
+      - '{"kv_connector": "OffloadingConnector", "kv_role": "kv_both", "kv_connector_extra_config": {"spec_name": "TieringOffloadingSpec", "cpu_bytes_to_use": ${KV_CPU_BYTES:-8589934592}, "eviction_policy": "arc", "store_threshold": 1, "secondary_tiers": [], "agents": ["coach", "primary", "primary_low", "primary_high", "primary_nothink", "planner", "planner_nothink", "coder", "verifier", "utility", "explorer", "vision", "art"]}}'
+      - --enable-prefix-caching
+      # Con especulacion (DFlash cuenta como EAGLE) vLLM fuerza checkpoints DENSOS del estado GDN: un bloque de
+      # estado por cada 880 tokens y por grupo GDN. Medido el 05-10 con 2 conversaciones de ~110k: cada pedido
+      # ocupa ~2,2x su largo en KV, se desalojan entre si y cada turno recalcula el prompt entero (0 aciertos).
+      # Un checkpoint cada 16 bloques + el borde de reuso de cada prompt.
+      - --prefix-cache-retention-interval
+      - "${RETENCION_GDN:-14080}"      # 05-10, sesion real: 70% cacheado y TTFT 65 s contra 49%/393 s denso
+      # profiler apagado salvo PROF_KIND/PROF_DIR en el entorno
+      - --profiler-config
+      - '{"profiler": ${PROF_KIND:-null}, "torch_profiler_dir": "${PROF_DIR:-}", "torch_profiler_with_stack": ${PROF_STACK:-false}, "torch_profiler_record_shapes": false, "torch_profiler_use_gzip": true, "ignore_frontend": true, "delay_iterations": ${PROF_DELAY:-0}, "max_iterations": ${PROF_MAX:-0}}'
+      - --enable-chunked-prefill
+      - --max-num-batched-tokens
+      - "8192"
+      # Chunk de prefill dinamico (06-10): 2640 si nadie genera, 880 si alguien genera o le falta poco prefill.
+      # Decode ajeno 31 -> ~20 s; primeros turnos grandes +6/+9%.
+      - --long-prefill-token-threshold
+      - "${LONG_PREFILL:-2640}"
+      - --long-prefill-token-threshold-with-decode
+      - "880"
+      # Admision: un prefill por vez (no escala con la concurrencia: 1.500 tok/s agregados con 1, 2 o 4), salvo
+      # prompts cortos y turnos que casi todo lo traen de la cache local (06-10: TTFT 15-24 s -> 2-4 s). La KV
+      # nunca se compromete mas alla del 90%.
+      - --max-concurrent-prefills
+      - "1"
+      - --short-prompt-bypass-tokens
+      - "2000"
+      - --remaining-prefill-bypass-tokens
+      - "8192"
+      - --kv-admission-headroom
+      - "0.10"
+      - --kv-admission-min-concurrency
+      - "2"
+      - --performance-mode
+      - "throughput"
+      - --cudagraph-capture-sizes
+      - "4"
+      - "8"
+      - "12"
+      - "16"
+      - "20"
+      - "24"
+      - "28"
+      - "32"
+      - "36"
+      - "40"
+      - --async-scheduling
+      - --scheduling-policy
+      - priority
+      # Borrador DFlash2 reajustado contra este modelo; K=8 es el optimo medido para contextos de agente
+      # de 60-100k (hereda el kv-cache-dtype del target).
+      #   tree_drafting: arbol de 8 nodos en vez de cadena (+10-11% en prosa)
+      #   draft_vocab_size: candidatos sobre los 64k tokens mas frecuentes de la carga real (FR-Spec):
+      #     paso -2,1%, aceptacion igual (32k: -3,5% de aceptacion)
+      #   draft_residual_scale: el residual del borrador desborda fp16 sin esto
+      - --speculative-config
+      - '{"method":"dflash","model":"/root/.cache/huggingface/qwen3.8_27b_idiotSavant_sm_86_dflash2","num_speculative_tokens":8,"tree_drafting":true,"draft_vocab_size":65536,"draft_residual_scale":32}'
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8320"
+      - --api-key
+      - "${VLLM_API_KEY:-}"
+
+  # Servicio de una sola vez (no arranca con `up`): ver "Limpiar las caches" arriba.
+  limpiar-caches:
+    image: ${VLLM_IDIOTSAVANT_IMAGE:-vllm-idiotsavant:latest}
+    profiles: [mantenimiento]
+    network_mode: none
+    volumes:
+      - *cache_vllm
+      - *cache_torch
+      - *cache_triton
+      - *cache_inductor
+    entrypoint: ["sh", "-euc"]
+    command:
+      - |
+        du -sh /root/.cache/vllm /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor
+        find /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor -mindepth 1 -delete
+        find /root/.cache/vllm -mindepth 1 -maxdepth 1 ! -name idiotsavant -exec rm -rf {} +
+        rm -rf /root/.cache/vllm/idiotsavant/ptx
+        echo "caches limpias"
+        du -sh /root/.cache/vllm /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor
+
+networks:
+  lanbridge:
+    external: true
