@@ -1319,6 +1319,9 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         if isinstance(attn_metadata_raw, dict):
             attn_metadata = attn_metadata_raw.get(self.prefix)
         if attn_metadata is None:
+            from vllm.idiotsavant import reserva as _isv_reserva
+
+            _isv_reserva.sonda_gdn(self, mixed_qkv)
             self._warmup_prefill_kernels(mixed_qkv, 0)
             return
 
@@ -1935,6 +1938,9 @@ class QwenGatedDeltaNetAttention(GatedDeltaNetAttention):
         if isinstance(attn_metadata_raw, dict):
             attn_metadata = attn_metadata_raw.get(self.prefix)
         if attn_metadata is None:
+            from vllm.idiotsavant import reserva as _isv_reserva
+
+            _isv_reserva.sonda_gdn(self, mixed_qkv)
             self._warmup_prefill_kernels(mixed_qkv, 0)
             return
 
