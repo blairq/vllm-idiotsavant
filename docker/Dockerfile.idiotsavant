@@ -1,14 +1,15 @@
 # vllm-idiotsavant: vLLM v0.29.0 con las optimizaciones idiotSavant en el árbol.
 #
-# Etapa de línea base: parte de la imagen oficial v0.29.0 y superpone el
-# paquete vllm/ de este repo. Es válido porque los .py de la wheel oficial son
-# idénticos a los del tag v0.29.0; los .so compilados se conservan.
+# Parte de la imagen oficial v0.29.0 y superpone el paquete vllm/ de este repo.
+# Es válido porque los .py de la wheel oficial son idénticos a los del tag
+# v0.29.0; los .so compilados se conservan. La imagen final es una sola capa sin
+# lo que en sm_86 no sirve (21,8 -> ~15 GB).
 #
-#   docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:base .
+#   docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
 #
 # Cuando los kernels propios pasen a csrc/ esta imagen se construye desde fuente.
 ARG BASE_IMAGE=vllm/vllm-openai:v0.29.0
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS armado
 
 ARG SITE=/usr/local/lib/python3.12/dist-packages
 
@@ -25,6 +26,34 @@ RUN TORCH_CUDA_ARCH_LIST=8.6 python3 -c \
 # ahora es un archivo fijo de la imagen.
 COPY docker/idiotsavant/logging.json /etc/vllm-idiotsavant/logging.json
 RUN mkdir -p /var/log/vllm-idiotsavant
-ENV VLLM_LOGGING_CONFIG_PATH=/etc/vllm-idiotsavant/logging.json
 
+# Lo que en una RTX 3090 (sm_86) no puede cargarse nunca: los cubins precompilados de FlashInfer
+# (6,3 GB, todos sm100/sm103/sm107 y DeepGEMM) y sus modulos JIT atados a sm90/sm100/sm103/sm120.
+# FlashInfer los busca solo en esas placas. Los modulos JIT genericos quedan.
+RUN rm -rf ${SITE}/flashinfer_cubin/cubins && mkdir -p ${SITE}/flashinfer_cubin/cubins \
+ && cd ${SITE}/flashinfer_jit_cache/jit_cache \
+ && ls | grep -E '(^|_)sm(90|100|103|107|120)' | xargs -r rm -rf
+
+# Una sola capa: borrar en una capa nueva no achica la imagen. El entorno es el de la base.
+FROM scratch
+COPY --from=armado / /
+ENV PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    NVARCH=x86_64 \
+    NVIDIA_REQUIRE_CUDA="cuda>=13.0 brand=unknown,driver>=535,driver<536 brand=grid,driver>=535,driver<536 brand=tesla,driver>=535,driver<536 brand=nvidia,driver>=535,driver<536 brand=quadro,driver>=535,driver<536 brand=quadrortx,driver>=535,driver<536 brand=nvidiartx,driver>=535,driver<536 brand=vapps,driver>=535,driver<536 brand=vpc,driver>=535,driver<536 brand=vcs,driver>=535,driver<536 brand=vws,driver>=535,driver<536 brand=cloudgaming,driver>=535,driver<536 brand=unknown,driver>=550,driver<551 brand=grid,driver>=550,driver<551 brand=tesla,driver>=550,driver<551 brand=nvidia,driver>=550,driver<551 brand=quadro,driver>=550,driver<551 brand=quadrortx,driver>=550,driver<551 brand=nvidiartx,driver>=550,driver<551 brand=vapps,driver>=550,driver<551 brand=vpc,driver>=550,driver<551 brand=vcs,driver>=550,driver<551 brand=vws,driver>=550,driver<551 brand=cloudgaming,driver>=550,driver<551 brand=unknown,driver>=565,driver<566 brand=grid,driver>=565,driver<566 brand=tesla,driver>=565,driver<566 brand=nvidia,driver>=565,driver<566 brand=quadro,driver>=565,driver<566 brand=quadrortx,driver>=565,driver<566 brand=nvidiartx,driver>=565,driver<566 brand=vapps,driver>=565,driver<566 brand=vpc,driver>=565,driver<566 brand=vcs,driver>=565,driver<566 brand=vws,driver>=565,driver<566 brand=cloudgaming,driver>=565,driver<566 brand=unknown,driver>=570,driver<571 brand=grid,driver>=570,driver<571 brand=tesla,driver>=570,driver<571 brand=nvidia,driver>=570,driver<571 brand=quadro,driver>=570,driver<571 brand=quadrortx,driver>=570,driver<571 brand=nvidiartx,driver>=570,driver<571 brand=vapps,driver>=570,driver<571 brand=vpc,driver>=570,driver<571 brand=vcs,driver>=570,driver<571 brand=vws,driver>=570,driver<571 brand=cloudgaming,driver>=570,driver<571 brand=unknown,driver>=575,driver<576 brand=grid,driver>=575,driver<576 brand=tesla,driver>=575,driver<576 brand=nvidia,driver>=575,driver<576 brand=quadro,driver>=575,driver<576 brand=quadrortx,driver>=575,driver<576 brand=nvidiartx,driver>=575,driver<576 brand=vapps,driver>=575,driver<576 brand=vpc,driver>=575,driver<576 brand=vcs,driver>=575,driver<576 brand=vws,driver>=575,driver<576 brand=cloudgaming,driver>=575,driver<576" \
+    NV_CUDA_CUDART_VERSION=13.0.96-1 \
+    CUDA_VERSION=13.0.2 \
+    LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64 \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    UV_HTTP_TIMEOUT=500 \
+    UV_INDEX_STRATEGY=unsafe-best-match \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_INSTALL_DIR=/opt/uv/python \
+    UV_CACHE_DIR=/opt/uv/cache \
+    UV_OVERRIDE=/etc/uv-overrides.txt \
+    VLLM_ENABLE_CUDA_COMPATIBILITY=0 \
+    TORCH_CUDA_ARCH_LIST="8.6" \
+    VLLM_USAGE_SOURCE=production-docker-image \
+    VLLM_LOGGING_CONFIG_PATH=/etc/vllm-idiotsavant/logging.json
+WORKDIR /vllm-workspace
 ENTRYPOINT ["vllm", "serve"]
