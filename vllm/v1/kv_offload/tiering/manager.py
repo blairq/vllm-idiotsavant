@@ -92,6 +92,11 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
     code (e.g. calling prepare_load inside a cascade/store path would be misleading).
     """
 
+    # [PN90] Lo fija TieringOffloadingManager: True solo si algun tier secundario acepta demociones
+    # (submit_demote). Sin L3, PN90 no taguea ni copia filas del mmap al desalojar: antes cada desalojo
+    # de un bloque persistible copiaba la fila entera (decenas de MB) para tirarla y volver a taguear.
+    _g90_activo = False
+
     def __init__(
         self,
         num_blocks: int,
@@ -132,7 +137,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
         tags crece con cada clave de cada request.
         """
         from vllm.idiotsavant import kv_disk_gate as _g90
-        if _g90.should_persist_to_secondary_tiers(
+        if self._g90_activo and _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         ):
             _g90.note_persistent_use(
@@ -154,7 +159,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
         - marca las claves nuevas como persistibles si el agente lo permite.
         """
         from vllm.idiotsavant import kv_disk_gate as _g90
-        should_persist = _g90.should_persist_to_secondary_tiers(
+        should_persist = self._g90_activo and _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         )
         if self.counts is not None:
@@ -176,7 +181,7 @@ class CPUPrimaryTierOffloadingManager(CPUOffloadingManager):
             _region = self._mmap_region
             _mm = getattr(_region, 'mmap_obj', None)
             for key, block in evicted:
-                if _mm is not None and _g90.take_demotion_snapshot(key):
+                if self._g90_activo and _mm is not None and _g90.take_demotion_snapshot(key):
                     _stride = _region._row_stride
                     _off = int(block.block_id) * _stride
                     _g90.record_demotion(key, bytes(_mm[_off : _off + _stride]))
@@ -301,6 +306,14 @@ class TieringOffloadingManager(OffloadingManager):
         """
         self.primary_tier: CPUPrimaryTierOffloadingManager = primary_tier
         self.secondary_tiers = secondary_tiers or []
+        self.primary_tier._g90_activo = any(
+            getattr(t, "submit_demote", None) is not None for t in self.secondary_tiers
+        )
+        logger.info(
+            "Tiers secundarios (L3): %s; democion de L2 a disco (PN90): %s",
+            [t.tier_type for t in self.secondary_tiers] or "ninguno",
+            "activa" if self.primary_tier._g90_activo else "apagada",
+        )
 
         self._job_id_counter: int = 0
         # Job tracking: maps job_id to metadata for all in-flight transfers.
@@ -746,7 +759,7 @@ class TieringOffloadingManager(OffloadingManager):
         # el mismo gate. Esta dormido para el tier fs (politica BLOCK_LEVEL),
         # pero dejarlo sin gatear era una via de escritura sin control.
         from vllm.idiotsavant import kv_disk_gate as _g90
-        if not _g90.should_persist_to_secondary_tiers(
+        if not self.secondary_tiers or not _g90.should_persist_to_secondary_tiers(
             getattr(req_context, 'kv_transfer_params', None)
         ):
             return
