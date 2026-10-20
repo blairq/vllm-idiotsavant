@@ -26,8 +26,13 @@
 #   * Mismo IP (172.20.0.228) y puerto (8360) que los compose de genesis-vllm-patches: no corren juntos.
 #   * El arranque tarda ~4 min (torch.compile, grafos y fijar los 8 GiB de L2). El primero con una
 #     cache vacia suma la compilacion de los kernels PTX, que quedan en /root/.cache/vllm/idiotsavant.
-#   * Caches JIT propias (vLLM, torch, Triton, Inductor): el cambio de modelo invalida
-#     torch.compile y los kernels; mezclarlas arrastraria artefactos de otro modelo.
+#   * Caches JIT propias (vLLM, torch, Triton, Inductor), separadas de las de genesis-vllm-patches: el
+#     cambio de modelo o de codigo invalida torch.compile y los kernels; mezclarlas arrastraria artefactos.
+#     El estado de estas caches cambia la salida en los ultimos bits (autotune de Inductor): con caches
+#     vacias, esta imagen y la de Genesis dan el mismo texto greedy token por token (20-10).
+#   * Limpiar las caches (con el servidor PARADO; el proximo arranque recompila, ~4 min):
+#       docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm limpiar-caches
+#     Borra torch.compile, Inductor, Triton y los kernels PTX; deja los volcados de GPU.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -49,10 +54,10 @@ services:
     volumes:
       - /home/usuario/Proyectos/models-cache:/root/.cache/huggingface     # modelo y borrador
       - /home/usuario/Proyectos/kv-offload:/kv-offload                    # tier de disco de la KV (L3, apagado desde el 06-10)
-      - /home/usuario/.cache/vllm/qwen38-27b-idiotsavant-sm86-v029:/root/.cache/vllm
-      - /home/usuario/.cache/torch/qwen38-27b-idiotsavant-sm86-v029:/root/.cache/torch
-      - /home/usuario/.cache/triton/qwen38-27b-idiotsavant-sm86-v029:/root/.cache/triton
-      - /home/usuario/.cache/torchinductor/qwen38-27b-idiotsavant-sm86-v029:/root/.cache/torchinductor
+      - &cache_vllm /home/usuario/.cache/vllm/vllm-idiotsavant-27b-sm86:/root/.cache/vllm
+      - &cache_torch /home/usuario/.cache/torch/vllm-idiotsavant-27b-sm86:/root/.cache/torch
+      - &cache_triton /home/usuario/.cache/triton/vllm-idiotsavant-27b-sm86:/root/.cache/triton
+      - &cache_inductor /home/usuario/.cache/torchinductor/vllm-idiotsavant-27b-sm86:/root/.cache/torchinductor
       - ./qwen-froggeric-chat-template.jinja:/etc/qwen-froggeric-chat-template.jinja:ro
     environment:
       # ── lineales W4A8 (Marlin) ──────────────────────────────────────────────
@@ -245,6 +250,26 @@ services:
       - "8320"
       - --api-key
       - "${VLLM_API_KEY:-}"
+
+  # Servicio de una sola vez (no arranca con `up`): ver "Limpiar las caches" arriba.
+  limpiar-caches:
+    image: ${VLLM_IDIOTSAVANT_IMAGE:-vllm-idiotsavant:latest}
+    profiles: [mantenimiento]
+    network_mode: none
+    volumes:
+      - *cache_vllm
+      - *cache_torch
+      - *cache_triton
+      - *cache_inductor
+    entrypoint: ["sh", "-euc"]
+    command:
+      - |
+        du -sh /root/.cache/vllm /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor
+        find /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor -mindepth 1 -delete
+        find /root/.cache/vllm -mindepth 1 -maxdepth 1 ! -name idiotsavant -exec rm -rf {} +
+        rm -rf /root/.cache/vllm/idiotsavant/ptx
+        echo "caches limpias"
+        du -sh /root/.cache/vllm /root/.cache/torch /root/.cache/triton /root/.cache/torchinductor
 
 networks:
   lanbridge:
