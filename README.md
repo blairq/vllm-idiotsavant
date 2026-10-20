@@ -51,6 +51,24 @@ Quality (KL 0.0178 against BF16, half that of the usual int4) and benchmarks are
 [model card](https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86) and in the
 [technical report](https://huggingface.co/spaces/BlairQ/idiotSavant-sm86-report).
 
+### Why "idiot savant"
+
+At **18.6 GB**, the model beats the full **55 GB BF16** Qwen3.8-27B on some benchmarks of the
+official card, and loses on others. Brilliant at some things, clumsy at others: hence the name.
+
+| Benchmark | idiotSavant (18.6 GB) | Qwen3.8-27B BF16 (55 GB, card) | Δ | n |
+|---|---|---|---|---|
+| IFBench (prompt-level loose) | **83.0** ±4.3 | 79.5 | +3.5 | 300 |
+| GPQA Diamond | **91.9** ±3.8 | 89.2 | +2.7 | 198 |
+| LiveCodeBench v6 (2025-02..05) | **90.8** ±5.0 | 90.3 | +0.5 | 131 |
+| HLE (fixed sample) | 23.6 ±3.7 (28.2 closing `</think>`¹) | **30.8** | −7.2 | 500 of 2500 |
+
+± is the 95% interval. ¹ Grading the answers that never closed their reasoning; `--reasoning-force-close`
+does that close at serving time. The BF16 column is Qwen's number for the official model, while this one
+is quantized from an abliterated BF16, so the gap mixes abliteration, quantization and harness. Full
+table (including vision, where it loses) and methodology in the
+[model card](https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86#benchmarks-against-the-bf16-model-card).
+
 ## What this fork adds to vLLM
 
 Everything below is on by default unless it names a flag or key. Optimizations that only make
