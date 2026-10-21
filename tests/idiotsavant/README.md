@@ -1,5 +1,7 @@
 # Tests de los kernels del camino sm_86
 
+Guía completa (qué cambió y cómo probarlo paso a paso): [`docs/idiotsavant/CAMBIOS_SM86.md`](../../docs/idiotsavant/CAMBIOS_SM86.md).
+
 Tests y mediciones de los kernels PTX y del Marlin S16 que usa vllm-idiotsavant con
 qwen3.8_27b_idiotSavant_sm_86 en 2× RTX 3090. Corren **en la placa**, dentro de la imagen del fork.
 No levantan vLLM: arman una capa sintética con las formas del modelo (`atencion_sintetica.py`).
