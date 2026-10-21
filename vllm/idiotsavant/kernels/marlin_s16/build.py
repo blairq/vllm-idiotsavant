@@ -30,6 +30,8 @@ mod = cpp_extension.load(
                        "-DMARLIN_NAMESPACE_NAME=marlin", "-Xcompiler", "-fvisibility=default"]
     + (["-DMARLIN_QSERVE_CRUDO"] if False else [])
     + ['-DMARLIN_MAX_BLOQUES_POR_SM=1']
-    + ['-DMARLIN_TOPE_M=8'],
+    + ['-DMARLIN_TOPE_M=8']
+    # Opcionales para medir, p. ej. IDIOTSAVANT_MARLIN_DEFS="-DMARLIN_L2_HINT=1 -DMARLIN_SHARED_JUSTA=1"
+    + os.environ.get("IDIOTSAVANT_MARLIN_DEFS", "").split(),
     is_python_module=False, verbose=True)
 print(f"listo en {time.time()-t0:.0f}s:", hasattr(torch.ops.idiotsavant_marlin, "marlin_gemm_s16"))
