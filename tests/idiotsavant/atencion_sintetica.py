@@ -45,6 +45,9 @@ def configurar(max_num_seqs=11, max_model_len=131072, max_num_batched_tokens=819
         kv_metric_agents=())
     A._ARBOL = arbol
     A._MTD = max_tok_decode
+    # los buffers estaticos se dimensionan con estas opciones: con otras hay que rehacerlos
+    A._bufs.clear()
+    A._bufs_pf.clear()
 
 
 @contextlib.contextmanager
@@ -78,6 +81,8 @@ def _kv_realista(n, gen, dev, outliers=4):
 class Escenario:
     def __init__(self, ctx, L=9, seed=0, dev="cuda", nombre="model.layers.7.self_attn.attn"):
         self.dev = torch.device(dev)
+        if self.dev.type == "cuda" and self.dev.index is None:
+            self.dev = torch.device("cuda", torch.cuda.current_device())
         self.ctx = list(ctx)
         self.B = len(self.ctx)
         self.L = L
@@ -174,15 +179,17 @@ class Escenario:
         for b in range(self.B):
             n = int(md.seq_lens[b])
             q0, q1 = qsl[b], qsl[b + 1]
-            qb = q[q0:q1].float().view(q1 - q0, NH, G, QD)
             k = self.k[b][:n].float()
             v = self.v[b][:n].float()
-            s = torch.einsum("thgd,nhd->thgn", qb, k) * self.impl.scale
-            pos = torch.arange(n - (q1 - q0), n, device=self.dev)
-            mask = torch.arange(n, device=self.dev)[None, :] > pos[:, None]
-            s.masked_fill_(mask[:, None, None, :], -math.inf)
-            p = torch.softmax(s, -1)
-            out[q0:q1] = torch.einsum("thgn,nhd->thgd", p, v).reshape(q1 - q0, NH * G, QD)
+            for a in range(q0, q1, 32):                  # de a 32 tokens: con 100k de contexto
+                z = min(q1, a + 32)                      # los scores enteros no entran
+                qb = q[a:z].float().view(z - a, NH, G, QD)
+                s = torch.einsum("thgd,nhd->thgn", qb, k) * self.impl.scale
+                pos = torch.arange(n - (q1 - a), n - (q1 - z), device=self.dev)
+                mask = torch.arange(n, device=self.dev)[None, :] > pos[:, None]
+                s.masked_fill_(mask[:, None, None, :], -math.inf)
+                p = torch.softmax(s, -1)
+                out[a:z] = torch.einsum("thgn,nhd->thgd", p, v).reshape(z - a, NH * G, QD)
         return out
 
 
