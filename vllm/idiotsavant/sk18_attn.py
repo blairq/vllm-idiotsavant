@@ -132,11 +132,13 @@ SK30_NQ = 2
 # Variantes de SK-30 (ver tests/idiotsavant/test_sk30.py, que las compara bit a bit y las mide):
 #   SK30_VCG  V con cp.async.cg en vez de .ca. Bit a bit igual; V no se reusa, L1 no aporta.
 #   SK30_PING Q.K del tile i+1 emitido junto al softmax del tile i (anillo de 3 para K). Bit a bit
-#             igual; con NQ=2 sube el derrame de 28 a 52 B (ptxas sm_86), por eso queda apagado
-#             hasta medirlo en la placa: prenderlo solo si test_sk30.py --medir lo da mas rapido.
-#   SK30_PHL  P.V en dos planos int8 (1) o en uno (0). 0 hace la mitad de los mma de P.V y no
-#             derrama (244 registros), pero cambia la cuenta: decidir con el error que imprime el
-#             test y con la evaluacion de KL del modelo, no solo con la velocidad.
+#             igual; con NQ=2 pasa de 177 registros sin derrame a 255 con 24 B (ptxas sm_86), por eso
+#             queda apagado hasta medirlo: prenderlo solo si test_sk30.py --medir lo da mas rapido.
+#   SK30_PHL  P.V en dos planos int8 (1) o en uno (0). 0 hace la mitad de los mma de P.V, pero
+#             cambia la cuenta: decidir con el error que imprime el test y con la KL del modelo.
+#   SK30_NQ   4 = 16 warps por bloque (128 registros, 16 B de derrame) en vez de 8: el doble de
+#             warps para esconder latencia con la misma shared. Cambia el orden de las sumas de l
+#             (no es bit a bit igual, la diferencia es de redondeo): medirlo con test_sk30.py.
 SK30_VCG = 1
 SK30_PING = 0
 SK30_PHL = 1

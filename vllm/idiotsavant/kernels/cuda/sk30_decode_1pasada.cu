@@ -79,6 +79,9 @@ __device__ __forceinline__ unsigned i8x2_a_h2(unsigned short u) {
 __device__ __forceinline__ int paso_grupo(const int* __restrict__ seqlen, int b, int B, int GMAX) {
 #if BAL
     int tot = 0;
+    // unroll 1: desenrollado (el default, con B de la grilla), este bucle llevaba sk30_decode de 177 a 255
+    // registros con 28 B de derrame (ptxas sm_86, NQ=2 PV8 PHL). La suma es la misma.
+#pragma unroll 1
     for (int i = 0; i < B; ++i) tot += seqlen[i];
     const int den = max(GMAX - B, 1);
     int paso = (tot + den - 1) / den;

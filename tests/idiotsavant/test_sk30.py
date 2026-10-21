@@ -33,6 +33,7 @@ VARIANTES = {
     "vcg": dict(SK30_VCG=1, SK30_PING=0, SK30_PHL=1),
     "ping": dict(SK30_VCG=1, SK30_PING=1, SK30_PHL=1),
     "phl0": dict(SK30_VCG=1, SK30_PING=0, SK30_PHL=0),
+    "nq4": dict(SK30_VCG=1, SK30_PING=0, SK30_PHL=1, SK30_NQ=4),
 }
 
 
@@ -56,6 +57,14 @@ def test_variantes_de_carga_bit_a_bit(ctx):
     for nombre in ("produccion", "vcg", "ping"):
         out, _, _ = _correr(ctx, nombre)
         assert torch.equal(out, base), f"{nombre} no es bit a bit igual a la referencia"
+
+
+def test_nq4_solo_difiere_en_redondeo():
+    base, err, _ = _correr([20000, 3001], "referencia")
+    out, err4, _ = _correr([20000, 3001], "nq4")
+    dif = (out.float() - base.float()).abs().max()
+    print(f"\nNQ=4: error relativo {err4:.4f} (NQ=2: {err:.4f}), max |dif| contra NQ=2 {float(dif):.2e}")
+    assert err4 < err + 0.005, (err4, err)
 
 
 def test_phl0_informa_error():
