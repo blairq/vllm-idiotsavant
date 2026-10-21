@@ -604,3 +604,48 @@ Para cada oportunidad implementada:
   afinado), no contra torch sin optimizar;
 - para cambios que tocan la salida numérica (`PHL`, `PV8`, int8 en prefill, cinta fp16), correr la
   evaluación de KL contra BF16 y los benchmarks de la tarjeta del modelo.
+
+---
+
+## 7. Estado de implementación (rama `claude/clever-ride-uycaba`)
+
+Todo se escribió sin GPU. Cada kernel modificado se compiló para sm_86 (NVRTC 12.8 + ptxas) y la
+lógica del plan del prefill entero se verificó en CPU, pero **nada se ejecutó en una 3090**. Los
+tests y el orden de validación están en `tests/idiotsavant/README.md`
+(`bash tests/idiotsavant/correr_todo.sh <dir>`).
+
+| Oportunidad (sección) | Estado | Por defecto |
+|---|---|---|
+| `-lineinfo` y recursos de ptxas para perfilar (2.1, 6) | `ptx_lab`: `VLLM_IDIOTSAVANT_PTX_LINEINFO=1` y `Kernel.recursos()`; `tools/idiotsavant/ptx_recursos.py` | — |
+| SK-30: derrame de registros (3.1) | `#pragma unroll 1` en la suma de `seq_len`: **255 → 177 registros, derrame 28 B → 0**, bit a bit igual | prendido |
+| SK-30: V con `.cg` (3.1, 5) | `SK30_VCG`, bit a bit igual | prendido |
+| SK-30: `PING` (3.1) | arreglada la shared que pedía (`sh_30()`); `SK30_PING` | apagado: medir |
+| SK-30: `PHL=0` (3.1) | `SK30_PHL` | apagado: cambia la cuenta |
+| SK-30: 16 warps (`NQ=4`) | `SK30_NQ`, 128 registros y 16 B de derrame | apagado: medir |
+| `sk18h_decuant` de 1 warp y V sin coalescer (2.1) | `sk18h_decuant_tile`: 8 warps, V contigua traspuesta en shared, 5 bloques/SM; bit a bit igual | prendido (`DECUANT_TT = 32`) |
+| Marlin: hint de L2 para el peso (3.4) | `MARLIN_L2_HINT` (define de build) | apagado: medir |
+| Marlin: shared pedida de más (3.4, 4) | `MARLIN_SHARED_JUSTA` (define de build) | apagado: medir |
+| Prefill de atención en int8 (3.3) | `PREFILL_SK30`: SK-30 sobre pseudo-secuencias de 10 tokens, sin decuantizar | apagado: cambia la cuenta |
+
+### No implementado, y por qué
+
+- **GEMV/GEMM W4A8 propio para M chico (3.4, oportunidad 1).** Es la palanca más grande del decode,
+  pero exige un kernel nuevo que lea el layout reempaquetado de Marlin (o un segundo
+  reempaquetado, con el doble de pesos en memoria). Escribirlo sin poder correrlo era un riesgo
+  sobre todas las lineales del modelo. `test_marlin_s16.py --medir` deja la línea base (µs y GB/s
+  por forma y M) para cuando se encare.
+- **`pn122_cinta` dentro de `gdn_arbol` (3.6).** `gdn_arbol` reproduce las filas de la cinta del paso
+  anterior y `pn122` escribe las del paso actual **en el mismo slot**. Dentro de un solo kernel no
+  hay orden entre bloques, así que fusionarlos es una carrera, salvo que se duplique la cinta por
+  paridad de paso (+80 MB por rank).
+- **Cinta en fp16 (3.6).** La leen o escriben siete kernels (Triton y PTX: `_k_spec`,
+  `_k_spec_arbol`, `_k_escribir`, `_k_escribir_par`, `_k_materializar`, `gdn_arbol`, `pn122`). El
+  ahorro es ~40 MB por rank. No compensa el riesgo de tocarlos a ciegas.
+- **`sk30_union` dentro de `sk30` («último bloque reduce», 3.1).** Un solo bloque tendría que
+  combinar 41 grupos × 54 filas × 256 dims (~1 MB) a ancho de banda de un SM: más lento que el
+  lanzamiento aparte que ahorra.
+- **`sk24` + `sk26` (3.8).** SK-24 reparte los elementos entre 4-8 bloques y SK-26 necesita filas
+  enteras por bloque. Fusionarlos implica rediseñar el protocolo P2P, que no se puede probar sin
+  las dos placas.
+- **`escribir2` + `prep2`.** Corren en dos ganchos distintos de vLLM (`do_kv_cache_update` y
+  `forward`), y el primero no recibe la query.
