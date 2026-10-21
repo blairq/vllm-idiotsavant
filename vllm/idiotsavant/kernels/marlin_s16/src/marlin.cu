@@ -609,6 +609,18 @@ void marlin_mm(const void* A, const void* B, void* C, void* C_tmp, void* b_bias,
           ", num_threads = ", num_threads, ", num_bits = ", num_bits);
     }
 
+#if MARLIN_SHARED_JUSTA
+    {
+      // Lo que el kernel usa: el pipeline (get_kernel_cache_size) mas el prefijo que el template
+      // pone antes de sh_new cuando A es de 8 bits (sh_a_s y sh_a_sum por etapa: 64 B por m_block,
+      // stages + 1 veces), con 1 KB de margen. Nunca mas que lo que se pedia antes.
+      int usada = get_kernel_cache_size(thread_tfg, thread_m_blocks, prob_m_split, prob_n, prob_k,
+                                        num_bits, group_size, has_act_order, is_k_full, has_zp,
+                                        is_zp_float, is_a_8bit, stages) +
+                  (is_a_8bit ? 64 * thread_m_blocks * (stages + 1) : 0) + 1024;
+      if (usada < max_shared_mem_new) max_shared_mem_new = usada;
+    }
+#endif
     cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize,
                          max_shared_mem_new);
 

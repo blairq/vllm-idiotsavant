@@ -51,9 +51,11 @@ def _so() -> str | None:
 
 
 def _huella() -> str:
-    """Hash de las fuentes del kernel. Si cambia, la .so de la cache ya no sirve."""
+    """Hash de las fuentes del kernel y de los defines opcionales (IDIOTSAVANT_MARLIN_DEFS, ver
+    build.py). Si cambia, la .so de la cache ya no sirve."""
     import hashlib
     h = hashlib.sha256()
+    h.update(os.environ.get("IDIOTSAVANT_MARLIN_DEFS", "").encode())
     for f in sorted(glob.glob(os.path.join(_SRC, "src", "*")) +
                     glob.glob(os.path.join(_SRC, "inc", "*")) +
                     [os.path.join(_SRC, "torch_bindings.cpp")]):
