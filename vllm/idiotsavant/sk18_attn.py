@@ -244,6 +244,24 @@ def _coef():
     return _QA_QB
 
 
+# Defines de los kernels del camino int8, en un solo lugar: los usan _kernels() y
+# tools/idiotsavant/ptx_recursos.py, que compila exactamente lo mismo que el servidor.
+def _defs_escribir() -> list[str]:
+    return []
+
+
+def _defs_decuant() -> list[str]:
+    return []
+
+
+def _warps_decuant() -> int:
+    return 1
+
+
+def _defs_sk30() -> list[str]:
+    return [f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"]
+
+
 def _kernels(md="int8"):
     dev = (torch.cuda.current_device(), md)
     if dev not in _k:
@@ -273,16 +291,16 @@ def _kernels(md="int8"):
                   main8=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb + [f"-DNWARPS={NW8}"], warps=NW8),
                   escribir=Kernel('sk18h_escribir2.cu',
                                   'sk18h_escribir2',
-                                  defs=["-DROTV=1"] if (False) else [], warps=1),
+                                  defs=_defs_escribir(), warps=1),
                   prep=Kernel('sk18h_prep2.cu',
                               'sk18h_prep2', defs=arb, warps=1),
                   union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs, warps=1),
-                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"] if False else [], warps=1),
+                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=_defs_decuant(), warps=_warps_decuant()),
                   salida=Kernel("sk18h_salida.cu", "sk18h_salida", warps=1))
         if _arbol():
             ks["prep30"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=arb + ["-DQSF=1"], warps=1)
             ks["sk30"] = Kernel("sk30_decode_1pasada.cu", "sk30_decode",
-                                defs=[f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"], warps=4 * SK30_NQ)
+                                defs=_defs_sk30(), warps=4 * SK30_NQ)
             ks["sk30u"] = Kernel("sk30_decode_1pasada.cu", "sk30_union", defs=["-DROTV=1"] if False else [], warps=8)
         for x in ks.values():
             x.cargar()

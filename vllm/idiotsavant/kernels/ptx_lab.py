@@ -10,6 +10,11 @@ Uso::
     k = Kernel("lab_mma.cu", "lab_mma_s8", defs=["-DREPS=64"], warps=1)
     k.lanzar((gx, gy), [tensor, tensor, 3, ...], shared=0)
     print(k.ptx())          # PTX generado, para leerlo o editarlo a mano
+    print(k.recursos())     # registros, derrame y shared segun ptxas -v (no hace falta GPU)
+
+Perfilado: con ``VLLM_IDIOTSAVANT_PTX_LINEINFO=1`` se compila con ``-lineinfo`` para que Nsight
+Compute atribuya las metricas a la linea de fuente. Entra en la clave de cache, asi que prenderlo
+genera PTX nuevo y apagarlo vuelve al de siempre.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ import threading
 import torch
 
 ARCH = 86
+LINEINFO = os.environ.get("VLLM_IDIOTSAVANT_PTX_LINEINFO", "") == "1"
 _ATRIB_MAX_SHARED = 8
 _lock = threading.RLock()
 _libcuda = None
@@ -70,6 +76,7 @@ class Kernel:
     def _clave(self, texto: str) -> str:
         texto += ""
         return hashlib.sha256((texto + f"|{self.entrada}|sm_{self.arch}|O{self.opt}|"
+                               + ("lineinfo|" if LINEINFO else "")
                                + " ".join(self.defs)).encode()).hexdigest()[:16]
 
     def ptx(self, forzar: bool = False) -> str:
@@ -85,9 +92,9 @@ class Kernel:
             return dest.read_text()
         with tempfile.TemporaryDirectory() as d:
             out = os.path.join(d, "k.ptx")
-            # Con lineinfo (apagado) se agrega -lineinfo para que ncu pueda atribuir las metricas a la
-            # linea de fuente. Entra en la clave de cache porque cambia el binario.
-            extra = ["-lineinfo"] if False else []
+            # Con LINEINFO se agrega -lineinfo para que ncu pueda atribuir las metricas a la linea de
+            # fuente. Entra en la clave de cache porque cambia el binario.
+            extra = ["-lineinfo"] if LINEINFO else []
             r = subprocess.run(["nvcc", "-ptx", f"-arch=sm_{self.arch}", f"-O{self.opt}",
                                 "--use_fast_math", *extra, *self.defs, str(self.src), "-o", out],
                                capture_output=True, text=True)
@@ -97,17 +104,47 @@ class Kernel:
         dest.write_text(txt)
         return txt
 
-    def _ensamblar(self, ptx: str) -> bytes:
+    def _ensamblar(self, ptx: str, verbose: bool = False):
         with tempfile.TemporaryDirectory() as d:
             fp, fc = os.path.join(d, "k.ptx"), os.path.join(d, "k.cubin")
             pathlib.Path(fp).write_text(ptx)
-            extra = ["-lineinfo"] if False else []
+            extra = ["-lineinfo"] if LINEINFO else []
+            if verbose:
+                extra.append("-v")
             r = subprocess.run(["ptxas", f"-arch=sm_{self.arch}", f"-O{self.opt}", *extra,
                                 fp, "-o", fc],
                                capture_output=True, text=True)
             if r.returncode != 0:
                 raise RuntimeError(f"ptxas fallo ({self.src.name}):\n{r.stderr}")
-            return pathlib.Path(fc).read_bytes()
+            cubin = pathlib.Path(fc).read_bytes()
+        return (cubin, r.stdout + r.stderr) if verbose else cubin
+
+    def recursos(self) -> dict:
+        """Lo que ``ptxas -v`` reporta para la entrada: registros, derrame, stack y shared estatica.
+
+        Solo compila (nvcc + ptxas), asi que corre sin GPU. Con 255 registros o derrame > 0 conviene
+        mirar el kernel antes de tocar su lanzamiento: en sm_86 el banco de 64K registros por SM
+        limita los bloques residentes tanto como la shared.
+        """
+        _, salida = self._ensamblar(self.ptx(), verbose=True)
+        res = dict(registros=0, derrame_st=0, derrame_ld=0, stack=0, smem=0)
+        actual = None
+        for linea in salida.splitlines():
+            m = re.search(r"Compiling entry function '([^']+)'", linea)
+            if m:
+                actual = m.group(1)
+                continue
+            if actual != self.entrada:
+                continue
+            for clave, patron in (("stack", r"(\d+) bytes stack frame"),
+                                  ("derrame_st", r"(\d+) bytes spill stores"),
+                                  ("derrame_ld", r"(\d+) bytes spill loads"),
+                                  ("registros", r"Used (\d+) registers"),
+                                  ("smem", r"(\d+) bytes smem")):
+                m = re.search(patron, linea)
+                if m:
+                    res[clave] = int(m.group(1))
+        return res
 
     @torch.compiler.disable
     def cargar(self, ptx_texto: str | None = None):
