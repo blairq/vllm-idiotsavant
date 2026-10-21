@@ -266,12 +266,21 @@ def _defs_escribir() -> list[str]:
     return []
 
 
+# Tokens por bloque de la decuantizacion del prefill (sk18h_decuant_tile, 8 warps). 0 = el kernel de
+# siempre (1 warp por token). Bit a bit iguales: ver tests/idiotsavant/test_decuant.py.
+DECUANT_TT = 32
+
+
+def _entrada_decuant() -> str:
+    return "sk18h_decuant_tile" if DECUANT_TT else "sk18h_decuant"
+
+
 def _defs_decuant() -> list[str]:
-    return []
+    return [f"-DTT={DECUANT_TT}"] if DECUANT_TT else []
 
 
 def _warps_decuant() -> int:
-    return 1
+    return 8 if DECUANT_TT else 1
 
 
 def _defs_sk30() -> list[str]:
@@ -311,7 +320,8 @@ def _kernels(md="int8"):
                   prep=Kernel('sk18h_prep2.cu',
                               'sk18h_prep2', defs=arb, warps=1),
                   union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs, warps=1),
-                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=_defs_decuant(), warps=_warps_decuant()),
+                  decuant=Kernel("sk18h_decuant.cu", _entrada_decuant(), defs=_defs_decuant(), warps=_warps_decuant()),
+                  decuant1=Kernel("sk18h_decuant.cu", "sk18h_decuant", warps=1),
                   salida=Kernel("sk18h_salida.cu", "sk18h_salida", warps=1))
         if _arbol():
             ks["prep30"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=arb + ["-DQSF=1"], warps=1)
@@ -814,7 +824,11 @@ def decuantizar_kv(impl, kv_cache, ids, out=None):
     mo = modo(impl)
     ks = _kernels(mo)
     if mo != "int4":
-        ks["decuant"].lanzar((n, bs), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16), blk, bs, nh])
+        if DECUANT_TT and bs % 16 == 0 and nh <= 2:
+            ks["decuant"].lanzar((n, -(-bs // DECUANT_TT)), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16),
+                                                             blk, bs, nh])
+        else:
+            ks["decuant1"].lanzar((n, bs), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16), blk, bs, nh])
         return kv
     ids4 = ids
     if c.lado is not None:
