@@ -20,6 +20,7 @@ Uso tipico::
 from __future__ import annotations
 
 import contextlib
+import itertools
 import math
 import types
 
@@ -33,6 +34,7 @@ QD = 256
 NH = 2          # cabezas KV por rank
 G = 6           # cabezas Q por cabeza KV
 BS = 880        # tokens por pagina (bloque del hibrido)
+_pasos = itertools.count()
 
 
 def configurar(max_num_seqs=11, max_model_len=131072, max_num_batched_tokens=8192, arbol=True,
@@ -142,7 +144,10 @@ class Escenario:
             max_query_len=int(max(qlens)), num_actual_tokens=nt, causal=True,
             seq_threshold_3D=None, num_par_softmax_segments=None, softmax_segm_output=None,
             softmax_segm_max=None, softmax_segm_expsum=None, mm_prefix_range_tensor=None,
-            rswa_prefix_lens=None, rswa_window=None)
+            rswa_prefix_lens=None, rswa_window=None,
+            # clave unica del paso: los planes de FlashInfer y del prefill entero se cachean por clave,
+            # y un id(md) reciclado con el mismo largo reusaria el plan de otro escenario
+            isv_clave=("sintetico", next(_pasos)))
 
     def query(self, n):
         return (torch.randn(n, NH * G, QD, generator=self.gen, device=self.dev) * 1.5).half()
