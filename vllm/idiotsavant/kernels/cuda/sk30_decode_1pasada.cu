@@ -73,6 +73,9 @@ __device__ __forceinline__ unsigned i8x2_a_h2(unsigned short u) {
 #else
 #define NKB 2
 #endif
+#ifndef VCG
+#define VCG 0            // V con cp.async.cg (sin pasar por L1): V no se reusa ni dentro del bloque ni entre bloques,
+#endif                   // asi que .ca solo ensucia L1 (y las metricas de hit rate de L1). Resultado bit a bit igual.
 __device__ __forceinline__ int paso_grupo(const int* __restrict__ seqlen, int b, int B, int GMAX) {
 #if BAL
     int tot = 0;
@@ -190,8 +193,13 @@ sk30_decode(const signed char* __restrict__ Qi,     // [B, NH, RB, 256] int8 (q 
             off -= p1 ? BS : 0;
             const signed char* src = (p1 ? base1 : base0) + (KOFF + (size_t)(h * QD + d) * BS + off);
             const int bytes = ok ? min(16, k_fin - kk) : 0;
+#if VCG
+            asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;\n"
+                         :: "r"(sdir(sV + (st * QD + d) * VST + tr * 16)), "l"(src), "r"(bytes));
+#else
             asm volatile("cp.async.ca.shared.global [%0], [%1], 16, %2;\n"
                          :: "r"(sdir(sV + (st * QD + d) * VST + tr * 16)), "l"(src), "r"(bytes));
+#endif
         }
         // escalas: 64 keys x (skf, svf) de la cabeza h
         if (hacerVE && tid < TK) {

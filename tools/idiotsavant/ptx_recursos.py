@@ -34,7 +34,7 @@ def _produccion():
     return [
         ("sk18h_escribir2.cu", "sk18h_escribir2", A._defs_escribir(), 1, 0),
         ("sk18h_prep2.cu", "sk18h_prep2", arb + ["-DQSF=1"], 1, 0),
-        ("sk30_decode_1pasada.cu", "sk30_decode", A._defs_sk30(), 4 * A.SK30_NQ, A.SH_30),
+        ("sk30_decode_1pasada.cu", "sk30_decode", A._defs_sk30(), 4 * A.SK30_NQ, A.sh_30()),
         ("sk30_decode_1pasada.cu", "sk30_union", [], 8, 0),
         ("sk18h_decuant.cu", "sk18h_decuant", A._defs_decuant(), A._warps_decuant(), 0),
         ("sk18h_batch2.cu", "sk18h_batch2", d + arb, 4, A.SH_H),
