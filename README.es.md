@@ -15,6 +15,8 @@ vLLM v0.29.0 con las optimizaciones para servir
 en 2× RTX 3090 (sm_86), configurado solo con flags de vLLM.
 </p>
 
+<p align="center"><b>¿Solo querés ponerlo a andar? <a href="#arranque-rápido">Ir al arranque rápido</a></b> (instalar, bajar, arrancar y probar, todo copiar y pegar).</p>
+
 ---
 
 ## Para qué sirve (y para qué no)
@@ -294,32 +296,141 @@ especulativos), vllm#35975 (sin buffer de `inputs_embeds` en modelos solo texto)
 | `agent`, `persist_disk`, `priority` | `kv_transfer_params` del pedido | — | Etiqueta de agente, persistencia en disco, prioridad |
 | `X-Session-Id`, `-Parent`, `-Root`, `-Agent` | cabeceras HTTP | — | Etiquetado de sesión |
 
-## Uso
+## Arranque rápido
 
-La imagen está publicada en GitHub Container Registry y la compose la baja por defecto:
+**Requisitos:** Linux x86-64 con **2× RTX 3090** (24 GB, sm_86: los kernels están hechos solo para esta
+placa), driver de NVIDIA **580 o más nuevo** (CUDA 13), **32 GB de RAM** y **~60 GB libres de disco**
+(imagen ~15 GB, modelo y borrador ~20 GB, caches). Los comandos son para Ubuntu/Debian; se copian y
+pegan en orden.
+
+**1. Docker** (saltear si `docker --version` ya funciona)
 
 ```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER" && newgrp docker
+```
+
+**2. NVIDIA Container Toolkit** (saltear si `docker run --rm --gpus all ubuntu nvidia-smi` ya muestra las dos placas)
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+docker run --rm --gpus all ubuntu nvidia-smi
+```
+
+**3. Compose y plantilla de chat**
+
+```bash
+mkdir -p ~/idiotsavant && cd ~/idiotsavant
+curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml
+curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/qwen-froggeric-chat-template.jinja
+```
+
+**4. Imagen, modelo y borrador** (~35 GB de descarga; el `hf` viene adentro de la imagen)
+
+```bash
+IMG=ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+docker pull $IMG
+for m in qwen3.8_27b_idiotSavant_sm_86 qwen3.8_27b_idiotSavant_sm_86_dflash2; do
+  docker run --rm -v "$PWD/models:/models" --entrypoint hf $IMG \
+    download BlairQ/$m --local-dir /models/$m --exclude "reproducir/*"
+done
+```
+
+**5. Arrancar** (el primer arranque tarda varios minutos: compila los kernels y los grafos CUDA)
+
+```bash
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+until curl -sf http://localhost:8000/health > /dev/null; do sleep 10; done; echo "listo"
+```
+
+**6. Probar**
+
+```bash
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer idiotsavantftw" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen3.8",
+       "messages": [{"role": "user", "content": "¿Cuál es la capital de Francia? Respondé en una oración."}],
+       "chat_template_kwargs": {"enable_thinking": false},
+       "max_tokens": 64}'
+```
+
+La API es compatible con OpenAI en `http://<host>:8000/v1`, con el modelo `qwen3.8`.
+
+**Configuración.** Sin archivo `.env` el servidor escucha en el puerto 8000 con la clave
+`idiotsavantftw` y guarda modelos y caches en `./models` y `./cache`. Para cambiar algo de eso:
+
+```bash
+curl -fsSLo .env https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/.env.example
+nano .env   # clave, puerto, rutas, límite de memoria
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+```
+
+Para conectar el servidor a una red de Docker existente con IP fija (un proxy inverso, otros
+contenedores) o fijarlo a ciertas CPUs, bajar también `docker-compose.network.yml` y agregar
+`-f docker-compose.network.yml` a los comandos.
+
+**Comandos de todos los días**
+
+```bash
+docker compose -f docker-compose.qwen38-27b-sm86.yml logs -f vllm-server   # logs
+docker compose -f docker-compose.qwen38-27b-sm86.yml down                  # parar
+docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm clear-caches # limpiar caches JIT (con el servidor parado)
+```
+
+## Desarrollo
+
+**Estructura**
+
+| Ruta | Qué hay |
+|---|---|
+| `vllm/idiotsavant/` | Los módulos del fork: opciones, reserva de memoria, lado Python de los kernels, lógica de scheduler y caches |
+| `vllm/idiotsavant/kernels/` | Kernels PTX (`.cu`, se compilan en runtime con `nvcc`/`ptxas` y quedan en cache) y la extensión Marlin S16 (se compila en la imagen) |
+| `vllm/` (el resto) | vLLM v0.29.0; cada cambio a un archivo de upstream lleva un comentario `[PNxxx]` |
+| `docs/idiotsavant/` | Inventario de los parches integrados y de las viejas variables de entorno → flags nuevos |
+| `docker/` | `Dockerfile.idiotsavant` y las compose |
+| `tools/idiotsavant/` | Herramientas de prueba en GPU: batería funcional y estrés de memoria y admisión |
+
+`main` es vLLM v0.29.0 más el fork; el tag `idiotsavant-base` marca la primera integración. Para
+seguir a upstream: `git remote add upstream https://github.com/vllm-project/vllm.git`.
+
+**Construir y correr una imagen propia**
+
+```bash
+git clone https://github.com/blairq/vllm-idiotsavant.git && cd vllm-idiotsavant
+docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:dev .
 cd docker/idiotsavant
-docker compose -f docker-compose.qwen38-27b-sm86.yml up -d   # baja ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:dev docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
 ```
 
-Para construirla vos (unos 15 GB; compila Marlin S16 para sm_86) y usar esa:
+La imagen parte de la oficial `vllm/vllm-openai:v0.29.0` y superpone el paquete `vllm/` de este repo,
+así que un cambio solo de Python no necesita compilar vLLM. Los kernels `.cu` editados se recompilan
+en el primer uso; después de cambiarlos, o para comparar dos builds, correr antes `clear-caches`.
+
+**Pruebas**
 
 ```bash
-docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
-VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:latest docker compose -f docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml up -d
+ruff check vllm/idiotsavant tools/idiotsavant
+python3 tools/idiotsavant/bateria.py --url http://localhost:8000 --salida resultado.json
+python3 tools/idiotsavant/estres.py                                   # 13 pedidos simultáneos, prefijo compartido
+python3 tools/idiotsavant/estres.py --distintos                       # contextos distintos de 30-110k
+python3 tools/idiotsavant/estres.py --distintos --agente primary --rondas 1   # alta prioridad: todos prefillean juntos
 ```
 
-La compose [`docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml`](docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml)
-es la configuración de producción, comentada flag por flag. Además de los flags nuevos, necesita
-`VLLM_MARLIN_INPUT_DTYPE=int8` (W4A8; sin esto corre W4A16), `--attention-backend TRITON_ATTN` y
-`--kv-cache-dtype int8_per_token_head` (decode entero). Las rutas del host, la IP y la red externa
-`lanbridge` son las de la máquina del autor; hay que ajustarlas. El primer arranque con las caches
-vacías compila además los kernels PTX. Para limpiar las caches JIT, con el servidor parado:
+El grupo `det` de la batería guarda textos greedy que se pueden comparar token por token entre dos
+builds. Hay que compararlos con las caches vacías de los dos lados: el estado de la cache de autotune
+de Inductor cambia los últimos bits de la salida. Cualquier error en el estrés es una falla.
 
-```bash
-docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm limpiar-caches
-```
+**Depuración.** Al arrancar, el log informa la memoria reservada antes de que vLLM dimensione la KV
+(`[reserva] ... MiB creados antes del perfil de memoria`) y el tamaño de la KV. Ante una excepción de
+GPU, el driver escribe un volcado en `CACHE_DIR/vllm/idiotsavant/volcados/` (varios GB; se lee con
+`cuda-gdb` y después se borra).
 
 ## Origen y créditos
 

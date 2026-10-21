@@ -1,0 +1,18 @@
+# Optional, on top of docker-compose.qwen38-27b-sm86.yml: attaches the server to an existing Docker
+# network with a fixed IP (for a reverse proxy or other containers) and pins it to some CPUs.
+# Values come from the .env (see .env.example):
+#
+#   docker compose -f docker-compose.qwen38-27b-sm86.yml -f docker-compose.network.yml up -d
+services:
+  vllm-server:
+    cpuset: "${CPUSET:?set CPUSET in .env, e.g. 0-7}"
+    networks:
+      external_net:
+        ipv4_address: ${NET_IP:?set NET_IP in .env}
+        aliases:
+          - vllm-server
+
+networks:
+  external_net:
+    name: ${NET_NAME:?set NET_NAME in .env (an existing Docker network)}
+    external: true

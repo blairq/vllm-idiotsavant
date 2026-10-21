@@ -15,6 +15,8 @@ vLLM v0.29.0 with the optimizations needed to serve
 on 2× RTX 3090 (sm_86), configured with vLLM flags only.
 </p>
 
+<p align="center"><b>Just want to run it? <a href="#quick-start">Jump to the quick start</a></b> (install, download, start and test, all copy and paste).</p>
+
 ---
 
 ## What it is for (and what it is not)
@@ -281,32 +283,141 @@ vllm#53505 (DFlash KV).
 | `agent`, `persist_disk`, `priority` | request `kv_transfer_params` | — | Agent label, disk persistence, priority |
 | `X-Session-Id`, `-Parent`, `-Root`, `-Agent` | HTTP headers | — | Session tagging |
 
-## Usage
+## Quick start
 
-The image is published on GitHub Container Registry and the compose file pulls it by default:
+**Requirements:** Linux x86-64 with **2× RTX 3090** (24 GB, sm_86: the kernels are built for this GPU
+only), NVIDIA driver **580 or newer** (CUDA 13), **32 GB of RAM** and **~60 GB of free disk**
+(image ~15 GB, model and drafter ~20 GB, caches). The commands below are for Ubuntu/Debian; copy and
+paste them in order.
+
+**1. Docker** (skip if `docker --version` already works)
 
 ```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER" && newgrp docker
+```
+
+**2. NVIDIA Container Toolkit** (skip if `docker run --rm --gpus all ubuntu nvidia-smi` already shows both GPUs)
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
+docker run --rm --gpus all ubuntu nvidia-smi
+```
+
+**3. Compose file and chat template**
+
+```bash
+mkdir -p ~/idiotsavant && cd ~/idiotsavant
+curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml
+curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/qwen-froggeric-chat-template.jinja
+```
+
+**4. Image, model and drafter** (~35 GB to download; the `hf` CLI comes inside the image)
+
+```bash
+IMG=ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+docker pull $IMG
+for m in qwen3.8_27b_idiotSavant_sm_86 qwen3.8_27b_idiotSavant_sm_86_dflash2; do
+  docker run --rm -v "$PWD/models:/models" --entrypoint hf $IMG \
+    download BlairQ/$m --local-dir /models/$m --exclude "reproducir/*"
+done
+```
+
+**5. Start** (the first start takes several minutes: it compiles the kernels and CUDA graphs)
+
+```bash
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+until curl -sf http://localhost:8000/health > /dev/null; do sleep 10; done; echo "ready"
+```
+
+**6. Test it**
+
+```bash
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer idiotsavantftw" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen3.8",
+       "messages": [{"role": "user", "content": "What is the capital of France? Answer in one sentence."}],
+       "chat_template_kwargs": {"enable_thinking": false},
+       "max_tokens": 64}'
+```
+
+The API is OpenAI-compatible at `http://<host>:8000/v1`, model name `qwen3.8`.
+
+**Configuration.** Without a `.env` file the server listens on port 8000 with the API key
+`idiotsavantftw` and keeps models and caches in `./models` and `./cache`. To change any of that:
+
+```bash
+curl -fsSLo .env https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/.env.example
+nano .env   # API key, port, paths, memory limit
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+```
+
+To attach the server to an existing Docker network with a fixed IP (a reverse proxy, other
+containers) or pin it to CPUs, also download `docker-compose.network.yml` and add
+`-f docker-compose.network.yml` to the commands.
+
+**Everyday commands**
+
+```bash
+docker compose -f docker-compose.qwen38-27b-sm86.yml logs -f vllm-server   # logs
+docker compose -f docker-compose.qwen38-27b-sm86.yml down                  # stop
+docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm clear-caches # clear JIT caches (server stopped)
+```
+
+## Development
+
+**Layout**
+
+| Path | What |
+|---|---|
+| `vllm/idiotsavant/` | The fork's modules: options, memory reservation, kernels' Python side, scheduler and cache logic |
+| `vllm/idiotsavant/kernels/` | PTX kernels (`.cu`, compiled at runtime with `nvcc`/`ptxas` and cached) and the Marlin S16 extension (built in the image) |
+| `vllm/` (rest) | vLLM v0.29.0; every change to upstream files is marked with a `[PNxxx]` comment |
+| `docs/idiotsavant/` | Inventory of the integrated patches and of the old environment variables → new flags |
+| `docker/` | `Dockerfile.idiotsavant` and the compose files |
+| `tools/idiotsavant/` | GPU test tools: functional battery and memory/admission stress |
+
+`main` is vLLM v0.29.0 plus the fork; the tag `idiotsavant-base` marks the first integration. To
+follow upstream: `git remote add upstream https://github.com/vllm-project/vllm.git`.
+
+**Build and run your own image**
+
+```bash
+git clone https://github.com/blairq/vllm-idiotsavant.git && cd vllm-idiotsavant
+docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:dev .
 cd docker/idiotsavant
-docker compose -f docker-compose.qwen38-27b-sm86.yml up -d   # pulls ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:dev docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
 ```
 
-To build it yourself (about 15 GB; it compiles Marlin S16 for sm_86) and use it instead:
+The image starts from the official `vllm/vllm-openai:v0.29.0` and overlays this repo's `vllm/`
+package, so a Python-only change does not need to compile vLLM. Edited `.cu` kernels are recompiled
+on first use; after changing them, or when comparing two builds, run `clear-caches` first.
+
+**Checks**
 
 ```bash
-docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
-VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:latest docker compose -f docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml up -d
+ruff check vllm/idiotsavant tools/idiotsavant
+python3 tools/idiotsavant/bateria.py --url http://localhost:8000 --salida resultado.json
+python3 tools/idiotsavant/estres.py                                   # 13 concurrent requests, shared prefix
+python3 tools/idiotsavant/estres.py --distintos                       # distinct 30-110k contexts
+python3 tools/idiotsavant/estres.py --distintos --agente primary --rondas 1   # high priority: all prefill at once
 ```
 
-The compose file [`docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml`](docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml)
-is the production configuration, commented flag by flag. It needs, besides the new flags,
-`VLLM_MARLIN_INPUT_DTYPE=int8` (W4A8; without it the model runs W4A16), `--attention-backend
-TRITON_ATTN` and `--kv-cache-dtype int8_per_token_head` (integer decode). Host paths, IP and the
-external `lanbridge` network are those of the author's machine; adjust them. The first start with
-empty caches also compiles the PTX kernels. To clear the JIT caches, with the server stopped:
+The battery's `det` group writes greedy texts that can be compared token by token between two
+builds. Compare them with empty caches on both sides: the state of Inductor's autotune cache changes
+the last bits of the output. Any error in the stress runs is a failure.
 
-```bash
-docker compose -f docker-compose.qwen38-27b-sm86.yml run --rm limpiar-caches
-```
+**Debugging.** At startup the log reports the memory reserved before vLLM sizes the KV cache
+(`[reserva] ... MiB creados antes del perfil de memoria`) and the KV size. On a GPU exception the
+driver writes a core dump to `CACHE_DIR/vllm/idiotsavant/volcados/` (several GB; read it with
+`cuda-gdb`, then delete it).
 
 ## Origin and credits
 

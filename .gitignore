@@ -255,3 +255,8 @@ vllm/grpc/vllm_engine_pb2.pyi
 # Ignore generated cpu headers 
 csrc/cpu/cpu_attn_dispatch_generated.h
 vllm/idiotsavant/kernels/marlin_s16/build/
+
+# vllm-idiotsavant quick start folders (docker/idiotsavant)
+docker/idiotsavant/models/
+docker/idiotsavant/cache/
+docker/idiotsavant/kv-offload/
