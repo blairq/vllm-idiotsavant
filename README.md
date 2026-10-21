@@ -286,18 +286,58 @@ vllm#53505 (DFlash KV).
 ## Quick start
 
 **Requirements:** Linux x86-64 with **2× RTX 3090** (24 GB, sm_86: the kernels are built for this GPU
-only), NVIDIA driver **580 or newer** (CUDA 13), **32 GB of RAM** and **~60 GB of free disk**
+only), NVIDIA driver **580 or newer** (CUDA 13; the P2P build below, 610.57.04, is recommended), **32 GB of RAM** and **~60 GB of free disk**
 (image ~15 GB, model and drafter ~20 GB, caches). The commands below are for Ubuntu/Debian; copy and
 paste them in order.
 
-**1. Docker** (skip if `docker --version` already works)
+**1. NVIDIA driver with P2P** (strongly recommended). The two GPUs exchange their partial results on
+every layer; with GPU-to-GPU (P2P) copies this goes directly over PCIe. The stock driver does not enable
+P2P on GeForce cards: without it the server still works (the P2P all-reduce turns itself off and NCCL
+goes through host memory), but decoding is slower. The P2P driver is NVIDIA's open kernel module with
+the [aikitoria/open-gpu-kernel-modules](https://github.com/aikitoria/open-gpu-kernel-modules) patch.
+In the BIOS, enable *Above 4G Decoding* and *Resizable BAR* (and disable ACS if the board offers it). Then:
+
+```bash
+# IOMMU in passthrough mode (AMD; on Intel use intel_iommu=on instead of amd_iommu=on)
+sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/&amd_iommu=on iommu=pt /' /etc/default/grub && sudo update-grub
+# Replace the distribution's driver: official 610.57.04 user-space libraries, without its kernel modules
+sudo apt-get remove --purge -y '^nvidia-.*' '^libnvidia-.*' '^xserver-xorg-video-nvidia.*'
+sudo apt-get install -y build-essential dkms git linux-headers-$(uname -r)
+wget https://us.download.nvidia.com/XFree86/Linux-x86_64/610.57.04/NVIDIA-Linux-x86_64-610.57.04.run
+sudo sh NVIDIA-Linux-x86_64-610.57.04.run --silent --no-kernel-modules
+# Open kernel modules with the P2P patch, through DKMS (rebuilt on kernel updates)
+sudo git clone -b 610.57.04-p2p https://github.com/aikitoria/open-gpu-kernel-modules.git /usr/src/nvidia-p2p-610.57.04
+sudo tee /usr/src/nvidia-p2p-610.57.04/dkms.conf > /dev/null <<'EOF'
+PACKAGE_NAME="nvidia-p2p"
+PACKAGE_VERSION="610.57.04"
+AUTOINSTALL="yes"
+BUILT_MODULE_NAME[0]="nvidia";         BUILT_MODULE_LOCATION[0]="kernel-open"; DEST_MODULE_LOCATION[0]="/updates/dkms"
+BUILT_MODULE_NAME[1]="nvidia-uvm";     BUILT_MODULE_LOCATION[1]="kernel-open"; DEST_MODULE_LOCATION[1]="/updates/dkms"
+BUILT_MODULE_NAME[2]="nvidia-modeset"; BUILT_MODULE_LOCATION[2]="kernel-open"; DEST_MODULE_LOCATION[2]="/updates/dkms"
+BUILT_MODULE_NAME[3]="nvidia-drm";     BUILT_MODULE_LOCATION[3]="kernel-open"; DEST_MODULE_LOCATION[3]="/updates/dkms"
+BUILT_MODULE_NAME[4]="nvidia-peermem"; BUILT_MODULE_LOCATION[4]="kernel-open"; DEST_MODULE_LOCATION[4]="/updates/dkms"
+MAKE[0]="env -u KERNELRELEASE make -j$(nproc) KERNELRELEASE=\"\" KERNEL_UNAME=${kernelver} modules"
+EOF
+sudo dkms install nvidia-p2p/610.57.04
+sudo reboot
+```
+
+After the reboot, check that P2P is on (`OK` between the two GPUs, not `NS`) and that BAR1 is large
+(32768 MiB on a 3090):
+
+```bash
+nvidia-smi topo -p2p r
+nvidia-smi -q | grep -A1 "BAR1 Memory Usage"
+```
+
+**2. Docker** (skip if `docker --version` already works)
 
 ```bash
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker "$USER" && newgrp docker
 ```
 
-**2. NVIDIA Container Toolkit** (skip if `docker run --rm --gpus all ubuntu nvidia-smi` already shows both GPUs)
+**3. NVIDIA Container Toolkit** (skip if `docker run --rm --gpus all ubuntu nvidia-smi` already shows both GPUs)
 
 ```bash
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
@@ -310,7 +350,7 @@ sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart doc
 docker run --rm --gpus all ubuntu nvidia-smi
 ```
 
-**3. Compose file and chat template**
+**4. Compose file and chat template**
 
 ```bash
 mkdir -p ~/idiotsavant && cd ~/idiotsavant
@@ -318,18 +358,9 @@ curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docke
 curl -fsSLO https://raw.githubusercontent.com/blairq/vllm-idiotsavant/main/docker/idiotsavant/qwen-froggeric-chat-template.jinja
 ```
 
-**4. Image, model and drafter** (~35 GB to download; the `hf` CLI comes inside the image)
-
-```bash
-IMG=ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
-docker pull $IMG
-for m in qwen3.8_27b_idiotSavant_sm_86 qwen3.8_27b_idiotSavant_sm_86_dflash2; do
-  docker run --rm -v "$PWD/models:/models" --entrypoint hf $IMG \
-    download BlairQ/$m --local-dir /models/$m --exclude "reproducir/*"
-done
-```
-
-**5. Start** (the first start takes several minutes: it compiles the kernels and CUDA graphs)
+**5. Start.** The first start downloads the image (~7 GB), the model and the drafter (~20 GB, into
+`./models`) and compiles the kernels and CUDA graphs: count on 15-30 minutes depending on your
+connection. Later starts take a few minutes.
 
 ```bash
 docker compose -f docker-compose.qwen38-27b-sm86.yml up -d

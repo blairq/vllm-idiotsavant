@@ -4,9 +4,9 @@
 #   https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86
 #   https://huggingface.co/BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2
 #
-# Put this file and qwen-froggeric-chat-template.jinja in a folder, download both models into
-# ./models (see README) and run (optionally with a .env, see .env.example; the default API key
-# is "idiotsavantftw"):
+# Put this file and qwen-froggeric-chat-template.jinja in a folder and run (optionally with a .env,
+# see .env.example; the default API key is "idiotsavantftw"). The first start downloads the model
+# and the drafter from Hugging Face (~20 GB) into ./models:
 #
 #   docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
 #
@@ -28,7 +28,7 @@ services:
     ports:
       - "${PORT:-8000}:8320"
     volumes:
-      - ${MODELS_DIR:-./models}:/root/.cache/huggingface
+      - ${MODELS_DIR:-./models}:/root/.cache/huggingface        # Hugging Face cache (model and drafter)
       - ${KV_DISK_DIR:-./kv-offload}:/kv-offload                # only used if the disk KV tier is enabled
       - &cache_vllm ${CACHE_DIR:-./cache}/vllm:/root/.cache/vllm
       - &cache_torch ${CACHE_DIR:-./cache}/torch:/root/.cache/torch
@@ -74,7 +74,7 @@ services:
       interval: 60s
       timeout: 130s
       retries: 2
-      start_period: 900s
+      start_period: 3600s
     restart: unless-stopped
     shm_size: "16gb"
     ipc: host
@@ -88,7 +88,7 @@ services:
               count: all
               capabilities: [gpu]
     command:
-      - /root/.cache/huggingface/qwen3.8_27b_idiotSavant_sm_86
+      - ${MODEL:-BlairQ/qwen3.8_27b_idiotSavant_sm_86}   # downloaded on first start into MODELS_DIR
       - --served-model-name
       - qwen3.8_27b_idiotSavant_sm_86
       - qwen3.8
@@ -190,7 +190,7 @@ services:
       #   draft_vocab_size     drafts over the 64k most frequent tokens
       #   draft_residual_scale keeps the drafter's residual stream within fp16
       - --speculative-config
-      - '{"method":"dflash","model":"/root/.cache/huggingface/qwen3.8_27b_idiotSavant_sm_86_dflash2","num_speculative_tokens":8,"tree_drafting":true,"draft_vocab_size":65536,"draft_residual_scale":32}'
+      - '{"method":"dflash","model":"${DRAFT_MODEL:-BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2}","num_speculative_tokens":8,"tree_drafting":true,"draft_vocab_size":65536,"draft_residual_scale":32}'
       - --host
       - "0.0.0.0"
       - --port
