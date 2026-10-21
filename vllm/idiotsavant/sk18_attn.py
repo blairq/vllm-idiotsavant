@@ -129,10 +129,26 @@ NW8 = 8
 
 # Grupos de keys de SK-30: una ola con 1 bloque por SM, SMs / nh (82 / 2 = 41 en la 3090; 03-10: -11 a -31% contra 128).
 SK30_NQ = 2
+# Variantes de SK-30 (ver tests/idiotsavant/test_sk30.py, que las compara bit a bit y las mide):
+#   SK30_VCG  V con cp.async.cg en vez de .ca. Bit a bit igual; V no se reusa, L1 no aporta.
+#   SK30_PING Q.K del tile i+1 emitido junto al softmax del tile i (anillo de 3 para K). Bit a bit
+#             igual; con NQ=2 sube el derrame de 28 a 52 B (ptxas sm_86), por eso queda apagado
+#             hasta medirlo en la placa: prenderlo solo si test_sk30.py --medir lo da mas rapido.
+#   SK30_PHL  P.V en dos planos int8 (1) o en uno (0). 0 hace la mitad de los mma de P.V y no
+#             derrama (244 registros), pero cambia la cuenta: decidir con el error que imprime el
+#             test y con la evaluacion de KL del modelo, no solo con la velocidad.
+SK30_VCG = 1
+SK30_PING = 0
+SK30_PHL = 1
 # V rotada en d al escribir (Hadamard/16 con signos, como K): con canales outlier el error int8 de V baja de
 # 2,0% a 0,64% (tests/proto/sk30_rot_pv.py). Solo con SK-30 (su union des-rota la salida); batch2 no la sabe
 # leer, asi que sin SK-30 queda apagada.
-SH_30 = 2 * 64 * 272 + 2 * 256 * 80 + 64 * 72 * 2 + 2 * 64 * 4 + 2 * SK30_NQ * 64 * 4
+def sh_30() -> int:
+    """Shared dinamica de sk30_decode: K [NKB][64][272] | V [2][256][80] | P [64][72] halves | escalas | maximos.
+    Con PING, K tiene un anillo de 3 y P va en el buffer de K ya consumido (sin su region propia)."""
+    k = (3 if SK30_PING else 2) * 64 * 272
+    p = 0 if SK30_PING else 64 * 72 * 2
+    return k + 2 * 256 * 80 + p + 2 * 64 * 4 + 2 * SK30_NQ * 64 * 4
 
 
 def sh_h(nw: int) -> int:
@@ -259,7 +275,7 @@ def _warps_decuant() -> int:
 
 
 def _defs_sk30() -> list[str]:
-    return [f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"]
+    return [f"-DNQ={SK30_NQ}", "-DPV8=1", f"-DPHL={SK30_PHL}", f"-DVCG={SK30_VCG}", f"-DPING={SK30_PING}"]
 
 
 def _kernels(md="int8"):
@@ -724,7 +740,7 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
             ks["sk30"].lanzar((g30, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
                                               lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g30,
                                               bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
-                                              bf.Lp30[: g30 * R]], shared=SH_30)
+                                              bf.Lp30[: g30 * R]], shared=sh_30())
             ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
                                               bf.Lp30[: g30 * R], seq, g30, B, nh, L, G, output[:nt],
                                               _signos_dev(dev)])
