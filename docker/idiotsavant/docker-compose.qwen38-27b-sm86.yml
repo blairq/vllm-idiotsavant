@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # qwen3.8_27b_idiotSavant_sm_86 + qwen3.8_27b_idiotSavant_sm_86_dflash2
 # vllm-idiotsavant (vLLM v0.29.0 con las optimizaciones en el arbol), 2x RTX 3090 (sm_86), TP=2.
+# Imagen: ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1 (o una propia con VLLM_IDIOTSAVANT_IMAGE=..., ver docker/Dockerfile.idiotsavant).
 #
 # Mismo servicio que genesis-vllm-patches/compose/docker-compose.qwen38-27b-idiotsavant-sm86.yml,
 # sin variables de entorno de parches: lo que era fijo esta en el codigo, lo que depende del
@@ -37,7 +38,7 @@
 
 services:
   vllm-server:
-    image: ${VLLM_IDIOTSAVANT_IMAGE:-vllm-idiotsavant:latest}
+    image: ${VLLM_IDIOTSAVANT_IMAGE:-ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1}
     container_name: vllm-idiotsavant-27b
     # Sin swap (en cgroup v2 la perilla es memswap_limit == mem_limit) y con los nucleos
     # fisicos de un solo socket para el proceso servidor.
@@ -253,7 +254,7 @@ services:
 
   # Servicio de una sola vez (no arranca con `up`): ver "Limpiar las caches" arriba.
   limpiar-caches:
-    image: ${VLLM_IDIOTSAVANT_IMAGE:-vllm-idiotsavant:latest}
+    image: ${VLLM_IDIOTSAVANT_IMAGE:-ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1}
     profiles: [mantenimiento]
     network_mode: none
     volumes:

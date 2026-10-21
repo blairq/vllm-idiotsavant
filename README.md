@@ -283,10 +283,18 @@ vllm#53505 (DFlash KV).
 
 ## Usage
 
+The image is published on GitHub Container Registry and the compose file pulls it by default:
+
+```bash
+cd docker/idiotsavant
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d   # pulls ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+```
+
+To build it yourself (about 15 GB; it compiles Marlin S16 for sm_86) and use it instead:
+
 ```bash
 docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
-cd docker/idiotsavant
-docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:latest docker compose -f docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml up -d
 ```
 
 The compose file [`docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml`](docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml)

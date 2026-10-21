@@ -296,10 +296,18 @@ especulativos), vllm#35975 (sin buffer de `inputs_embeds` en modelos solo texto)
 
 ## Uso
 
+La imagen está publicada en GitHub Container Registry y la compose la baja por defecto:
+
+```bash
+cd docker/idiotsavant
+docker compose -f docker-compose.qwen38-27b-sm86.yml up -d   # baja ghcr.io/blairq/vllm-idiotsavant:v0.29.0-idiotsavant.1
+```
+
+Para construirla vos (unos 15 GB; compila Marlin S16 para sm_86) y usar esa:
+
 ```bash
 docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:latest .
-cd docker/idiotsavant
-docker compose -f docker-compose.qwen38-27b-sm86.yml up -d
+VLLM_IDIOTSAVANT_IMAGE=vllm-idiotsavant:latest docker compose -f docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml up -d
 ```
 
 La compose [`docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml`](docker/idiotsavant/docker-compose.qwen38-27b-sm86.yml)
