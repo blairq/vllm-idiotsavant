@@ -607,7 +607,7 @@ Para cada oportunidad implementada:
 
 ---
 
-## 7. Estado de implementación (rama `claude/clever-ride-uycaba`)
+## 7. Estado de implementación (rama `optimizaciones/sm86`)
 
 Todo se escribió sin GPU. Cada kernel modificado se compiló para sm_86 (NVRTC 12.8 + ptxas) y la
 lógica del plan del prefill entero se verificó en CPU, pero **nada se ejecutó en una 3090**. Los

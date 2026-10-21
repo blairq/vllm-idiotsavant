@@ -1,6 +1,6 @@
 # Optimizaciones del camino sm_86: qué se cambió y cómo probarlo
 
-Rama: `claude/clever-ride-uycaba`. Base: `dacb2e5` (main del fork).
+Rama: `optimizaciones/sm86`. Base: `dacb2e5` (main del fork).
 
 Este documento cubre dos cosas:
 
@@ -216,8 +216,8 @@ dos caminos.
 **A. Imagen nueva desde la rama.** Es lo que vas a usar al final.
 
 ```bash
-git fetch origin claude/clever-ride-uycaba
-git checkout claude/clever-ride-uycaba
+git fetch origin optimizaciones/sm86
+git checkout optimizaciones/sm86
 docker build -f docker/Dockerfile.idiotsavant -t vllm-idiotsavant:sm86opt .
 ```
 
@@ -472,3 +472,49 @@ vllm/idiotsavant/kernels/marlin_s16/src/marlin.cu      MARLIN_SHARED_JUSTA
 vllm/idiotsavant/kernels/marlin_s16/build.py           IDIOTSAVANT_MARLIN_DEFS
 vllm/idiotsavant/marlin_s16.py                         huella con los defines
 ```
+
+---
+
+## Resultados en 2× RTX 3090 (21-10)
+
+Medido contra `main` (`dacb2e5`) con la misma compose, caches vacías al principio y los mismos prompts.
+
+**Exactitud (tests de `tests/idiotsavant/`):**
+
+- Bit a bit iguales, como se esperaba: la decuantización por tiles (TT=16 y 32) contra el kernel viejo, y
+  SK-30 `produccion`/`vcg`/`ping` contra la referencia.
+- La salida greedy del servidor completo es idéntica token por token a la de `main` (6 prompts × 2 corridas).
+- Fallan 4 tests por umbrales puestos sin GPU:
+  - `test_tile_reconstruye_kv` y `test_variantes_de_carga_bit_a_bit[ctx0]`: el error contra fp32 (0,075 y
+    0,0876) también lo tiene el kernel viejo; el umbral de 0,05/0,08 es demasiado justo para la KV sintética
+    con outliers.
+  - `test_prefill_entero_contra_fp32` (2 casos): `PREFILL_SK30` pierde precisión de verdad (error contra
+    fp32 0,077 → 0,088 y 0,053 → 0,072 en prefill desde cero).
+- `correr_todo.sh` llama a `git`, que no está en la imagen, y su pytest levanta el `tests/conftest.py`
+  general de vLLM: hay que copiar `tests/idiotsavant/` fuera del repo y correr pytest ahí.
+
+**Kernels:**
+
+| Cambio | Tiempo | ¿Pierde calidad? |
+|---|---|---|
+| Decuantización por tiles (prendida) | 955 → 338 µs por 64 páginas (2,8×) | no |
+| SK-30 sin derrame + VCG (prendido) | 3–11 % menos en el decode de atención | no |
+| `PREFILL_SK30` (apagado) | 1,25–1,7× más rápido que FlashInfer | sí |
+| `SK30_PHL=0` (apagado) | hasta 10 % más rápido | sí, poco (0,0689 → 0,0696) |
+| `SK30_PING`, `SK30_NQ=4` (apagados) | más lentos | — |
+| Marlin `L2_HINT` / `SHARED_JUSTA` (apagados) | mixto: `down` M=36 +20 %, `gate_up` M=36 −14 % | no |
+
+**Servidor completo** (`tools/idiotsavant/bateria.py`, `estres.py` y `velocidad.py`):
+
+| Escenario | `main` | rama |
+|---|---|---|
+| 8 decodes simultáneos sobre ~27k de contexto (régimen) | 1006 / 1030 tok/s | **1065 / 1072 tok/s (+4–6 %)** |
+| 8 × 2k, 512 de salida (decode agregado) | 387 / 426 tok/s | 385 / 400 tok/s |
+| Prefill 8 × 27k | 2391 / 2447 tok/s | 2403 / 2470 tok/s |
+| Prefill 1 × 55k | 2236 / 2227 tok/s | 2256 / 2252 tok/s |
+| Prefill frío de 163k | 113,6 / 112,1 s | 113,1 / 110,5 s |
+| Estrés (prefijo compartido, distintos de 30–110k, alta prioridad) | 0 errores | 0 errores |
+
+Con lo que viene prendido, la rama gana 4–6 % en decode con contexto largo y muchos pedidos; en el resto
+queda dentro del ruido. El prefill no se mueve: lo dominan Marlin y el GDN. Lo único que lo movería es
+`PREFILL_SK30`, que pierde precisión.
