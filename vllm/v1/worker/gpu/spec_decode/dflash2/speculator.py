@@ -10,6 +10,7 @@ from vllm.config.compilation import CUDAGraphMode
 from vllm.triton_utils import tl, triton
 from vllm.v1.worker.gpu.sample.gumbel import gumbel_noised_argmax
 from vllm.v1.worker.gpu.spec_decode.dflash.speculator import DFlashSpeculator
+from vllm.idiotsavant import dcoco as _g178  # [PN178: corrector DCOCO del borrador]
 
 
 @triton.jit
@@ -212,6 +213,8 @@ class DFlash2Speculator(DFlashSpeculator):
             hidden_states,
             anchor_token_ids,
         )
+        scores = _g178.corregir(self.model.model, scores, candidate_ids, unary_logits,  # [PN178: corrector DCOCO del borrador]
+                                hidden_states)
         self._sample_path(candidate_ids, scores, num_reqs)
         if self.draft_logits is not None:
             self._cache_draft_logits(candidate_ids, num_sample)

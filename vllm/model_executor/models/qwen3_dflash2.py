@@ -21,6 +21,7 @@ from .qwen3_dflash import (
 from .utils import maybe_prefix
 from vllm.idiotsavant import vocab_borrador as _g159  # [PN159: vocabulario recortado del borrador]
 from vllm.idiotsavant import borrador_marlin as _g157  # [PN157: borrador en Marlin]
+from vllm.idiotsavant import dcoco as _g178  # [PN178: corrector DCOCO del borrador]
 
 
 def _grouped_conv(
@@ -264,6 +265,8 @@ class DFlash2Qwen3Model(DFlashQwen3Model):
                 params_dtype=vllm_config.model_config.dtype,
                 prefix=maybe_prefix(prefix, "candidate_selector"),
             )
+        _g178.crear(self, draft_config, self.config.hidden_size,  # [PN178: corrector DCOCO del borrador]
+                    getattr(vllm_config.speculative_config, "dcoco", None))
 
     def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
         return super().embed_input_ids(input_ids) * self.input_embedding_scale
@@ -271,6 +274,9 @@ class DFlash2Qwen3Model(DFlashQwen3Model):
 
 class DFlash2Qwen3ForCausalLM(DFlashQwen3ForCausalLM):
     model_cls = DFlash2Qwen3Model
+
+    def load_weights(self, weights):  # [PN178: corrector DCOCO del borrador]
+        return _g178.cargar(self.model, super().load_weights, weights)
 
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = "") -> None:
         super().__init__(vllm_config=vllm_config, prefix=prefix)

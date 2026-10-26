@@ -189,6 +189,8 @@ services:
       #   tree_drafting        8-node tree instead of a chain
       #   draft_vocab_size     drafts over the 64k most frequent tokens
       #   draft_residual_scale keeps the drafter's residual stream within fp16
+      # DCOCO corrector: DRAFT_MODEL=BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2_dcoco picks it up on its own
+      # (the checkpoint ships the head); add "dcoco":false to drop it, "dcoco":true to require it.
       - --speculative-config
       - '{"method":"dflash","model":"${DRAFT_MODEL:-BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2}","num_speculative_tokens":8,"tree_drafting":true,"draft_vocab_size":65536,"draft_residual_scale":32}'
       - --host

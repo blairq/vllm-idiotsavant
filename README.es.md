@@ -156,6 +156,13 @@ Se compilan en runtime (`nvcc -ptx` → `ptxas` → `cuModuleLoadData`) y quedan
   `"draft_vocab_size"`.
 - **Escala del residual del borrador**: divide el residual del borrador al cargarlo para que entre
   en fp16 (exacto). Clave: `"draft_residual_scale"`.
+- **Corrector DCOCO del borrador** ([arXiv 2610.12570](https://arxiv.org/abs/2610.12570)): un MLP
+  chico vuelve a puntuar las transiciones entre los candidatos de posiciones vecinas, con un estado
+  de par y el embedding de cada candidato, y se suma a la tabla del selector antes de armar la
+  cadena o el árbol. Necesita un borrador DFlash2-DCOCO
+  (`BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2_dcoco`, que se entrena en
+  `entrenamiento/dflash2-dcoco/` de genesis-vllm-patches). Clave: `"dcoco"` (por defecto se usa si
+  el checkpoint trae la cabeza; `true` la exige, `false` la descarta).
 - **Proyección del contexto del borrador en grafos CUDA**, y las lineales densas del borrador en
   Marlin.
 - **Tamaños de grafo CUDA para la especulación**: con decodificación especulativa, los tamaños de
@@ -286,6 +293,7 @@ especulativos), vllm#35975 (sin buffer de `inputs_embeds` en modelos solo texto)
 | `tree_drafting` | `--speculative-config` | `false` | Borrador en árbol (solo dflash) |
 | `draft_vocab_size` | `--speculative-config` | `0` (completo) | Vocabulario de candidatos del borrador (FR-Spec) |
 | `draft_residual_scale` | `--speculative-config` | `0` (apagado) | Divisor del residual del borrador |
+| `dcoco` | `--speculative-config` | sin definir (si el checkpoint la trae) | Corrector DCOCO del borrador DFlash2: `true` lo exige, `false` lo descarta |
 | `agents` | `kv_connector_extra_config` | lista fija | Allowlist de etiquetas de agente en las métricas |
 | `max_size_gb` | tier `fs` en `secondary_tiers` | `30.0` | Cuota de disco por rango |
 | `target_ratio` | tier `fs` | `0.85` | Poda hasta esta fracción de la cuota |
