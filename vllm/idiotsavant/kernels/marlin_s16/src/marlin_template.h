@@ -894,7 +894,11 @@ __global__ void Marlin(
             b_gl_rd + (i % count) * threads +
             b_gl_stride * (i / count) * div_ceil(threads, b_sh_stride);
 
+  #if MARLIN_L2_HINT
+        cp_async4_stream(&sh_b_stage[threads * i + threadIdx.x], &B[b_gl_idx]);
+  #else
         cp_async4(&sh_b_stage[threads * i + threadIdx.x], &B[b_gl_idx]);
+  #endif
       }
 
       b_gl_rd += b_gl_rd_delta_o;

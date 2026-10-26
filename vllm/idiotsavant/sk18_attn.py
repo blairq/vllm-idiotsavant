@@ -129,10 +129,28 @@ NW8 = 8
 
 # Grupos de keys de SK-30: una ola con 1 bloque por SM, SMs / nh (82 / 2 = 41 en la 3090; 03-10: -11 a -31% contra 128).
 SK30_NQ = 2
+# Variantes de SK-30 (ver tests/idiotsavant/test_sk30.py, que las compara bit a bit y las mide):
+#   SK30_VCG  V con cp.async.cg en vez de .ca. Bit a bit igual; V no se reusa, L1 no aporta.
+#   SK30_PING Q.K del tile i+1 emitido junto al softmax del tile i (anillo de 3 para K). Bit a bit
+#             igual; con NQ=2 pasa de 177 registros sin derrame a 255 con 24 B (ptxas sm_86), por eso
+#             queda apagado hasta medirlo: prenderlo solo si test_sk30.py --medir lo da mas rapido.
+#   SK30_PHL  P.V en dos planos int8 (1) o en uno (0). 0 hace la mitad de los mma de P.V, pero
+#             cambia la cuenta: decidir con el error que imprime el test y con la KL del modelo.
+#   SK30_NQ   4 = 16 warps por bloque (128 registros, 16 B de derrame) en vez de 8: el doble de
+#             warps para esconder latencia con la misma shared. Cambia el orden de las sumas de l
+#             (no es bit a bit igual, la diferencia es de redondeo): medirlo con test_sk30.py.
+SK30_VCG = 1
+SK30_PING = 0
+SK30_PHL = 1
 # V rotada en d al escribir (Hadamard/16 con signos, como K): con canales outlier el error int8 de V baja de
 # 2,0% a 0,64% (tests/proto/sk30_rot_pv.py). Solo con SK-30 (su union des-rota la salida); batch2 no la sabe
 # leer, asi que sin SK-30 queda apagada.
-SH_30 = 2 * 64 * 272 + 2 * 256 * 80 + 64 * 72 * 2 + 2 * 64 * 4 + 2 * SK30_NQ * 64 * 4
+def sh_30() -> int:
+    """Shared dinamica de sk30_decode: K [NKB][64][272] | V [2][256][80] | P [64][72] halves | escalas | maximos.
+    Con PING, K tiene un anillo de 3 y P va en el buffer de K ya consumido (sin su region propia)."""
+    k = (3 if SK30_PING else 2) * 64 * 272
+    p = 0 if SK30_PING else 64 * 72 * 2
+    return k + 2 * 256 * 80 + p + 2 * 64 * 4 + 2 * SK30_NQ * 64 * 4
 
 
 def sh_h(nw: int) -> int:
@@ -244,6 +262,33 @@ def _coef():
     return _QA_QB
 
 
+# Defines de los kernels del camino int8, en un solo lugar: los usan _kernels() y
+# tools/idiotsavant/ptx_recursos.py, que compila exactamente lo mismo que el servidor.
+def _defs_escribir() -> list[str]:
+    return []
+
+
+# Tokens por bloque de la decuantizacion del prefill (sk18h_decuant_tile, 8 warps). 0 = el kernel de
+# siempre (1 warp por token). Bit a bit iguales: ver tests/idiotsavant/test_decuant.py.
+DECUANT_TT = 32
+
+
+def _entrada_decuant() -> str:
+    return "sk18h_decuant_tile" if DECUANT_TT else "sk18h_decuant"
+
+
+def _defs_decuant() -> list[str]:
+    return [f"-DTT={DECUANT_TT}"] if DECUANT_TT else []
+
+
+def _warps_decuant() -> int:
+    return 8 if DECUANT_TT else 1
+
+
+def _defs_sk30() -> list[str]:
+    return [f"-DNQ={SK30_NQ}", "-DPV8=1", f"-DPHL={SK30_PHL}", f"-DVCG={SK30_VCG}", f"-DPING={SK30_PING}"]
+
+
 def _kernels(md="int8"):
     dev = (torch.cuda.current_device(), md)
     if dev not in _k:
@@ -273,16 +318,17 @@ def _kernels(md="int8"):
                   main8=Kernel("sk18h_batch2.cu", "sk18h_batch2", defs=defs + arb + [f"-DNWARPS={NW8}"], warps=NW8),
                   escribir=Kernel('sk18h_escribir2.cu',
                                   'sk18h_escribir2',
-                                  defs=["-DROTV=1"] if (False) else [], warps=1),
+                                  defs=_defs_escribir(), warps=1),
                   prep=Kernel('sk18h_prep2.cu',
                               'sk18h_prep2', defs=arb, warps=1),
                   union=Kernel("sk18h_union4.cu", "sk18h_union4", defs=defs, warps=1),
-                  decuant=Kernel("sk18h_decuant.cu", "sk18h_decuant", defs=["-DROTV=1"] if False else [], warps=1),
+                  decuant=Kernel("sk18h_decuant.cu", _entrada_decuant(), defs=_defs_decuant(), warps=_warps_decuant()),
+                  decuant1=Kernel("sk18h_decuant.cu", "sk18h_decuant", warps=1),
                   salida=Kernel("sk18h_salida.cu", "sk18h_salida", warps=1))
         if _arbol():
             ks["prep30"] = Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=arb + ["-DQSF=1"], warps=1)
             ks["sk30"] = Kernel("sk30_decode_1pasada.cu", "sk30_decode",
-                                defs=[f"-DNQ={SK30_NQ}", "-DPV8=1", "-DPHL=1"], warps=4 * SK30_NQ)
+                                defs=_defs_sk30(), warps=4 * SK30_NQ)
             ks["sk30u"] = Kernel("sk30_decode_1pasada.cu", "sk30_union", defs=["-DROTV=1"] if False else [], warps=8)
         for x in ks.values():
             x.cargar()
@@ -706,7 +752,7 @@ def _decode_uniforme(impl, query, kv_cache, md, output, B, L, capturando):
             ks["sk30"].lanzar((g30, B * nh), [Qb, bf.qsf[:R], raw, md.block_table, md.block_table.stride(0), seq,
                                               lim, bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g30,
                                               bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
-                                              bf.Lp30[: g30 * R]], shared=SH_30)
+                                              bf.Lp30[: g30 * R]], shared=sh_30())
             ks["sk30u"].lanzar((MB, B * nh), [bf.Op30[: g30 * R * QD], bf.Mp30[: g30 * R],
                                               bf.Lp30[: g30 * R], seq, g30, B, nh, L, G, output[:nt],
                                               _signos_dev(dev)])
@@ -780,7 +826,11 @@ def decuantizar_kv(impl, kv_cache, ids, out=None):
     mo = modo(impl)
     ks = _kernels(mo)
     if mo != "int4":
-        ks["decuant"].lanzar((n, bs), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16), blk, bs, nh])
+        if DECUANT_TT and bs % 16 == 0 and nh <= 2:
+            ks["decuant"].lanzar((n, -(-bs // DECUANT_TT)), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16),
+                                                             blk, bs, nh])
+        else:
+            ks["decuant1"].lanzar((n, bs), [raw, ids, c.refs, _signos_dev(dev), kv.view(torch.int16), blk, bs, nh])
         return kv
     ids4 = ids
     if c.lado is not None:
@@ -840,6 +890,12 @@ def reservar(dev, nh, bs, num_heads) -> int:
     desde el perfil de vLLM. Devuelve los bytes creados."""
     antes = torch.cuda.memory_allocated(dev)
     _get_bufs(dev, nh, bs, max(1, num_heads // nh))
+    if PREFILL_SK30:
+        # El prefill entero no usa el buffer de decuantizacion ni los wrappers de FlashInfer: esa
+        # memoria (~250 MB por GPU) queda para KV. Si algun paso cayera igual al camino de
+        # FlashInfer, lo crea en el momento y avisa que crece fuera del perfil.
+        _bufs_prefill(dev, nh, max(1, num_heads // nh))
+        return torch.cuda.memory_allocated(dev) - antes
     est = _estado_fi(dev)
     for i in range(FI_WRAPPERS):
         _wrapper(est, i)
@@ -966,6 +1022,8 @@ def _prefill_flashinfer(impl, layer, query, kv_cache, md, output):
 
 def _prefill_decuant(impl, layer, query, kv_cache, md, output):
     nact = md.num_actual_tokens
+    if PREFILL_SK30 and modo(impl) == "int8" and _prefill_sk30(impl, query, kv_cache, md, output):
+        return output
     query = _rotar_q_prefill(query[:nact].view(nact, impl.num_heads, QD))
     try:
         return _prefill_flashinfer(impl, layer, query, kv_cache, md, output)
@@ -1004,3 +1062,169 @@ def _prefill_triton(impl, layer, query, kv_cache, md, output):
         mm_prefix_clamp_sliding_window=getattr(layer, "mm_prefix_clamp_sliding_window", False),
     )
     return output
+
+
+# ───────────────────────── prefill entero (SK-30 aplanado) ──────────────────────────
+# El prefill de atencion con la KV int8 hoy decuantiza a fp16 y llama a FlashInfer: HMMA fp16 con
+# acumulador fp32, que en GeForce Ampere rinde 71 TFLOPS. SK-30 ya hace la atencion sobre esta KV con
+# Q.K en IMMA int8 (284 TOPS) y softmax en fp32, para 64 filas por (secuencia, cabeza KV) con mascara
+# causal por fila. Un chunk de prefill es lo mismo partido en pseudo-secuencias de L = 64 // G tokens
+# (10 con G = 6: 60 filas): la pseudo-secuencia p de un pedido termina L*p tokens antes del final y
+# ve la KV hasta su ultimo token, con la mascara de cadena. Las K/V del chunk ya estan en el pool
+# (do_kv_cache_update corre antes), asi que no hace falta decuantizar nada.
+#
+# Q del prefill queda cuantizada a int8 por fila, igual que en el decode: cambia la cuenta respecto
+# de FlashInfer fp16. Por eso esta apagado; ver tests/idiotsavant/test_prefill_sk30.py (error contra
+# fp32 de los dos caminos y tiempos) y evaluar KL antes de prenderlo.
+PREFILL_SK30 = False
+_PF_FILAS = 64
+
+
+class _BufsPrefill:
+    def __init__(self, dev, nh, G):
+        from vllm.idiotsavant import opciones
+        op = opciones.actual()
+        self.L = _PF_FILAS // G
+        self.bpmax = op.max_num_batched_tokens // self.L + op.max_num_seqs + 1
+        R = self.bpmax * nh * _PF_FILAS
+        z = lambda *s_, dt: torch.zeros(*s_, dtype=dt, device=dev)  # noqa: E731
+        self.Q = z(R * QD, dt=torch.int8)
+        self.lim, self.mqb, self.dcap = z(R, dt=torch.int32), z(R, dt=torch.int32), z(R, dt=torch.int32)
+        self.abase, self.amask, self.qsf = z(R, dt=torch.int32), z(R, dt=torch.int32), z(R, dt=torch.float32)
+        # parciales: con muchas pseudo-secuencias va un grupo por cada una (G30 = 1); con pocas se parte
+        # la KV en hasta GMAX grupos, y el buffer alcanza para los dos casos
+        self.gmax = max(1, torch.cuda.get_device_properties(dev).multi_processor_count // nh)
+        filas_p = max(R, self.gmax * op.max_num_seqs * nh * _PF_FILAS)
+        self.Op = z(filas_p * QD, dt=torch.float16)
+        self.Mp, self.Lp = z(filas_p, dt=torch.float32), z(filas_p, dt=torch.float32)
+        self.filas_p = filas_p
+        tmax = self.bpmax * self.L
+        # Q juntada y salida de la union comparten buffer: prep termina de leer Q antes de que la union
+        # escriba (mismo stream)
+        self.qpad = z(tmax * nh * G * QD, dt=torch.float16)
+        self.opad = self.qpad
+        self.anc = ((1 << torch.arange(self.L, device=dev, dtype=torch.int32)) - 1).repeat(self.bpmax)
+        self.clave = None
+        self.plan = None
+        log.info("PN131 prefill entero: hasta %d pseudo-secuencias de %d tokens (%.0f MiB)", self.bpmax,
+                 self.L, sum(t.numel() * t.element_size() for t in (self.Q, self.Op, self.qpad)) / 2**20)
+
+
+_bufs_pf: dict[int, _BufsPrefill] = {}
+
+
+def _bufs_prefill(dev, nh, G) -> _BufsPrefill:
+    b = _bufs_pf.get(dev.index)
+    if b is None:
+        b = _bufs_pf[dev.index] = _BufsPrefill(dev, nh, G)
+    return b
+
+
+_kp = {}
+
+
+def _kernels_prefill():
+    dev = torch.cuda.current_device()
+    if dev not in _kp:
+        from vllm.idiotsavant.kernels.ptx_lab import Kernel
+        # BAL=0: cada pseudo-secuencia se parte en el mismo numero de grupos (el reparto balanceado del
+        # decode supone pocas secuencias); la union tiene que usar el mismo paso_grupo.
+        ks = dict(prep=Kernel("sk18h_prep2.cu", "sk18h_prep2", defs=["-DARBOL=1", "-DQSF=1"], warps=1),
+                  sk30=Kernel("sk30_decode_1pasada.cu", "sk30_decode", defs=_defs_sk30() + ["-DBAL=0"],
+                              warps=4 * SK30_NQ),
+                  union=Kernel("sk30_decode_1pasada.cu", "sk30_union", defs=["-DBAL=0"], warps=8))
+        for x in ks.values():
+            x.cargar()
+        _kp[dev] = ks
+    return _kp[dev]
+
+
+def _grupos_prefill(bloques: int, filas: int, bf: _BufsPrefill, sms: int) -> int:
+    """Grupos de keys por pseudo-secuencia: el menor que deja la ultima ola de bloques llena al 90%."""
+    mejor, g_mejor = 0.0, 1
+    for g in range(1, bf.gmax + 1):
+        if g * filas > bf.filas_p:
+            break
+        n = g * bloques
+        olas = -(-n // sms)
+        ef = n / (olas * sms)
+        if ef > mejor + 1e-6:
+            mejor, g_mejor = ef, g
+        if ef >= 0.9:
+            break
+    return g_mejor
+
+
+def _plan_prefill(md, nreq, L, bf, dev):
+    """Pseudo-secuencias del paso: origen de cada fila de query, destino en la salida, largo y pedido."""
+    qsl = getattr(md, "isv_qsl_cpu", None)
+    qsl = (qsl if qsl is not None else md.query_start_loc.cpu()).to(torch.int64).numpy()
+    seq = md.seq_lens[:nreq].cpu().to(torch.int64).numpy()
+    src, val, sq, rq = [], [], [], []
+    for r in range(nreq):
+        q0, q1 = int(qsl[r]), int(qsl[r + 1])
+        n = q1 - q0
+        if n <= 0:
+            continue
+        P = -(-n // L)
+        for p in range(P):
+            ult = q1 - 1 - (P - 1 - p) * L
+            idx = np.arange(ult - L + 1, ult + 1)
+            val.append(idx >= q0)
+            src.append(np.maximum(idx, q0))
+            sq.append(int(seq[r]) - (P - 1 - p) * L)
+            rq.append(r)
+    if len(sq) > bf.bpmax:
+        return None
+    src = np.concatenate(src)
+    val = np.concatenate(val)
+    t = lambda a, dt: torch.from_numpy(np.ascontiguousarray(a)).to(device=dev, dtype=dt)  # noqa: E731
+    return dict(Bp=len(sq), src=t(src, torch.int64), filas=t(np.nonzero(val)[0], torch.int64),
+                dst=t(src[val], torch.int64), seq=t(np.array(sq), torch.int32), req=t(np.array(rq), torch.int64))
+
+
+def _prefill_sk30(impl, query, kv_cache, md, output) -> bool:
+    dev = query.device
+    nb, nh, bs, blk, raw = _geom(kv_cache)
+    G = impl.num_heads // nh
+    if G * nh != impl.num_heads or _PF_FILAS // G < 1:
+        return False
+    bf = _bufs_prefill(dev, nh, G)
+    L = bf.L
+    nreq = md.query_start_loc.shape[0] - 1
+    qsl = getattr(md, "isv_qsl_cpu", None)
+    clave = (getattr(md, "isv_clave", None) or id(md), int(md.num_actual_tokens), int(md.max_seq_len),
+             np.asarray(qsl).tobytes() if qsl is not None else None)
+    if bf.clave != clave:
+        # misma metadata para las 16 capas del paso: el plan se arma una vez
+        bf.plan = _plan_prefill(md, nreq, L, bf, dev)
+        if bf.plan is not None:
+            bf.plan["bt"] = md.block_table.index_select(0, bf.plan["req"]).contiguous()
+        bf.clave = clave
+    pl = bf.plan
+    if pl is None:
+        return False
+    c = _capa(impl, dev)
+    ks = _kernels_prefill()
+    Bp = pl["Bp"]
+    nt = Bp * L
+    R = Bp * nh * _PF_FILAS
+    qpad = bf.qpad[: nt * impl.num_heads * QD].view(nt, impl.num_heads, QD)
+    torch.index_select(query.view(-1, impl.num_heads, QD), 0, pl["src"], out=qpad)
+    q16 = qpad.view(torch.int16)
+    sms = torch.cuda.get_device_properties(dev).multi_processor_count
+    g = _grupos_prefill(Bp * nh, R, bf, sms)
+    signos = _signos_dev(dev)
+    ks["prep"].lanzar((nt, nh * G), [q16, pl["seq"], c.refs, signos, bf.Q[: R * QD], bf.lim[:R], bf.mqb[:R],
+                                     bf.dcap[:R], bf.anc[:nt], bf.abase[:R], bf.amask[:R], bf.qsf[:R],
+                                     L, nh, G, _PF_FILAS, ZSH, q16.stride(0)])
+    bt = pl["bt"]
+    ks["sk30"].lanzar((g, Bp * nh), [bf.Q[: R * QD], bf.qsf[:R], raw, bt, bt.stride(0), pl["seq"],
+                                     bf.lim[:R], bf.abase[:R], bf.amask[:R], nh, bs, blk, c.refs, g,
+                                     bf.Op[: g * R * QD], bf.Mp[: g * R], bf.Lp[: g * R]], shared=sh_30())
+    opad = bf.opad[: nt * impl.num_heads * QD].view(nt, impl.num_heads, QD)
+    ks["union"].lanzar((_PF_FILAS, Bp * nh), [bf.Op[: g * R * QD], bf.Mp[: g * R], bf.Lp[: g * R], pl["seq"],
+                                              g, Bp, nh, L, G, opad, signos])
+    out = output.view(-1, impl.num_heads, QD)
+    out.index_copy_(0, pl["dst"], opad.index_select(0, pl["filas"]))
+    return True

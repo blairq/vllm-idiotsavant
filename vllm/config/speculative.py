@@ -475,6 +475,14 @@ class SpeculativeConfig:
     """Divide the drafter's residual stream by this factor at load time so it
     stays within fp16 range. 0 disables the scaling."""
 
+    dcoco: bool | None = None
+    """DCOCO corrector on the DFlash2 candidate selector (arXiv 2610.12570):
+    rescores the transitions between candidates of adjacent draft positions
+    before the chain or the tree is built. None (default) uses it when the
+    drafter checkpoint ships the head (``dcoco_emb_dim`` in its
+    ``dflash_config``); True requires it; False drops it. Only used with the
+    dflash method and a DFlash2 drafter."""
+
     # required configuration params passed from engine
     target_model_config: SkipValidation[ModelConfig] = None  # type: ignore
     """The configuration of the target model."""
@@ -640,7 +648,8 @@ class SpeculativeConfig:
                 factors.append(tuple(layer_ids))
 
         factors.append(
-            (self.tree_drafting, self.draft_vocab_size, self.draft_residual_scale)
+            (self.tree_drafting, self.draft_vocab_size, self.draft_residual_scale,
+             self.dcoco)
         )
 
         if self.method == "mtp" and self.draft_model_config is not None:

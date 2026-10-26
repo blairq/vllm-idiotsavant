@@ -11,6 +11,18 @@
     #define MARLIN_NAMESPACE_NAME marlin
   #endif
 
+  // Opcionales (build.py los pasa desde IDIOTSAVANT_MARLIN_DEFS). Apagados: se prenden despues de
+  // medir con tests/idiotsavant/test_marlin_s16.py --medir.
+  //   MARLIN_L2_HINT      el peso (B) se carga con politica evict_first de L2.
+  //   MARLIN_SHARED_JUSTA el lanzamiento pide la shared que el kernel usa (~41 KB en decode) en vez
+  //                       del maximo del SM (99 KB), para que otros kernels puedan convivir en el SM.
+  #ifndef MARLIN_L2_HINT
+    #define MARLIN_L2_HINT 0
+  #endif
+  #ifndef MARLIN_SHARED_JUSTA
+    #define MARLIN_SHARED_JUSTA 0
+  #endif
+
 namespace MARLIN_NAMESPACE_NAME {
 
 // Marlin params
@@ -88,6 +100,10 @@ __device__ inline void cp_async4(void* smem_ptr, const void* glob_ptr) {
       reinterpret_cast<const int4*>(glob_ptr)[0];
 }
 
+__device__ inline void cp_async4_stream(void* smem_ptr, const void* glob_ptr) {
+  cp_async4(smem_ptr, glob_ptr);
+}
+
 __device__ inline void cp_async_fence() {}
 
 template <int n>
@@ -153,6 +169,21 @@ __device__ inline void cp_async4(void* smem_ptr, const void* glob_ptr) {
   asm volatile(
       "{\n"
       "   cp.async.cg.shared.global [%0], [%1], %2;\n"
+      "}\n" ::"r"(smem),
+      "l"(glob_ptr), "n"(BYTES));
+}
+
+// Como cp_async4 pero marcando la linea como evict_first en L2 (el cp_async4_stream del Marlin
+// original). Para el peso, que se lee una sola vez por GEMM: asi no desaloja de los 6 MB de L2 de
+// la 3090 lo que si se relee (A, escalas, C_tmp y los locks de la reduccion entre bloques).
+__device__ inline void cp_async4_stream(void* smem_ptr, const void* glob_ptr) {
+  const int BYTES = 16;
+  uint32_t smem = static_cast<uint32_t>(__cvta_generic_to_shared(smem_ptr));
+  asm volatile(
+      "{\n"
+      "   .reg .b64 p;\n"
+      "   createpolicy.fractional.L2::evict_first.b64 p, 1.0;\n"
+      "   cp.async.cg.shared.global.L2::cache_hint [%0], [%1], %2, p;\n"
       "}\n" ::"r"(smem),
       "l"(glob_ptr), "n"(BYTES));
 }

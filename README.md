@@ -148,6 +148,12 @@ Compiled at runtime (`nvcc -ptx` → `ptxas` → `cuModuleLoadData`) and cached 
   order ships in [`vllm/idiotsavant/datos/`](vllm/idiotsavant/datos/). Key: `"draft_vocab_size"`.
 - **Drafter residual scale**: divides the drafter's residual stream at load time so it stays within
   fp16 (exact). Key: `"draft_residual_scale"`.
+- **DCOCO drafter corrector** ([arXiv 2610.12570](https://arxiv.org/abs/2610.12570)): a small MLP
+  rescores the transitions between candidates of adjacent draft positions from a pair state and each
+  candidate's embedding, added to the selector's table before the chain or the tree is built. Needs a
+  DFlash2-DCOCO drafter (`BlairQ/qwen3.8_27b_idiotSavant_sm_86_dflash2_dcoco`, trained in
+  `entrenamiento/dflash2-dcoco/` of genesis-vllm-patches). Key: `"dcoco"` (default: used when the
+  checkpoint ships the head; `true` requires it, `false` drops it).
 - **Drafter context projection in CUDA graphs**, and the drafter's dense linears on Marlin.
 - **CUDA-graph sizes for speculation**: with speculative decoding, capture sizes are generated as
   multiples of K+1 (up to 4 requests) so no captured graph mixes query lengths; the
@@ -273,6 +279,7 @@ vllm#53505 (DFlash KV).
 | `tree_drafting` | `--speculative-config` | `false` | Tree drafting (dflash only) |
 | `draft_vocab_size` | `--speculative-config` | `0` (full) | Drafter candidate vocabulary (FR-Spec) |
 | `draft_residual_scale` | `--speculative-config` | `0` (off) | Divisor for the drafter residual |
+| `dcoco` | `--speculative-config` | unset (if the checkpoint has it) | DCOCO corrector on the DFlash2 drafter: `true` requires it, `false` drops it |
 | `agents` | `kv_connector_extra_config` | built-in list | Allowlist of agent labels in metrics |
 | `max_size_gb` | `fs` tier in `secondary_tiers` | `30.0` | Disk quota per rank |
 | `target_ratio` | `fs` tier | `0.85` | Prune down to this fraction of the quota |
